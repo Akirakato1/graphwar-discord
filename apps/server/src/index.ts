@@ -2,6 +2,12 @@ import Fastify from "fastify";
 import { WebSocketServer } from "ws";
 import { RoomManager } from "./rooms/RoomManager";
 
+function terminateWebSocketClients(wss: WebSocketServer): void {
+  for (const client of wss.clients) {
+    client.terminate();
+  }
+}
+
 function parseRoomId(requestUrl: string | undefined): string | undefined {
   try {
     const url = new URL(requestUrl ?? "/", "http://localhost");
@@ -31,10 +37,12 @@ export async function buildServer() {
     });
   });
 
+  app.addHook("preClose", async () => {
+    terminateWebSocketClients(wss);
+  });
+
   app.addHook("onClose", async () => {
-    for (const client of wss.clients) {
-      client.terminate();
-    }
+    terminateWebSocketClients(wss);
 
     await new Promise<void>((resolve, reject) => {
       wss.close((error) => {

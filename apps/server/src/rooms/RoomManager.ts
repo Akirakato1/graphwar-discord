@@ -25,7 +25,7 @@ export class RoomManager {
       }
 
       try {
-        room.handleCommand(command);
+        room.handleCommand(socket, command);
       } catch (error) {
         room.sendTo(socket, {
           type: "shot-rejected",
@@ -43,7 +43,11 @@ export class RoomManager {
       return existing;
     }
 
-    const room = new GameRoom(roomId);
+    const room = new GameRoom(roomId, () => {
+      if (this.rooms.get(roomId) === room && room.isEmpty()) {
+        this.rooms.delete(roomId);
+      }
+    });
     this.rooms.set(roomId, room);
     return room;
   }

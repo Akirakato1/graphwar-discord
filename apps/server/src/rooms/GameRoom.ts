@@ -6,27 +6,31 @@ export class GameRoom {
   readonly clients = new Set<WebSocket>();
   private readonly match: MatchController;
 
-  constructor(private readonly roomId: RoomId) {
+  constructor(
+    private readonly roomId: RoomId,
+    private readonly onEmpty: () => void = () => {}
+  ) {
     this.match = new MatchController(roomId);
   }
 
   addClient(socket: WebSocket): void {
     this.clients.add(socket);
     socket.on("close", () => {
-      this.clients.delete(socket);
+      this.removeClient(socket);
     });
     socket.on("error", () => {
-      this.clients.delete(socket);
+      this.removeClient(socket);
     });
     this.sendTo(socket, { type: "room-snapshot", roomId: this.roomId, snapshot: this.match.getSnapshot() });
   }
 
-  handleCommand(command: ClientCommand): void {
+  isEmpty(): boolean {
+    return this.clients.size === 0;
+  }
+
+  handleCommand(socket: WebSocket, command: ClientCommand): void {
     if (command.roomId !== this.roomId) {
-      this.broadcastRejection(
-        command.playerId,
-        `Room mismatch: expected ${this.roomId}, received ${command.roomId}`
-      );
+      this.sendRejection(socket, command.playerId, `Room mismatch: expected ${this.roomId}, received ${command.roomId}`);
       return;
     }
 
@@ -70,11 +74,11 @@ export class GameRoom {
         case "set-team":
         case "send-chat":
         case "request-rematch":
-          this.broadcastRejection(command.playerId, `Unsupported command: ${command.type}`);
+          this.sendRejection(socket, command.playerId, `Unsupported command: ${command.type}`);
           return;
       }
     } catch (error) {
-      this.broadcastRejection(command.playerId, error instanceof Error ? error.message : "Command failed");
+      this.sendRejection(socket, command.playerId, error instanceof Error ? error.message : "Command failed");
     }
   }
 
@@ -93,7 +97,14 @@ export class GameRoom {
     }
   }
 
-  private broadcastRejection(playerId: string, reason: string): void {
-    this.broadcast({ type: "shot-rejected", roomId: this.roomId, playerId, reason });
+  private removeClient(socket: WebSocket): void {
+    const removed = this.clients.delete(socket);
+    if (removed && this.isEmpty()) {
+      this.onEmpty();
+    }
+  }
+
+  private sendRejection(socket: WebSocket, playerId: string, reason: string): void {
+    this.sendTo(socket, { type: "shot-rejected", roomId: this.roomId, playerId, reason });
   }
 }

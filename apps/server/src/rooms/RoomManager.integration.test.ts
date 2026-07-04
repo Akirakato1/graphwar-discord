@@ -1,5 +1,5 @@
 import type { AddressInfo } from "node:net";
-import type { ServerEvent } from "@graphwar/shared";
+import { serverEventSchema, type ServerEvent } from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer } from "../index";
@@ -16,7 +16,17 @@ function socketUrl(app: TestServer, roomId: string, mockPlayer: string): string 
 
 function connect(url: string): Promise<WebSocket> {
   const socket = new WebSocket(url);
+  return waitForOpen(socket);
+}
 
+async function connectWithEvents(url: string): Promise<{ socket: WebSocket; events: ServerEvent[] }> {
+  const socket = new WebSocket(url);
+  const events = collectEvents(socket);
+  await waitForOpen(socket);
+  return { socket, events };
+}
+
+function waitForOpen(socket: WebSocket): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     socket.once("open", () => {
       sockets.push(socket);
@@ -29,7 +39,7 @@ function connect(url: string): Promise<WebSocket> {
 function collectEvents(socket: WebSocket): ServerEvent[] {
   const events: ServerEvent[] = [];
   socket.on("message", (data) => {
-    events.push(JSON.parse(String(data)) as ServerEvent);
+    events.push(serverEventSchema.parse(JSON.parse(String(data))));
   });
   return events;
 }
@@ -63,6 +73,31 @@ async function waitForEvent(
   throw new Error(`Timed out waiting for event. Received: ${JSON.stringify(readEvents())}`);
 }
 
+async function waitForNoEvent(
+  readEvents: () => ServerEvent[],
+  predicate: (event: ServerEvent) => boolean
+): Promise<void> {
+  const deadline = Date.now() + 100;
+
+  while (Date.now() < deadline) {
+    const event = readEvents().find(predicate);
+    if (event) {
+      throw new Error(`Unexpected event: ${JSON.stringify(event)}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+function waitForSocketClose(socket: WebSocket): Promise<void> {
+  if (socket.readyState === WebSocket.CLOSED) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    socket.once("close", () => resolve());
+  });
+}
+
 function closeSocket(socket: WebSocket): Promise<void> {
   if (socket.readyState === WebSocket.CLOSED) {
     return Promise.resolve();
@@ -72,6 +107,14 @@ function closeSocket(socket: WebSocket): Promise<void> {
     socket.once("close", () => resolve());
     socket.close();
   });
+}
+
+async function closeServer(app: TestServer): Promise<void> {
+  const index = servers.indexOf(app);
+  if (index >= 0) {
+    servers.splice(index, 1);
+  }
+  await app.close();
 }
 
 describe("RoomManager WebSocket integration", () => {
@@ -168,5 +211,107 @@ describe("RoomManager WebSocket integration", () => {
     expect(event).toMatchObject({ type: "shot-rejected", roomId: "lifecycle-test", playerId: "alice" });
 
     await closeSocket(alice);
+  });
+
+  it("sends room mismatch rejections only to the originating socket", async () => {
+    const app = await startTestServer();
+    const alice = await connect(socketUrl(app, "mismatch-test", "alice"));
+    const bob = await connect(socketUrl(app, "mismatch-test", "bob"));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, { type: "join-room", roomId: "mismatch-test", playerId: "alice", displayName: "Alice" });
+    send(bob, { type: "join-room", roomId: "mismatch-test", playerId: "bob", displayName: "Bob" });
+
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.snapshot.players.length === 2
+    );
+
+    send(alice, { type: "join-room", roomId: "other-room", playerId: "alice", displayName: "Alice" });
+
+    await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("Room mismatch")
+    );
+    await waitForNoEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("Room mismatch")
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("sends duplicate start lifecycle rejections only to the originating socket", async () => {
+    const app = await startTestServer();
+    const alice = await connect(socketUrl(app, "sender-lifecycle-test", "alice"));
+    const bob = await connect(socketUrl(app, "sender-lifecycle-test", "bob"));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, {
+      type: "join-room",
+      roomId: "sender-lifecycle-test",
+      playerId: "alice",
+      displayName: "Alice"
+    });
+    send(bob, { type: "join-room", roomId: "sender-lifecycle-test", playerId: "bob", displayName: "Bob" });
+
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.snapshot.players.length === 2
+    );
+
+    send(alice, { type: "start-match", roomId: "sender-lifecycle-test", playerId: "alice" });
+    send(alice, { type: "start-match", roomId: "sender-lifecycle-test", playerId: "alice" });
+
+    await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason === "Match has already started"
+    );
+    await waitForNoEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason === "Match has already started"
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("removes an empty room so reconnecting starts from a fresh lobby", async () => {
+    const app = await startTestServer();
+    const { socket: alice, events: aliceEvents } = await connectWithEvents(socketUrl(app, "cleanup-test", "alice"));
+
+    send(alice, { type: "join-room", roomId: "cleanup-test", playerId: "alice", displayName: "Alice" });
+    await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.snapshot.players.some((player) => player.id === "alice")
+    );
+    await closeSocket(alice);
+
+    const { socket: bob, events: bobEvents } = await connectWithEvents(socketUrl(app, "cleanup-test", "bob"));
+    const event = await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.snapshot.phase === "lobby"
+    );
+
+    expect(event.type).toBe("room-snapshot");
+    if (event.type === "room-snapshot") {
+      expect(event.snapshot.players).toEqual([]);
+    }
+
+    await closeSocket(bob);
+  });
+
+  it("closes active websocket clients when the server closes", async () => {
+    const app = await startTestServer();
+    const alice = await connect(socketUrl(app, "close-hook-test", "alice"));
+    const closed = waitForSocketClose(alice);
+
+    await closeServer(app);
+    await closed;
+
+    expect(alice.readyState).toBe(WebSocket.CLOSED);
   });
 });
