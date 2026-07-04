@@ -9,7 +9,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: server-side normal-function parsing, authoritative shot simulation with collision resolution, destructible terrain with circular crater explosions, match modes, and deterministic map generators.
+- Current checkpoint: server-side normal-function parsing, authoritative shot simulation with collision resolution, destructible terrain with circular crater explosions, match modes, deterministic map generators, and an authoritative match controller.
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -28,7 +28,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 The workspace now contains:
 
 - `apps/client`: Vite + React shell for the browser activity prototype.
-- `apps/server`: Fastify server with a `/health` route on port `8787`, normal-function parsing/sampling helpers for shot trajectories, authoritative shot simulation and collision resolution, server-side destructible terrain crater logic, match mode rules, and deterministic map generators.
+- `apps/server`: Fastify server with a `/health` route on port `8787`, normal-function parsing/sampling helpers for shot trajectories, authoritative shot simulation and collision resolution, server-side destructible terrain crater logic, match mode rules, deterministic map generators, and a match controller for lobby joins, match starts, shot submissions, turn advancement, and victory resolution.
 - `packages/shared`: shared constants, geometry/state types, coordinate and polygon helpers, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation with compile-time protocol alignment checks.
 - Root TypeScript project references, Vitest config, and Playwright config.
 
@@ -40,6 +40,7 @@ npm test -- apps/server/src/functions/NormalFunction.test.ts
 npm test -- apps/server/src/simulation/ShotSimulator.test.ts
 npm test -- apps/server/src/terrain/TerrainSystem.test.ts
 npm test -- apps/server/src/modes apps/server/src/maps
+npm test -- apps/server/src/match/MatchController.test.ts
 npm test -- packages/shared/src/protocol/schemas.test.ts
 npm test -- packages/shared/src/geometry
 npm run check
@@ -47,7 +48,7 @@ npm test
 npm --workspace apps/server run build
 ```
 
-The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, and verify the server build output used by `npm --workspace apps/server start`.
+The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, match controller orchestration, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, and verify the server build output used by `npm --workspace apps/server start`.
 
 ## Local Development Target
 
@@ -74,4 +75,4 @@ Every major implementation task should:
 - Scaffolded the TypeScript workspace with client, server, and shared packages.
 - `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
 - Added shared coordinate and polygon helpers with validated circle polygon inputs and targeted geometry coverage.
-- Current: added authoritative shot simulation with terrain/player collision resolution, direct-hit damage, eliminations, and cratered undefined-function/terrain impacts.
+- Current: added an authoritative match controller for lobby snapshots, match starts, shot rejection/resolution, turn advancement, and victory ending events.
