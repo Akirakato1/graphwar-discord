@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { GameCanvas } from "../game-renderer/GameCanvas";
 import { LobbyPanel } from "../hud/LobbyPanel";
 import { MatchHud } from "../hud/MatchHud";
 import { useGameStore, type ConnectionStatus, type GameLogEntry } from "./useGameStore";
@@ -60,6 +61,7 @@ export function App() {
   const lastError = useGameStore((state) => state.lastError);
   const lastRejection = useGameStore((state) => state.lastRejection);
   const log = useGameStore((state) => state.log);
+  const recentEvents = useGameStore((state) => state.recentEvents);
   const selectMode = useGameStore((state) => state.selectMode);
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
@@ -88,6 +90,8 @@ export function App() {
       </header>
 
       <div className="app-grid">
+        <GameCanvas events={recentEvents} snapshot={snapshot} />
+
         <section className="panel connection-panel" aria-labelledby="connection-title">
           <div className="panel-heading">
             <div>

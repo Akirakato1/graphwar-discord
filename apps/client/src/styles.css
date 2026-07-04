@@ -37,7 +37,7 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto 20px;
 }
 
@@ -79,9 +79,10 @@ button:disabled {
 
 .app-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.75fr) minmax(320px, 1.35fr);
+  grid-template-columns: minmax(250px, 0.72fr) minmax(520px, 1.55fr);
   gap: 16px;
-  max-width: 1180px;
+  align-items: start;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
@@ -118,6 +119,38 @@ button:disabled {
 .connection-panel,
 .event-log {
   align-self: start;
+}
+
+.world-panel {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+
+.world-phase {
+  border: 1px solid #3d4b43;
+  border-radius: 999px;
+  color: #d7efe6;
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 76px;
+  padding: 6px 10px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.world-canvas {
+  display: block;
+  width: 100%;
+  height: clamp(380px, 54vh, 620px);
+  min-height: 360px;
+  box-sizing: border-box;
+  border: 1px solid #34342f;
+  border-radius: 6px;
+  background: #151713;
+}
+
+.event-log {
+  grid-column: 1 / -1;
 }
 
 .connection-light {
@@ -361,6 +394,17 @@ dd {
   .app-grid,
   .lobby-grid {
     grid-template-columns: 1fr;
+  }
+
+  .world-panel,
+  .event-log {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .world-canvas {
+    height: clamp(300px, 72vw, 460px);
+    min-height: 300px;
   }
 
   .primary-action,
