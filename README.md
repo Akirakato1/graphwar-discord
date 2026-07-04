@@ -8,6 +8,8 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Implementation plan: `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
+- Remote branch: `origin/feature/graphwar-prototype`
+- Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
 
@@ -39,3 +41,7 @@ Every major implementation task should:
 3. Commit the checkpoint.
 4. Push the branch with SSH.
 
+## Checkpoint Log
+
+- `74c6e70`: Added initial README and tracked Graphwar mechanics notes.
+- Next: scaffold the TypeScript workspace.

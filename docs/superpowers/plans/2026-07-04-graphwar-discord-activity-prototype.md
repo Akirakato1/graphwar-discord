@@ -14,6 +14,14 @@
 
 This is one vertical-slice plan because the first playable loop depends on shared protocol types, server simulation, WebSocket rooms, and client rendering working together. Discord production launch/auth, timers, chat commands, differential equation modes, rotated free-for-all aiming, persistence, and terrain diff compression are excluded from this plan.
 
+## Execution Rules
+
+- Work on branch `feature/graphwar-prototype`.
+- Push to `git@github.com:Akirakato1/graphwar-discord.git` with SSH.
+- Commit each major task after verification.
+- Update `README.md` in every pushed checkpoint so the repository always explains the current state.
+- Do not add `Co-Authored-By` trailers to commits.
+
 ## File Structure
 
 Create this structure:
