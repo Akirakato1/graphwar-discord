@@ -127,6 +127,14 @@ describe("worldToCanvas", () => {
     expect(worldToCanvas({ x: -25, y: 15 }, size)).toEqual({ x: 0, y: 0 });
     expect(worldToCanvas({ x: 25, y: -15 }, size)).toEqual({ x: 1000, y: 600 });
   });
+
+  it("letterboxes wide canvases instead of stretching world geometry", () => {
+    const size = { width: 1000, height: 300 };
+
+    expect(worldToCanvas({ x: 0, y: 0 }, size)).toEqual({ x: 500, y: 150 });
+    expect(worldToCanvas({ x: -25, y: 15 }, size)).toEqual({ x: 250, y: 0 });
+    expect(worldToCanvas({ x: 25, y: -15 }, size)).toEqual({ x: 750, y: 300 });
+  });
 });
 
 describe("findLatestShotResolvedEvent", () => {

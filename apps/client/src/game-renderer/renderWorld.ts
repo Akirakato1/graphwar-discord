@@ -22,9 +22,10 @@ const GRID_STEP = 5;
 const TEAM_COLORS = ["#ef6f6c", "#5fb3f9", "#f5c542", "#7bd88f", "#c084fc", "#f59f5f"];
 
 export function worldToCanvas(point: WorldPoint, size: CanvasSize) {
+  const viewport = worldViewport(size);
   return {
-    x: ((point.x - fieldBounds.minX) / WORLD_WIDTH) * size.width,
-    y: ((fieldBounds.maxY - point.y) / WORLD_HEIGHT) * size.height
+    x: viewport.offsetX + (point.x - fieldBounds.minX) * viewport.scale,
+    y: viewport.offsetY + (fieldBounds.maxY - point.y) * viewport.scale
   };
 }
 
@@ -286,7 +287,16 @@ function clamp01(value: number): number {
 }
 
 function worldDistanceToCanvas(distanceValue: number, size: CanvasSize): number {
-  return distanceValue * Math.min(size.width / WORLD_WIDTH, size.height / WORLD_HEIGHT);
+  return distanceValue * worldViewport(size).scale;
+}
+
+function worldViewport(size: CanvasSize): { offsetX: number; offsetY: number; scale: number } {
+  const scale = Math.min(size.width / WORLD_WIDTH, size.height / WORLD_HEIGHT);
+  return {
+    offsetX: (size.width - WORLD_WIDTH * scale) / 2,
+    offsetY: (size.height - WORLD_HEIGHT * scale) / 2,
+    scale
+  };
 }
 
 function colorForTeam(teamId: string): string {
