@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchSnapshotSchema } from "@graphwar/shared";
+import { matchSnapshotSchema, serverEventSchema } from "@graphwar/shared";
 import { MatchController } from "./MatchController";
 
 describe("MatchController", () => {
@@ -74,5 +74,135 @@ describe("MatchController", () => {
     controller.startMatch("team-versus");
 
     expect(controller.submitShot("alice", "normal", "notAFunction(x)").type).toBe("shot-rejected");
+  });
+
+  it("throws instead of restarting a playing match", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    const original = controller.startMatch("team-versus");
+
+    expect(() => controller.startMatch("free-for-all")).toThrow("Match has already started");
+    expect(controller.getSnapshot()).toEqual(original);
+  });
+
+  it("throws instead of restarting an ended match", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.startMatch("free-for-all");
+    controller.forcePlayerHpForTest("bob", 0);
+    controller.submitShot("alice", "normal", "0");
+
+    expect(() => controller.startMatch("team-versus")).toThrow("Match has already started");
+  });
+
+  it("throws without mutating state when a player joins after match start", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    const started = controller.startMatch("team-versus");
+
+    expect(() => controller.join("charlie", "Charlie")).toThrow("Cannot join after match has started");
+    expect(controller.getSnapshot()).toEqual(started);
+  });
+
+  it("selects a lobby mode and rebuilds lobby teams", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    const snapshot = controller.selectMode("free-for-all");
+
+    expect(snapshot.mode).toBe("free-for-all");
+    expect(snapshot.teams).toEqual([
+      { id: "player-alice", playerIds: ["alice"] },
+      { id: "player-bob", playerIds: ["bob"] }
+    ]);
+    expect(controller.getSnapshot().mode).toBe("free-for-all");
+  });
+
+  it("throws when selecting a mode after match start", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.startMatch("team-versus");
+
+    expect(() => controller.selectMode("free-for-all")).toThrow("Match has already started");
+  });
+
+  it("skips eliminated players while preserving the original turn order", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.join("charlie", "Charlie");
+    controller.startMatch("free-for-all");
+    controller.forcePlayerHpForTest("bob", 0);
+    const event = controller.submitShot("alice", "normal", "100");
+
+    expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.snapshot.turn.activePlayerId).toBe("charlie");
+      expect(event.snapshot.turn.order).toEqual(["alice", "bob", "charlie"]);
+    }
+  });
+
+  it("returns defensive snapshots that callers cannot mutate", () => {
+    const controller = new MatchController("room-1");
+    const joined = controller.join("alice", "Alice");
+
+    joined.players[0].displayName = "Mallory";
+    joined.teams.push({ id: "intruder", playerIds: [] });
+
+    expect(controller.getSnapshot().players[0].displayName).toBe("Alice");
+    expect(controller.getSnapshot().teams.map((team) => team.id)).not.toContain("intruder");
+  });
+
+  it("throws when forcing hp for an unknown player", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+
+    expect(() => controller.forcePlayerHpForTest("bob", 0)).toThrow("Unknown player: bob");
+  });
+
+  it("emits schema-valid joined lobby, playing, and ended snapshots", () => {
+    const controller = new MatchController("room-1");
+    const joined = controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    const playing = controller.startMatch("free-for-all");
+    controller.forcePlayerHpForTest("bob", 0);
+    const event = controller.submitShot("alice", "normal", "0");
+
+    expect(matchSnapshotSchema.parse(joined)).toEqual(joined);
+    expect(matchSnapshotSchema.parse(playing)).toEqual(playing);
+    expect(event.type).toBe("match-ended");
+    if (event.type === "match-ended") {
+      expect(matchSnapshotSchema.parse(event.snapshot)).toEqual(event.snapshot);
+    }
+  });
+
+  it("emits schema-valid rejected, resolved, and ended shot events", () => {
+    const rejectedController = new MatchController("room-rejected");
+    rejectedController.join("alice", "Alice");
+    rejectedController.join("bob", "Bob");
+    rejectedController.startMatch("team-versus");
+    const rejected = rejectedController.submitShot("bob", "normal", "0");
+
+    const resolvedController = new MatchController("room-resolved");
+    resolvedController.join("alice", "Alice");
+    resolvedController.join("bob", "Bob");
+    resolvedController.join("charlie", "Charlie");
+    resolvedController.startMatch("free-for-all");
+    const resolved = resolvedController.submitShot("alice", "normal", "100");
+
+    const endedController = new MatchController("room-ended");
+    endedController.join("alice", "Alice");
+    endedController.join("bob", "Bob");
+    endedController.startMatch("free-for-all");
+    endedController.forcePlayerHpForTest("bob", 0);
+    const ended = endedController.submitShot("alice", "normal", "0");
+
+    expect(serverEventSchema.parse(rejected)).toEqual(rejected);
+    expect(serverEventSchema.parse(resolved)).toEqual(resolved);
+    expect(serverEventSchema.parse(ended)).toEqual(ended);
   });
 });

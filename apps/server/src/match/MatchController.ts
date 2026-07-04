@@ -23,6 +23,10 @@ import type { MatchState } from "./MatchState";
 const lobbyPosition: WorldPoint = { x: 0, y: 0 };
 const emptyTerrain: TerrainState = { blobs: [] };
 
+function cloneSnapshot(snapshot: MatchState): MatchState {
+  return structuredClone(snapshot);
+}
+
 export class MatchController {
   private readonly lobbyPlayers = new Map<PlayerId, LobbyPlayer>();
   private readonly functionRegistry = new FunctionRegistry();
@@ -34,16 +38,30 @@ export class MatchController {
   }
 
   join(playerId: PlayerId, displayName: string): MatchState {
-    this.lobbyPlayers.set(playerId, { id: playerId, displayName });
-
-    if (this.snapshot.phase === "lobby") {
-      this.snapshot = this.createLobbySnapshot(this.snapshot.mode);
+    if (this.snapshot.phase !== "lobby") {
+      throw new Error("Cannot join after match has started");
     }
+
+    this.lobbyPlayers.set(playerId, { id: playerId, displayName });
+    this.snapshot = this.createLobbySnapshot(this.snapshot.mode);
 
     return this.getSnapshot();
   }
 
+  selectMode(modeId: MatchModeId): MatchState {
+    if (this.snapshot.phase !== "lobby") {
+      throw new Error("Match has already started");
+    }
+
+    this.snapshot = this.createLobbySnapshot(modeId);
+    return this.getSnapshot();
+  }
+
   startMatch(modeId: MatchModeId): MatchState {
+    if (this.snapshot.phase !== "lobby") {
+      throw new Error("Match has already started");
+    }
+
     const lobbyPlayers = this.getOrderedLobbyPlayers();
     if (lobbyPlayers.length === 0) {
       throw new Error("Cannot start match without players");
@@ -141,6 +159,10 @@ export class MatchController {
   }
 
   forcePlayerHpForTest(playerId: PlayerId, hp: number): void {
+    if (!this.snapshot.players.some((player) => player.id === playerId)) {
+      throw new Error(`Unknown player: ${playerId}`);
+    }
+
     const nextHp = Math.max(0, hp);
     this.snapshot = {
       ...this.snapshot,
@@ -151,7 +173,7 @@ export class MatchController {
   }
 
   getSnapshot(): MatchState {
-    return this.snapshot;
+    return cloneSnapshot(this.snapshot);
   }
 
   private createEmptyLobbySnapshot(): MatchState {
@@ -198,22 +220,33 @@ export class MatchController {
   }
 
   private nextTurn(players: PlayerState[]): MatchState["turn"] {
-    const mode = this.createMode(this.snapshot.mode);
-    const livingOrder = mode.createTurnOrder(this.toTurnPlayers(players));
-    if (livingOrder.length === 0) {
+    const previousOrder = this.snapshot.turn.order;
+    const livingPlayerIds = new Set(players.filter((player) => player.alive).map((player) => player.id));
+
+    if (previousOrder.length === 0 || livingPlayerIds.size === 0) {
       return {
         activePlayerId: "",
-        order: [],
+        order: [...previousOrder],
         turnNumber: this.snapshot.turn.turnNumber + 1
       };
     }
 
-    const currentIndex = livingOrder.indexOf(this.snapshot.turn.activePlayerId);
-    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % livingOrder.length;
+    const activeIndex = previousOrder.indexOf(this.snapshot.turn.activePlayerId);
+    const startIndex = activeIndex >= 0 ? activeIndex : previousOrder.length - 1;
+    for (let offset = 1; offset <= previousOrder.length; offset += 1) {
+      const nextPlayerId = previousOrder[(startIndex + offset) % previousOrder.length];
+      if (livingPlayerIds.has(nextPlayerId)) {
+        return {
+          activePlayerId: nextPlayerId,
+          order: [...previousOrder],
+          turnNumber: this.snapshot.turn.turnNumber + 1
+        };
+      }
+    }
 
     return {
-      activePlayerId: livingOrder[nextIndex],
-      order: livingOrder,
+      activePlayerId: "",
+      order: [...previousOrder],
       turnNumber: this.snapshot.turn.turnNumber + 1
     };
   }
