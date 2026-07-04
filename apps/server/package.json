@@ -1,0 +1,18 @@
+{
+  "name": "@graphwar/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@graphwar/shared": "file:../../packages/shared",
+    "expr-eval": "^2.0.2",
+    "fastify": "^4.28.1",
+    "polygon-clipping": "^0.15.7",
+    "ws": "^8.17.1",
+    "zod": "^3.23.8"
+  }
+}
