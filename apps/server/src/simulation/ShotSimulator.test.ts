@@ -168,6 +168,53 @@ describe("ShotSimulator", () => {
     expect(result.terrain.blobs).not.toEqual(terrain.blobs);
   });
 
+  it("resolves terrain before a later undefined function impact", () => {
+    const terrain: TerrainState = {
+      blobs: [
+        {
+          id: "wall",
+          outer: [
+            { x: 0.45, y: -0.4 },
+            { x: 0.55, y: -0.4 },
+            { x: 0.55, y: -0.2 },
+            { x: 0.45, y: -0.2 }
+          ],
+          holes: []
+        }
+      ]
+    };
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players: [shooter],
+      terrain,
+      shot: NormalFunction.parse("sqrt(1 - x)")
+    });
+
+    expect(result.impact.reason).toBe("terrain-hit");
+    expect(result.damage).toEqual([]);
+    expect(result.impact.point?.x).toBeLessThan(1);
+    expect(lastPathPoint(result.path)).toEqual(result.impact.point);
+  });
+
+  it("resolves player damage before a later undefined function impact", () => {
+    const players: PlayerState[] = [
+      shooter,
+      { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 0.5, y: -0.3 }, hp: 100, alive: true }
+    ];
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("sqrt(1 - x)")
+    });
+
+    expect(result.impact.reason).toBe("player-hit");
+    expect(result.impact.targetPlayerId).toBe("bob");
+    expect(result.damage).toEqual([{ playerId: "bob", amount: 35, hpAfter: 65 }]);
+    expect(result.impact.point?.x).toBeLessThan(1);
+    expect(lastPathPoint(result.path)).toEqual(result.impact.point);
+  });
+
   it("marks a direct-hit target eliminated when hp reaches zero", () => {
     const players: PlayerState[] = [
       shooter,
@@ -191,10 +238,10 @@ describe("ShotSimulator", () => {
         {
           id: "ledge",
           outer: [
-            { x: 0.5, y: -1.5 },
             { x: 1.5, y: -1.5 },
-            { x: 1.5, y: -0.5 },
-            { x: 0.5, y: -0.5 }
+            { x: 2, y: -1.5 },
+            { x: 2, y: -0.5 },
+            { x: 1.5, y: -0.5 }
           ],
           holes: []
         }

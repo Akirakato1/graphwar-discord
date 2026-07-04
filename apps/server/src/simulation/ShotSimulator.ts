@@ -5,6 +5,7 @@ import {
   localToWorld,
   type DamageEvent,
   type ImpactEvent,
+  type ImpactReason,
   type PlayerId,
   type PlayerState,
   type TerrainState,
@@ -34,7 +35,11 @@ export type ShotSimulationResult = {
 type ResolvedImpact =
   | (CollisionHit & { kind: "field-boundary" })
   | (CollisionHit & { kind: "terrain-hit" })
-  | (PlayerCollisionHit & { kind: "player-hit" });
+  | (PlayerCollisionHit & { kind: "player-hit" })
+  | (CollisionHit & {
+      kind: "invalid-shot";
+      reason: Extract<ImpactReason, "undefined-function" | "path-too-long">;
+    });
 
 const POINT_EPSILON = 1e-9;
 
@@ -68,41 +73,17 @@ export class ShotSimulator {
     });
     const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position));
     const boundaryHit = this.findFirstBoundaryExit(worldPath);
-
-    if (!sample.ok && sample.lastFinitePoint) {
-      const lastFiniteHit = this.lastFiniteHit(sample.lastFinitePoint, sample.points, input.shooter.position);
-      if (boundaryHit && compareCollisionOrder(boundaryHit, lastFiniteHit) <= 0) {
-        return this.boundaryResult(input, worldPath, boundaryHit);
-      }
-
-      return {
-        path: this.truncatePath(worldPath, lastFiniteHit),
-        impact: { reason: sample.reason, point: lastFiniteHit.point },
-        terrain: this.applyCrater(input.terrain, lastFiniteHit.point),
-        players: input.players,
-        damage: [],
-        eliminations: []
-      };
-    }
-
-    if (!sample.ok) {
-      if (boundaryHit) {
-        return this.boundaryResult(input, worldPath, boundaryHit);
-      }
-
-      return {
-        path: worldPath.filter(isPointInBounds),
-        impact: { reason: sample.reason },
-        terrain: input.terrain,
-        players: input.players,
-        damage: [],
-        eliminations: []
-      };
-    }
-
     const terrainHit = this.collisionSystem.findFirstTerrainHit(worldPath, input.terrain);
     const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, input.players, input.shooter.id);
-    const impact = this.resolveImpact(boundaryHit, terrainHit, playerHit);
+    const invalidHit =
+      !sample.ok && sample.lastFinitePoint
+        ? {
+            ...this.lastFiniteHit(sample.lastFinitePoint, sample.points, input.shooter.position),
+            kind: "invalid-shot" as const,
+            reason: sample.reason
+          }
+        : undefined;
+    const impact = this.resolveImpact(boundaryHit, terrainHit, playerHit, invalidHit);
 
     if (impact?.kind === "field-boundary") {
       return this.boundaryResult(input, worldPath, impact);
@@ -138,6 +119,28 @@ export class ShotSimulator {
       };
     }
 
+    if (impact?.kind === "invalid-shot") {
+      return {
+        path: this.truncatePath(worldPath, impact),
+        impact: { reason: impact.reason, point: impact.point },
+        terrain: this.applyCrater(input.terrain, impact.point),
+        players: input.players,
+        damage: [],
+        eliminations: []
+      };
+    }
+
+    if (!sample.ok) {
+      return {
+        path: worldPath.filter(isPointInBounds),
+        impact: { reason: sample.reason },
+        terrain: input.terrain,
+        players: input.players,
+        damage: [],
+        eliminations: []
+      };
+    }
+
     return {
       path: worldPath.filter(isPointInBounds),
       impact: { reason: "miss" },
@@ -166,12 +169,14 @@ export class ShotSimulator {
   private resolveImpact(
     boundaryHit: CollisionHit | undefined,
     terrainHit: CollisionHit | undefined,
-    playerHit: PlayerCollisionHit | undefined
+    playerHit: PlayerCollisionHit | undefined,
+    invalidHit: Extract<ResolvedImpact, { kind: "invalid-shot" }> | undefined
   ): ResolvedImpact | undefined {
     const candidates: ResolvedImpact[] = [];
     if (boundaryHit) candidates.push({ ...boundaryHit, kind: "field-boundary" });
     if (terrainHit) candidates.push({ ...terrainHit, kind: "terrain-hit" });
     if (playerHit) candidates.push({ ...playerHit, kind: "player-hit" });
+    if (invalidHit) candidates.push(invalidHit);
 
     return candidates.sort((a, b) => {
       const order = compareCollisionOrder(a, b);
@@ -183,7 +188,8 @@ export class ShotSimulator {
   private impactPriority(kind: ResolvedImpact["kind"]): number {
     if (kind === "field-boundary") return 0;
     if (kind === "terrain-hit") return 1;
-    return 2;
+    if (kind === "player-hit") return 2;
+    return 3;
   }
 
   private truncatePath(worldPath: WorldPoint[], hit: CollisionHit): WorldPoint[] {
@@ -201,7 +207,7 @@ export class ShotSimulator {
     localPath: WorldPoint[],
     shooterPosition: WorldPoint
   ): CollisionHit {
-    const foundIndex = localPath.findIndex((point) => point === lastFinitePoint);
+    const foundIndex = localPath.findIndex((point) => samePoint(point, lastFinitePoint));
     const index = foundIndex >= 0 ? foundIndex : Math.max(0, localPath.length - 1);
 
     return {
