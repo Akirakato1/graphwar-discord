@@ -60,6 +60,11 @@ export class GameRoom {
         }
         case "submit-shot": {
           const event = this.match.submitShot(command.playerId, command.functionFamilyId, command.expression);
+          if (event.type === "shot-rejected") {
+            this.sendTo(socket, event);
+            return;
+          }
+
           this.broadcast(event);
           if (event.type === "shot-resolved") {
             this.broadcast({

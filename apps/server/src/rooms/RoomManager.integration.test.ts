@@ -279,6 +279,48 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(bob);
   });
 
+  it("sends submit-shot rejections only to the originating socket", async () => {
+    const app = await startTestServer();
+    const alice = await connect(socketUrl(app, "shot-rejection-test", "alice"));
+    const bob = await connect(socketUrl(app, "shot-rejection-test", "bob"));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, { type: "join-room", roomId: "shot-rejection-test", playerId: "alice", displayName: "Alice" });
+    send(bob, { type: "join-room", roomId: "shot-rejection-test", playerId: "bob", displayName: "Bob" });
+
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.snapshot.players.length === 2
+    );
+
+    send(alice, { type: "start-match", roomId: "shot-rejection-test", playerId: "alice" });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "turn-started" && candidate.playerId === "alice"
+    );
+
+    send(bob, {
+      type: "submit-shot",
+      roomId: "shot-rejection-test",
+      playerId: "bob",
+      functionFamilyId: "normal",
+      expression: "0"
+    });
+
+    await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.playerId === "bob"
+    );
+    await waitForNoEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.playerId === "bob"
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
   it("removes an empty room so reconnecting starts from a fresh lobby", async () => {
     const app = await startTestServer();
     const { socket: alice, events: aliceEvents } = await connectWithEvents(socketUrl(app, "cleanup-test", "alice"));
