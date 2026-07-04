@@ -42,7 +42,7 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
           <p className="eyebrow">Status</p>
           <h2 id="match-title">{phaseLabel(snapshot)}</h2>
         </div>
-        <span className={isMyTurn ? "turn-badge active-turn" : "turn-badge"}>
+        <span className={isMyTurn ? "turn-badge active-turn" : "turn-badge"} data-testid="active-turn">
           {isMyTurn ? "Your Turn" : activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}
         </span>
       </div>

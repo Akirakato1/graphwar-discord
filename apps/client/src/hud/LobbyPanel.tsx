@@ -60,7 +60,7 @@ export function LobbyPanel({ connectionStatus, onSelectMode, onStartMatch, snaps
           ) : (
             <ul className="roster-list">
               {players.map((player) => (
-                <li key={player.id}>
+                <li data-testid={`player-${player.id}`} key={player.id}>
                   <span className={player.alive ? "status-dot alive" : "status-dot knocked"} aria-hidden="true" />
                   <span className="player-name">{player.displayName}</span>
                   <span className="player-meta">{player.hp} HP</span>

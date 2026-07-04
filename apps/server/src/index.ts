@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import Fastify from "fastify";
 import { WebSocketServer } from "ws";
 import { RoomManager } from "./rooms/RoomManager";
@@ -58,7 +60,11 @@ export async function buildServer() {
   return app;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function isMainModule(metaUrl: string, argvPath: string | undefined = process.argv[1]): boolean {
+  return argvPath ? metaUrl === pathToFileURL(resolve(argvPath)).href : false;
+}
+
+if (isMainModule(import.meta.url)) {
   const app = await buildServer();
   await app.listen({ port: 8787, host: "0.0.0.0" });
 }

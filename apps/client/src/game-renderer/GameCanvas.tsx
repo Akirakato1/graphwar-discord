@@ -127,6 +127,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
         className="world-canvas"
         data-path-points={latestShot?.path.length ?? 0}
         data-rendered={snapshot ? "true" : "false"}
+        data-testid="game-canvas"
         height={DEFAULT_CANVAS_SIZE.height}
         ref={canvasRef}
         width={DEFAULT_CANVAS_SIZE.width}
