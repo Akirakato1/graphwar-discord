@@ -17,7 +17,7 @@ describe("FunctionInput", () => {
     expect(html).toContain("aria-label=\"Insert sine function\"");
     expect(html).toContain(">sin<");
     expect(html).toContain(">sqrt<");
-    expect(html).toContain(">pi<");
+    expect(html).toContain(">PI<");
     expect(html).toContain(">x^2<");
     expect(html).toContain(">wave<");
   });
