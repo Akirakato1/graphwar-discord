@@ -9,7 +9,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: TypeScript npm workspace scaffold with `apps/client`, `apps/server`, and `packages/shared`
+- Current checkpoint: shared domain constants, game state types, validation settings, and Zod protocol schemas in `packages/shared`
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -25,23 +25,24 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 
 ## Current Workspace
 
-The scaffold now contains:
+The workspace now contains:
 
 - `apps/client`: Vite + React shell for the browser activity prototype.
 - `apps/server`: Fastify server with a `/health` route on port `8787`.
-- `packages/shared`: shared TypeScript package placeholder for later protocol and domain types.
+- `packages/shared`: shared constants, geometry/state types, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation.
 - Root TypeScript project references, Vitest config, and Playwright config.
 
 ## Install And Checks
 
 ```bash
 npm install
+npm test -- packages/shared/src/protocol/schemas.test.ts
 npm run check
 npm test
 npm --workspace apps/server run build
 ```
 
-The current checks compile the project references, run Vitest, and verify the server build output used by `npm --workspace apps/server start`. There are not yet test files in this first scaffold checkpoint.
+The current checks compile the project references, validate the shared protocol schemas with Vitest, run the full Vitest suite, and verify the server build output used by `npm --workspace apps/server start`.
 
 ## Local Development Target
 
@@ -65,4 +66,5 @@ Every major implementation task should:
 ## Checkpoint Log
 
 - `74c6e70`: Added initial README and tracked Graphwar mechanics notes.
-- Current: scaffold the TypeScript workspace.
+- Scaffolded the TypeScript workspace with client, server, and shared packages.
+- Current: define shared game constants, domain types, validation settings, and protocol schemas.
