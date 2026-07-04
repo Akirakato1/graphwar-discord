@@ -9,7 +9,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: server-side normal-function parsing and local trajectory sampling with shared domain constants, game state types, validation settings, Zod protocol schemas, and geometry helpers.
+- Current checkpoint: server-side normal-function parsing, local trajectory sampling, and destructible terrain with circular crater explosions.
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -28,7 +28,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 The workspace now contains:
 
 - `apps/client`: Vite + React shell for the browser activity prototype.
-- `apps/server`: Fastify server with a `/health` route on port `8787` and normal-function parsing/sampling helpers for shot trajectories.
+- `apps/server`: Fastify server with a `/health` route on port `8787`, normal-function parsing/sampling helpers for shot trajectories, and server-side destructible terrain crater logic.
 - `packages/shared`: shared constants, geometry/state types, coordinate and polygon helpers, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation with compile-time protocol alignment checks.
 - Root TypeScript project references, Vitest config, and Playwright config.
 
@@ -37,6 +37,7 @@ The workspace now contains:
 ```bash
 npm install
 npm test -- apps/server/src/functions/NormalFunction.test.ts
+npm test -- apps/server/src/terrain/TerrainSystem.test.ts
 npm test -- packages/shared/src/protocol/schemas.test.ts
 npm test -- packages/shared/src/geometry
 npm run check
@@ -44,7 +45,7 @@ npm test
 npm --workspace apps/server run build
 ```
 
-The current checks compile the project references, validate normal-function parsing/sampling, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, and verify the server build output used by `npm --workspace apps/server start`.
+The current checks compile the project references, validate normal-function parsing/sampling, terrain crater removal, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, and verify the server build output used by `npm --workspace apps/server start`.
 
 ## Local Development Target
 
@@ -71,4 +72,4 @@ Every major implementation task should:
 - Scaffolded the TypeScript workspace with client, server, and shared packages.
 - `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
 - Added shared coordinate and polygon helpers with validated circle polygon inputs and targeted geometry coverage.
-- Current: added server-side normal-function parsing and shifted local sampling with undefined-function and max-path handling.
+- Current: added server-side destructible terrain using `polygon-clipping` differences and circular crater explosion delegation.
