@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -8,8 +9,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@graphwar/shared": new URL("./packages/shared/src/index.ts", import.meta.url).pathname,
-      "@graphwar/shared/": new URL("./packages/shared/src/", import.meta.url).pathname
+      "@graphwar/shared": fileURLToPath(new URL("./packages/shared/src/index.ts", import.meta.url)),
+      "@graphwar/shared/": fileURLToPath(new URL("./packages/shared/src/", import.meta.url))
     }
   }
 });

@@ -38,9 +38,10 @@ The scaffold now contains:
 npm install
 npm run check
 npm test
+npm --workspace apps/server run build
 ```
 
-The current checks compile the project references and run Vitest. There are not yet test files in this first scaffold checkpoint.
+The current checks compile the project references, run Vitest, and verify the server build output used by `npm --workspace apps/server start`. There are not yet test files in this first scaffold checkpoint.
 
 ## Local Development Target
 
