@@ -12,12 +12,35 @@ describe("NormalFunction", () => {
     }
   });
 
+  it("accepts deterministic math helpers with an optional y prefix", () => {
+    const shot = NormalFunction.parse("y = sin(x)");
+    const sample = shot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points[0]).toEqual({ x: 0, y: 0 });
+      expect(sample.points[1]?.x).toBe(1);
+      expect(sample.points[1]?.y).toBeCloseTo(Math.sin(1));
+    }
+  });
+
   it("rejects functions without finite f(0)", () => {
     expect(() => NormalFunction.parse("1/x")).toThrow("Function must be finite at x = 0");
   });
 
   it("rejects the remainder operator", () => {
     expect(() => NormalFunction.parse("x % 2")).toThrow();
+  });
+
+  it.each(["random()", "fac(3)", "if(true, x, 0)", "z + 1"])(
+    "rejects unsupported parser symbol in %s",
+    (expression) => {
+      expect(() => NormalFunction.parse(expression)).toThrow(/Unsupported symbol/);
+    }
+  );
+
+  it("rejects array results", () => {
+    expect(() => NormalFunction.parse("[x]")).toThrow(/finite number/);
   });
 
   it("explodes at the last finite point when a later sample is undefined", () => {

@@ -20,6 +20,59 @@ const parser = new Parser({
   }
 });
 
+const allowedSymbols = new Set([
+  "x",
+  "abs",
+  "acos",
+  "acosh",
+  "asin",
+  "asinh",
+  "atan",
+  "atan2",
+  "atanh",
+  "cbrt",
+  "ceil",
+  "cos",
+  "cosh",
+  "E",
+  "exp",
+  "expm1",
+  "floor",
+  "hypot",
+  "log",
+  "log1p",
+  "log2",
+  "log10",
+  "max",
+  "min",
+  "PI",
+  "pow",
+  "round",
+  "sign",
+  "sin",
+  "sinh",
+  "sqrt",
+  "tan",
+  "tanh",
+  "trunc"
+]);
+
+function evaluateNumber(evaluateY: (x: number) => unknown, x: number): number {
+  const value = evaluateY(x);
+  if (typeof value !== "number") {
+    throw new Error("Function must evaluate to a finite number");
+  }
+  return value;
+}
+
+function evaluateFiniteNumber(evaluateY: (x: number) => unknown, x: number): number {
+  const value = evaluateNumber(evaluateY, x);
+  if (!Number.isFinite(value)) {
+    throw new Error("Function must evaluate to a finite number");
+  }
+  return value;
+}
+
 export class NormalFunction extends ShotFunction {
   readonly familyId = "normal" as const;
 
@@ -33,19 +86,18 @@ export class NormalFunction extends ShotFunction {
 
   static parse(expressionText: string): NormalFunction {
     const expression = parser.parse(expressionText.replace(/^y\s*=\s*/i, ""));
-    const variables = expression.variables();
-    const invalidVariable = variables.find((name) => name !== "x");
-    if (invalidVariable) {
-      throw new Error(`Unsupported variable "${invalidVariable}"`);
+    const invalidSymbol = expression.symbols().find((name) => !allowedSymbols.has(name));
+    if (invalidSymbol) {
+      throw new Error(`Unsupported symbol "${invalidSymbol}"`);
     }
 
-    const evaluateY = (x: number) => Number(expression.evaluate({ x }));
-    const yAtOrigin = evaluateY(0);
+    const evaluateExpression = (x: number) => expression.evaluate({ x });
+    const yAtOrigin = evaluateNumber(evaluateExpression, 0);
     if (!Number.isFinite(yAtOrigin)) {
       throw new Error("Function must be finite at x = 0");
     }
 
-    return new NormalFunction(expressionText, evaluateY, -yAtOrigin);
+    return new NormalFunction(expressionText, (x) => evaluateFiniteNumber(evaluateExpression, x), -yAtOrigin);
   }
 
   sample(context: SampleContext): TrajectorySample {
@@ -58,8 +110,10 @@ export class NormalFunction extends ShotFunction {
       }
 
       const roundedX = Number(x.toFixed(8));
-      const y = this.evaluateY(roundedX) + this.offset;
-      if (!Number.isFinite(y)) {
+      let y: number;
+      try {
+        y = this.evaluateY(roundedX) + this.offset;
+      } catch {
         return { ok: false, reason: "undefined-function", points, lastFinitePoint };
       }
 
