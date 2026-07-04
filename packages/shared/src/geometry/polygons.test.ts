@@ -17,6 +17,25 @@ describe("polygon helpers", () => {
     const ring = makeCirclePolygon({ x: 1, y: 2 }, 2, 12);
     expect(ring).toHaveLength(12);
     expect(ring[0]).toEqual({ x: 3, y: 2 });
+    for (const point of ring) {
+      expect(Math.hypot(point.x - 1, point.y - 2)).toBeCloseTo(2);
+    }
+  });
+
+  it("rejects circle polygons with too few segments", () => {
+    expect(() => makeCirclePolygon({ x: 0, y: 0 }, 1, 2)).toThrow(RangeError);
+  });
+
+  it("rejects circle polygons with fractional segments", () => {
+    expect(() => makeCirclePolygon({ x: 0, y: 0 }, 1, 3.5)).toThrow(RangeError);
+  });
+
+  it("rejects circle polygons with invalid radius values", () => {
+    expect(() => makeCirclePolygon({ x: 0, y: 0 }, 0, 3)).toThrow(RangeError);
+    expect(() => makeCirclePolygon({ x: 0, y: 0 }, -1, 3)).toThrow(RangeError);
+    expect(() => makeCirclePolygon({ x: 0, y: 0 }, Number.POSITIVE_INFINITY, 3)).toThrow(
+      RangeError
+    );
   });
 
   it("checks field bounds inclusively", () => {

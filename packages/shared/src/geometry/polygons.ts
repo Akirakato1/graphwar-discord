@@ -15,6 +15,13 @@ export function polygonArea(points: PolygonRing): number {
 }
 
 export function makeCirclePolygon(center: WorldPoint, radius: number, segments = 32): PolygonRing {
+  if (!Number.isFinite(radius) || radius <= 0) {
+    throw new RangeError("makeCirclePolygon radius must be a finite positive number");
+  }
+  if (!Number.isFinite(segments) || !Number.isInteger(segments) || segments < 3) {
+    throw new RangeError("makeCirclePolygon segments must be a finite integer of at least 3");
+  }
+
   return Array.from({ length: segments }, (_, index) => {
     const angle = (Math.PI * 2 * index) / segments;
     return {

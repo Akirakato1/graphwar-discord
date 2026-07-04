@@ -69,4 +69,4 @@ Every major implementation task should:
 - `74c6e70`: Added initial README and tracked Graphwar mechanics notes.
 - Scaffolded the TypeScript workspace with client, server, and shared packages.
 - `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
-- Current: added shared coordinate and polygon helpers with targeted geometry coverage.
+- Current: added shared coordinate and polygon helpers with validated circle polygon inputs and targeted geometry coverage.
