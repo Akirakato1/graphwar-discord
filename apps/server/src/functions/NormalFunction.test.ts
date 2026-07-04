@@ -55,6 +55,18 @@ describe("NormalFunction", () => {
     });
   });
 
+  it("explodes at the last finite point when the shifted sample overflows", () => {
+    const shot = NormalFunction.parse("1e308 * (2*x - 1)");
+    const sample = shot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+
+    expect(sample).toEqual({
+      ok: false,
+      reason: "undefined-function",
+      points: [{ x: 0, y: 0 }],
+      lastFinitePoint: { x: 0, y: 0 }
+    });
+  });
+
   it("stops when max path points is reached", () => {
     const shot = NormalFunction.parse("x");
     const sample = shot.sample({ minX: 0, maxX: 10, step: 1, maxPathPoints: 3 });

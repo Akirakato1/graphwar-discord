@@ -116,6 +116,9 @@ export class NormalFunction extends ShotFunction {
       } catch {
         return { ok: false, reason: "undefined-function", points, lastFinitePoint };
       }
+      if (!Number.isFinite(y)) {
+        return { ok: false, reason: "undefined-function", points, lastFinitePoint };
+      }
 
       const point = { x: roundedX, y: Number(y.toFixed(8)) };
       points.push(point);
