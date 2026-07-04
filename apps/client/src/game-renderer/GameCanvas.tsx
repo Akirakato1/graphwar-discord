@@ -152,12 +152,13 @@ function syncCanvasSize(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D
   return { width, height };
 }
 
-function shotEventKey(event: ShotResolvedEvent): string {
+export function shotEventKey(event: ShotResolvedEvent): string {
   const finalPoint = event.path.at(-1);
   const impactPoint = event.impact.point;
   return [
     event.roomId,
     event.shooterId,
+    event.snapshot.turn.turnNumber,
     event.expression,
     event.path.length,
     finalPoint ? `${finalPoint.x}:${finalPoint.y}` : "no-path",
