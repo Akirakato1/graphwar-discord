@@ -16,6 +16,10 @@ describe("NormalFunction", () => {
     expect(() => NormalFunction.parse("1/x")).toThrow("Function must be finite at x = 0");
   });
 
+  it("rejects the remainder operator", () => {
+    expect(() => NormalFunction.parse("x % 2")).toThrow();
+  });
+
   it("explodes at the last finite point when a later sample is undefined", () => {
     const shot = NormalFunction.parse("sqrt(1 - x)");
     const sample = shot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });

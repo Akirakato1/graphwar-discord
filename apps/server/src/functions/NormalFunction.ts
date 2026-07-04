@@ -8,6 +8,7 @@ const parser = new Parser({
     subtract: true,
     multiply: true,
     divide: true,
+    remainder: false,
     power: true,
     factorial: false,
     concatenate: false,
