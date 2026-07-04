@@ -130,6 +130,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
   const clientFactory = options.clientFactory ?? connectGameClient;
   const logLimit = options.logLimit ?? 30;
   let client: GameClient | undefined;
+  let connectionId = 0;
   let logId = 0;
 
   return (set, get) => {
@@ -140,9 +141,11 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
     }
 
     function sendCommand(command: ClientCommand): void {
+      set({ lastError: undefined, lastRejection: undefined });
+
       if (!client) {
         const message = "Connect before sending commands.";
-        set({ lastError: message });
+        set({ lastError: message, lastRejection: undefined });
         appendLog(message);
         return;
       }
@@ -153,7 +156,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
     function handleEvent(event: ServerEvent): void {
       set((state) => ({
         lastRejection:
-          event.type === "shot-rejected" ? { playerId: event.playerId, reason: event.reason } : state.lastRejection,
+          event.type === "shot-rejected" ? { playerId: event.playerId, reason: event.reason } : undefined,
+        lastError: event.type === "shot-rejected" ? state.lastError : undefined,
         recentEvents: [...state.recentEvents, event].slice(-logLimit),
         snapshot: applyEventToSnapshot(state.snapshot, event)
       }));
@@ -171,24 +175,47 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         }
 
         try {
-          set({ connectionStatus: "connecting", lastError: undefined });
+          const nextConnectionId = connectionId + 1;
+          connectionId = nextConnectionId;
+          const previousClient = client;
+          client = undefined;
+          previousClient?.close();
+
+          set({ connectionStatus: "connecting", lastError: undefined, lastRejection: undefined });
           client = clientFactory({
             roomId: session.roomId,
             serverUrl: session.serverUrl,
             onClose: () => {
+              if (nextConnectionId !== connectionId) {
+                return;
+              }
               set({ connectionStatus: "closed" });
               appendLog("Connection closed.");
             },
             onError: (message) => {
-              set({ connectionStatus: "error", lastError: message });
+              if (nextConnectionId !== connectionId) {
+                return;
+              }
+              set({ connectionStatus: "error", lastError: message, lastRejection: undefined });
               appendLog(message);
             },
-            onEvent: handleEvent,
+            onEvent: (event) => {
+              if (nextConnectionId !== connectionId) {
+                return;
+              }
+              handleEvent(event);
+            },
             onOpen: () => {
-              set({ connectionStatus: "open", lastError: undefined });
+              if (nextConnectionId !== connectionId) {
+                return;
+              }
+              set({ connectionStatus: "open", lastError: undefined, lastRejection: undefined });
               get().joinRoom();
             },
             onReconnect: () => {
+              if (nextConnectionId !== connectionId) {
+                return;
+              }
               set({ connectionStatus: "reconnecting" });
               appendLog("Reconnecting to room...");
             },
@@ -196,16 +223,17 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection failed.";
-          set({ connectionStatus: "error", lastError: message });
+          set({ connectionStatus: "error", lastError: message, lastRejection: undefined });
           appendLog(message);
         }
       },
       connectionStatus: "idle",
       disconnect() {
+        connectionId += 1;
         const currentClient = client;
         client = undefined;
         currentClient?.close();
-        set({ connectionStatus: "closed" });
+        set({ connectionStatus: "closed", lastRejection: undefined });
         appendLog("Disconnected.");
       },
       joinRoom() {
@@ -229,7 +257,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         const trimmedExpression = expression.trim();
         if (!trimmedExpression) {
           const message = "Enter a function before submitting a shot.";
-          set({ lastError: message });
+          set({ lastError: message, lastRejection: undefined });
           appendLog(message);
           return;
         }

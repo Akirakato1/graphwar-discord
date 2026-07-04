@@ -34,6 +34,7 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
   const canSubmitShot = connectionStatus === "open" && isMyTurn && expression.trim().length > 0;
+  const notice = lastError ?? lastRejection?.reason;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -88,9 +89,9 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
         <p className="muted">Shot input appears once the match is playing.</p>
       )}
 
-      {(lastRejection || lastError) && (
+      {notice && (
         <div className="notice" role="status">
-          {lastRejection ? lastRejection.reason : lastError}
+          {notice}
         </div>
       )}
     </section>
