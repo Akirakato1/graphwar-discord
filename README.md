@@ -75,6 +75,13 @@ http://localhost:5173/?room=local-test&mockPlayer=charlie&displayName=Charlie
 
 By default the client connects to `ws://<current hostname>:8787/rooms/:roomId`. Add `server=ws://host:port` to the query string to override the WebSocket base during local testing.
 
+To run the built server artifact instead of the watch-mode dev server:
+
+```bash
+npm --workspace apps/server run build
+npm --workspace apps/server run start
+```
+
 ## Implementation Checkpoints
 
 Every major implementation task should:
