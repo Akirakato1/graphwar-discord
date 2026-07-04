@@ -1,5 +1,15 @@
 import type { PlayerId, TerrainBlob } from "@graphwar/shared";
+import {
+  assignTeamIdByPlayerIndex,
+  playerTeamIndexByPlayerIndex,
+  type TeamVersusTeamId
+} from "../modes/TeamAssignment";
 import { MapGenerator, type GeneratedMap } from "./MapGenerator";
+
+const spawnXByTeamId: Record<TeamVersusTeamId, number> = {
+  "team-a": -18,
+  "team-b": 18
+};
 
 function rectangleBlob(id: string, minX: number, maxX: number, minY: number, maxY: number): TerrainBlob {
   return {
@@ -18,11 +28,12 @@ export class TeamVersusMapGenerator extends MapGenerator {
   generate(_seed: string, playerIds: PlayerId[]): GeneratedMap {
     return {
       spawns: playerIds.map((playerId, index) => {
-        const teamIndex = Math.floor(index / 2);
+        const teamId = assignTeamIdByPlayerIndex(index);
+        const teamIndex = playerTeamIndexByPlayerIndex(index);
 
         return {
           playerId,
-          position: { x: index % 2 === 0 ? -18 : 18, y: -6 + teamIndex * 4 }
+          position: { x: spawnXByTeamId[teamId], y: -6 + teamIndex * 4 }
         };
       }),
       terrain: {

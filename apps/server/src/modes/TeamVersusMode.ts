@@ -1,14 +1,12 @@
 import type { MatchModeId, PlayerId, TeamState } from "@graphwar/shared";
 import { GameMode, type LobbyPlayer, type TurnPlayer } from "./GameMode";
+import { splitPlayerIdsByTeam } from "./TeamAssignment";
 
 export class TeamVersusMode extends GameMode {
   readonly id: MatchModeId = "team-versus";
 
   buildTeams(players: LobbyPlayer[]): TeamState[] {
-    return [
-      { id: "team-a", playerIds: players.filter((_, index) => index % 2 === 0).map((player) => player.id) },
-      { id: "team-b", playerIds: players.filter((_, index) => index % 2 === 1).map((player) => player.id) }
-    ];
+    return splitPlayerIdsByTeam(players.map((player) => player.id));
   }
 
   createTurnOrder(players: TurnPlayer[]): PlayerId[] {
@@ -23,6 +21,9 @@ export class TeamVersusMode extends GameMode {
       return { ended: false, winnerIds: [] };
     }
 
-    return { ended: true, winnerIds: livingPlayers.map((player) => player.id) };
+    const winningTeamId = livingTeamIds.values().next().value;
+    const winnerIds = players.filter((player) => player.teamId === winningTeamId).map((player) => player.id);
+
+    return { ended: true, winnerIds };
   }
 }

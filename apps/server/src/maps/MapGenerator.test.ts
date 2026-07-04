@@ -1,13 +1,51 @@
 import { describe, expect, it } from "vitest";
+import { fieldBounds } from "@graphwar/shared";
 import { FreeForAllMapGenerator } from "./FreeForAllMapGenerator";
 import { TeamVersusMapGenerator } from "./TeamVersusMapGenerator";
 
 describe("map generators", () => {
-  it("creates team-versus spawns on opposite sides", () => {
-    const map = new TeamVersusMapGenerator().generate("seed", ["alice", "bob"]);
-    expect(map.spawns.find((spawn) => spawn.playerId === "alice")?.position.x).toBeLessThan(0);
-    expect(map.spawns.find((spawn) => spawn.playerId === "bob")?.position.x).toBeGreaterThan(0);
-    expect(map.terrain.blobs.length).toBeGreaterThan(0);
+  it("creates deterministic team-versus spawns and terrain", () => {
+    const map = new TeamVersusMapGenerator().generate("seed", ["alice", "bob", "charlie"]);
+
+    expect(map.spawns).toEqual([
+      { playerId: "alice", position: { x: -18, y: -6 } },
+      { playerId: "bob", position: { x: 18, y: -6 } },
+      { playerId: "charlie", position: { x: -18, y: -2 } }
+    ]);
+    expect(map.terrain).toEqual({
+      blobs: [
+        {
+          id: "center-cover",
+          outer: [
+            { x: -2, y: -8 },
+            { x: 2, y: -8 },
+            { x: 2, y: 8 },
+            { x: -2, y: 8 }
+          ],
+          holes: []
+        },
+        {
+          id: "low-left",
+          outer: [
+            { x: -14, y: -12 },
+            { x: -9, y: -12 },
+            { x: -9, y: -9 },
+            { x: -14, y: -9 }
+          ],
+          holes: []
+        },
+        {
+          id: "low-right",
+          outer: [
+            { x: 9, y: -12 },
+            { x: 14, y: -12 },
+            { x: 14, y: -9 },
+            { x: 9, y: -9 }
+          ],
+          holes: []
+        }
+      ]
+    });
   });
 
   it("creates free-for-all spawns around the field", () => {
@@ -15,6 +53,28 @@ describe("map generators", () => {
     expect(map.spawns).toHaveLength(3);
     expect(new Set(map.spawns.map((spawn) => `${spawn.position.x},${spawn.position.y}`)).size).toBe(3);
     expect(map.terrain.blobs.length).toBeGreaterThan(0);
+  });
+
+  it("creates a finite in-bounds free-for-all spawn for one player", () => {
+    const map = new FreeForAllMapGenerator().generate("seed", ["alice"]);
+    const spawn = map.spawns[0];
+
+    expect(spawn).toEqual({ playerId: "alice", position: { x: 16, y: 0 } });
+    expect(Number.isFinite(spawn.position.x)).toBe(true);
+    expect(Number.isFinite(spawn.position.y)).toBe(true);
+    expect(spawn.position.x).toBeGreaterThanOrEqual(fieldBounds.minX);
+    expect(spawn.position.x).toBeLessThanOrEqual(fieldBounds.maxX);
+    expect(spawn.position.y).toBeGreaterThanOrEqual(fieldBounds.minY);
+    expect(spawn.position.y).toBeLessThanOrEqual(fieldBounds.maxY);
+  });
+
+  it("repeats deterministic maps for the same seed and players", () => {
+    const teamVersus = new TeamVersusMapGenerator();
+    const freeForAll = new FreeForAllMapGenerator();
+    const playerIds = ["alice", "bob", "charlie"];
+
+    expect(teamVersus.generate("seed", playerIds)).toEqual(teamVersus.generate("seed", playerIds));
+    expect(freeForAll.generate("seed", playerIds)).toEqual(freeForAll.generate("seed", playerIds));
   });
 
   it("keeps free-for-all terrain when there are no players", () => {

@@ -14,7 +14,10 @@ describe("game modes", () => {
       { id: "charlie", teamId: "team-a", alive: true }
     ]);
 
-    expect(teams.map((team) => team.id)).toEqual(["team-a", "team-b"]);
+    expect(teams).toEqual([
+      { id: "team-a", playerIds: ["alice", "charlie"] },
+      { id: "team-b", playerIds: ["bob"] }
+    ]);
     expect(order).toEqual(["alice", "bob", "charlie"]);
   });
 
@@ -37,6 +40,18 @@ describe("game modes", () => {
         { id: "alice", teamId: "team-a", alive: true },
         { id: "bob", teamId: "team-b", alive: false },
         { id: "charlie", teamId: "team-a", alive: true }
+      ])
+    ).toEqual({ ended: true, winnerIds: ["alice", "charlie"] });
+  });
+
+  it("team mode credits eliminated teammates on the winning team", () => {
+    const mode = new TeamVersusMode();
+
+    expect(
+      mode.isVictory([
+        { id: "alice", teamId: "team-a", alive: true },
+        { id: "bob", teamId: "team-b", alive: false },
+        { id: "charlie", teamId: "team-a", alive: false }
       ])
     ).toEqual({ ended: true, winnerIds: ["alice", "charlie"] });
   });
