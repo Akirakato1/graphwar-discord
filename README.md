@@ -29,7 +29,7 @@ The workspace now contains:
 
 - `apps/client`: Vite + React shell for the browser activity prototype.
 - `apps/server`: Fastify server with a `/health` route on port `8787`.
-- `packages/shared`: shared constants, geometry/state types, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation.
+- `packages/shared`: shared constants, geometry/state types, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation with compile-time protocol alignment checks.
 - Root TypeScript project references, Vitest config, and Playwright config.
 
 ## Install And Checks
@@ -67,4 +67,5 @@ Every major implementation task should:
 
 - `74c6e70`: Added initial README and tracked Graphwar mechanics notes.
 - Scaffolded the TypeScript workspace with client, server, and shared packages.
-- Current: define shared game constants, domain types, validation settings, and protocol schemas.
+- `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
+- Current: tighten protocol numeric validation and schema/type alignment coverage.

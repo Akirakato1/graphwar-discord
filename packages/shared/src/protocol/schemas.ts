@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const pointSchema = z.object({ x: z.number(), y: z.number() });
+export const finiteNumberSchema = z.number().finite();
+export const nonNegativeFiniteNumberSchema = finiteNumberSchema.nonnegative();
+export const positiveIntegerSchema = z.number().finite().int().positive();
+
+export const pointSchema = z.object({ x: finiteNumberSchema, y: finiteNumberSchema });
 
 export const terrainBlobSchema = z.object({
   id: z.string(),
@@ -19,13 +23,13 @@ export const matchSnapshotSchema = z.object({
       displayName: z.string(),
       teamId: z.string(),
       position: pointSchema,
-      hp: z.number(),
+      hp: nonNegativeFiniteNumberSchema,
       alive: z.boolean()
     })
   ),
   teams: z.array(z.object({ id: z.string(), playerIds: z.array(z.string()) })),
   terrain: terrainStateSchema,
-  turn: z.object({ activePlayerId: z.string(), order: z.array(z.string()), turnNumber: z.number() })
+  turn: z.object({ activePlayerId: z.string(), order: z.array(z.string()), turnNumber: positiveIntegerSchema })
 });
 
 export const clientCommandSchema = z.discriminatedUnion("type", [
@@ -59,7 +63,7 @@ export const serverEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("player-joined"), roomId: z.string(), playerId: z.string() }),
   z.object({ type: z.literal("player-left"), roomId: z.string(), playerId: z.string() }),
   z.object({ type: z.literal("match-started"), roomId: z.string(), snapshot: matchSnapshotSchema }),
-  z.object({ type: z.literal("turn-started"), roomId: z.string(), playerId: z.string(), turnNumber: z.number() }),
+  z.object({ type: z.literal("turn-started"), roomId: z.string(), playerId: z.string(), turnNumber: positiveIntegerSchema }),
   z.object({ type: z.literal("shot-accepted"), roomId: z.string(), playerId: z.string() }),
   z.object({ type: z.literal("shot-rejected"), roomId: z.string(), playerId: z.string(), reason: z.string() }),
   z.object({
@@ -75,7 +79,9 @@ export const serverEventSchema = z.discriminatedUnion("type", [
       targetPlayerId: z.string().optional()
     }),
     terrain: terrainStateSchema.optional(),
-    damage: z.array(z.object({ playerId: z.string(), amount: z.number(), hpAfter: z.number() })),
+    damage: z.array(
+      z.object({ playerId: z.string(), amount: nonNegativeFiniteNumberSchema, hpAfter: nonNegativeFiniteNumberSchema })
+    ),
     eliminations: z.array(z.string()),
     snapshot: matchSnapshotSchema
   }),
@@ -83,9 +89,9 @@ export const serverEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("player-damaged"),
     roomId: z.string(),
-    damage: z.object({ playerId: z.string(), amount: z.number(), hpAfter: z.number() })
+    damage: z.object({ playerId: z.string(), amount: nonNegativeFiniteNumberSchema, hpAfter: nonNegativeFiniteNumberSchema })
   }),
   z.object({ type: z.literal("player-eliminated"), roomId: z.string(), playerId: z.string() }),
-  z.object({ type: z.literal("turn-advanced"), roomId: z.string(), playerId: z.string(), turnNumber: z.number() }),
+  z.object({ type: z.literal("turn-advanced"), roomId: z.string(), playerId: z.string(), turnNumber: positiveIntegerSchema }),
   z.object({ type: z.literal("match-ended"), roomId: z.string(), winnerIds: z.array(z.string()), snapshot: matchSnapshotSchema })
 ]);
