@@ -57,6 +57,30 @@ describe("TerrainSystem", () => {
     expect(system.applyCircleCrater(terrain, { x: 20, y: 10 }, 1, "shot-1")).toBe(terrain);
   });
 
+  it("keeps redundant-point terrain unchanged when the crater misses", () => {
+    const terrain: TerrainState = {
+      blobs: [
+        {
+          id: "ground",
+          outer: [
+            { x: -5, y: -1 },
+            { x: -2, y: -1 },
+            { x: 5, y: -1 },
+            { x: 5, y: 1 },
+            { x: 0, y: 1 },
+            { x: -5, y: 1 },
+            { x: -5, y: 0 },
+            { x: -5, y: -1 }
+          ],
+          holes: []
+        }
+      ]
+    };
+
+    const system = new TerrainSystem(0.05);
+    expect(system.applyCircleCrater(terrain, { x: 20, y: 10 }, 1, "shot-1")).toBe(terrain);
+  });
+
   it("preserves untouched blobs when another blob is cratered", () => {
     const terrain: TerrainState = {
       blobs: [

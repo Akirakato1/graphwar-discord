@@ -40,51 +40,6 @@ function effectiveBlobArea(outer: WorldPoint[], holes: WorldPoint[][]): number {
   return polygonArea(outer) - holes.reduce((sum, hole) => sum + polygonArea(hole), 0);
 }
 
-function hasMatchingRotation(left: WorldPoint[], right: WorldPoint[]): boolean {
-  for (let offset = 0; offset < right.length; offset += 1) {
-    let matches = true;
-
-    for (let index = 0; index < left.length; index += 1) {
-      const leftPoint = left[index];
-      const rightPoint = right[(offset + index) % right.length];
-      if (leftPoint.x !== rightPoint.x || leftPoint.y !== rightPoint.y) {
-        matches = false;
-        break;
-      }
-    }
-
-    if (matches) return true;
-  }
-
-  return false;
-}
-
-function ringsHaveSameCoordinates(left: WorldPoint[], right: WorldPoint[]): boolean {
-  const normalizedLeft = stripDuplicatedClosingPoint(left);
-  const normalizedRight = stripDuplicatedClosingPoint(right);
-  if (normalizedLeft.length !== normalizedRight.length) return false;
-  if (normalizedLeft.length === 0) return true;
-
-  return (
-    hasMatchingRotation(normalizedLeft, normalizedRight) ||
-    hasMatchingRotation(normalizedLeft, [...normalizedRight].reverse())
-  );
-}
-
-function differenceMatchesBlob(blob: TerrainBlob, difference: MultiPolygon): boolean {
-  if (difference.length !== 1) return false;
-
-  const [polygon] = difference;
-  if (!polygon || polygon.length !== blob.holes.length + 1) return false;
-
-  const [outerRing, ...holeRings] = polygon;
-  if (!outerRing || !ringsHaveSameCoordinates(ringFromNumbers(outerRing), blob.outer)) return false;
-
-  return holeRings.every((holeRing, index) =>
-    ringsHaveSameCoordinates(ringFromNumbers(holeRing), blob.holes[index] ?? [])
-  );
-}
-
 export class TerrainSystem {
   constructor(private readonly minArea: number) {}
 
@@ -99,13 +54,15 @@ export class TerrainSystem {
     let changed = false;
 
     terrain.blobs.forEach((blob, blobIndex) => {
-      const difference = polygonClipping.difference(blobToMultiPolygon(blob), crater);
-      if (differenceMatchesBlob(blob, difference)) {
+      const blobMultiPolygon = blobToMultiPolygon(blob);
+      const intersection = polygonClipping.intersection(blobMultiPolygon, crater);
+      if (intersection.length === 0) {
         blobs.push(blob);
         return;
       }
 
       changed = true;
+      const difference = polygonClipping.difference(blobMultiPolygon, crater);
       let polygonIndex = 0;
       for (const polygon of difference) {
         const [outerRing, ...holeRings] = polygon;
