@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
 import type { MatchSnapshot } from "@graphwar/shared";
 import type { ConnectionStatus, CommandRejection } from "../app/useGameStore";
+import { FunctionInput } from "../input/FunctionInput";
 import type { ClientSession } from "../sessions/localSession";
 
 type MatchHudProps = {
@@ -29,17 +29,11 @@ function phaseLabel(snapshot: MatchSnapshot | undefined): string {
 }
 
 export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitShot, session, snapshot }: MatchHudProps) {
-  const [expression, setExpression] = useState("sin(x)");
   const activePlayer = snapshot?.players.find((player) => player.id === snapshot.turn.activePlayerId);
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
-  const canSubmitShot = connectionStatus === "open" && isMyTurn && expression.trim().length > 0;
+  const canSubmitShot = connectionStatus === "open" && isMyTurn;
   const notice = lastError ?? lastRejection?.reason;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    onSubmitShot(expression);
-  }
 
   return (
     <section className="panel match-hud" aria-labelledby="match-title">
@@ -69,22 +63,7 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
       </dl>
 
       {isPlaying ? (
-        <form className="shot-form" onSubmit={handleSubmit}>
-          <label htmlFor="shot-expression">Function Shot</label>
-          <div className="shot-row">
-            <input
-              autoComplete="off"
-              disabled={!isMyTurn}
-              id="shot-expression"
-              onChange={(event) => setExpression(event.target.value)}
-              placeholder="sin(x)"
-              value={expression}
-            />
-            <button className="primary-action" disabled={!canSubmitShot} type="submit">
-              Fire
-            </button>
-          </div>
-        </form>
+        <FunctionInput canSubmit={canSubmitShot} disabled={!isMyTurn} onSubmitShot={onSubmitShot} />
       ) : (
         <p className="muted">Shot input appears once the match is playing.</p>
       )}

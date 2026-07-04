@@ -357,6 +357,33 @@ dd {
   padding: 8px 10px;
 }
 
+.snippet-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.snippet-button {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #3d4b43;
+  border-radius: 8px;
+  background: #2a2b25;
+  color: #efe4c8;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 7px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-button:hover:not(:disabled),
+.snippet-button:focus-visible {
+  border-color: #65c18c;
+  color: #ffffff;
+}
+
 .notice {
   border: 1px solid #8f5148;
   border-radius: 8px;
