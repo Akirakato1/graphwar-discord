@@ -36,6 +36,10 @@ function ringFromNumbers(ring: Ring): WorldPoint[] {
   return stripDuplicatedClosingPoint(ring.map(([x, y]) => ({ x, y })));
 }
 
+function effectiveBlobArea(outer: WorldPoint[], holes: WorldPoint[][]): number {
+  return polygonArea(outer) - holes.reduce((sum, hole) => sum + polygonArea(hole), 0);
+}
+
 function hasMatchingRotation(left: WorldPoint[], right: WorldPoint[]): boolean {
   for (let offset = 0; offset < right.length; offset += 1) {
     let matches = true;
@@ -96,22 +100,25 @@ export class TerrainSystem {
 
     terrain.blobs.forEach((blob, blobIndex) => {
       const difference = polygonClipping.difference(blobToMultiPolygon(blob), crater);
-      if (!differenceMatchesBlob(blob, difference)) {
-        changed = true;
+      if (differenceMatchesBlob(blob, difference)) {
+        blobs.push(blob);
+        return;
       }
 
+      changed = true;
       let polygonIndex = 0;
       for (const polygon of difference) {
         const [outerRing, ...holeRings] = polygon;
         if (!outerRing) continue;
 
         const outer = ringFromNumbers(outerRing);
-        if (polygonArea(outer) < this.minArea) continue;
+        const holes = holeRings.map(ringFromNumbers);
+        if (effectiveBlobArea(outer, holes) < this.minArea) continue;
 
         blobs.push({
           id: `${idPrefix}-${blobIndex}-${polygonIndex}`,
           outer,
-          holes: holeRings.map(ringFromNumbers)
+          holes
         });
         polygonIndex += 1;
       }
