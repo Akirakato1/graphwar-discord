@@ -2,10 +2,11 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { serverEventSchema, type LobbySlot, type ServerEvent } from "@graphwar/shared";
+import { serverEventSchema, type CustomMapImport, type LobbySlot, type ServerEvent } from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type BuildServerOptions } from "../index";
+import { LobbyDirectory } from "../lobbies/LobbyDirectory";
 import { LocalStateStore } from "../persistence/LocalStateStore";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
@@ -51,6 +52,35 @@ function lobbyJoinCommand(session: TestLobbySession) {
     displayName: session.alias,
     slot: session.slot,
     sessionToken: session.sessionToken
+  };
+}
+
+function customMap(name = "Integration Arena"): CustomMapImport {
+  return {
+    format: "graphwar-map",
+    version: 1,
+    name,
+    terrain: {
+      blobs: [
+        {
+          id: "integration-platform",
+          outer: [
+            { x: -2, y: -1 },
+            { x: 2, y: -1 },
+            { x: 0, y: 2 }
+          ],
+          holes: []
+        }
+      ]
+    },
+    spawnPoints: Array.from({ length: 10 }, (_, index) => ({
+      id: `spawn-${index}`,
+      position: { x: index < 5 ? -10 - index : 10 + index, y: index }
+    })),
+    teamSpawnPointIds: {
+      "team-a": ["spawn-0", "spawn-1", "spawn-2", "spawn-3", "spawn-4"],
+      "team-b": ["spawn-5", "spawn-6", "spawn-7", "spawn-8", "spawn-9"]
+    }
   };
 }
 
@@ -364,6 +394,131 @@ describe("RoomManager WebSocket integration", () => {
     send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
     await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
     await waitForEvent(() => bobEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("starts a selected custom-map lobby with custom terrain and spawns", async () => {
+    const stateStore = await createTempStateStore();
+    const savedMap = await stateStore.saveCustomMap("local-guild", "alice-id", customMap());
+    const app = await startTestServer({ stateStore });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Mapped Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        mapId: savedMap.id
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    expect(created.lobby).toMatchObject({ mapId: savedMap.id, mapName: "Integration Arena" });
+
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id"
+    });
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    const event = await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    expect(event.type).toBe("match-started");
+    if (event.type === "match-started") {
+      expect(event.lobby?.status).toBe("playing");
+      expect(event.snapshot.terrain.blobs).toEqual([expect.objectContaining({ id: "integration-platform" })]);
+      expect(event.snapshot.players.find((player) => player.id === "alice-id")?.position).toEqual({ x: -10, y: 0 });
+      expect(event.snapshot.players.find((player) => player.id === "bob-id")?.position).toEqual({ x: 15, y: 5 });
+    }
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("keeps the lobby open when selected custom-map spawn generation fails", async () => {
+    const stateStore = await createTempStateStore();
+    const savedMap = await stateStore.saveCustomMap("local-guild", "alice-id", {
+      ...customMap("Broken Team Arena"),
+      teamSpawnPointIds: {
+        "team-a": ["spawn-0"],
+        "team-b": []
+      }
+    });
+    const lobbies = new LobbyDirectory({
+      upsertStatsEntry: (guildId, discordUserId, alias) => stateStore.upsertStatsEntry(guildId, discordUserId, alias),
+      resolveCustomMapName: async (guildId, mapId) => (await stateStore.getCustomMap(guildId, mapId))?.name
+    });
+    const app = await startTestServer({ stateStore, lobbies });
+
+    const created = await lobbies.createLobby("local-guild", {
+      name: "Broken Map Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      mapId: savedMap.id
+    });
+    const joined = await lobbies.joinLobby("local-guild", created.session.roomId, {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id"
+    });
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+
+    await waitForEvent(
+      () => aliceEvents,
+      (candidate) =>
+        candidate.type === "shot-rejected" &&
+        candidate.reason === "Team B needs at least 1 custom map spawn point."
+    );
+    expect(lobbies.getLobby("local-guild", created.session.roomId)).toMatchObject({
+      status: "open",
+      startedAt: undefined
+    });
 
     await closeSocket(alice);
     await closeSocket(bob);

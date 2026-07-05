@@ -57,6 +57,47 @@ describe("LobbyDirectory", () => {
     ]);
   });
 
+  it("resolves selected custom map metadata into lobby snapshots and summaries", async () => {
+    const resolveCustomMapName = vi.fn(async () => "Skyline Arena");
+    const directory = createDirectory({ resolveCustomMapName });
+
+    const result = await directory.createLobby("guild-1", {
+      name: "Map Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "free-for-all",
+      initialSlot: "player",
+      mapId: "map-1"
+    });
+
+    expect(resolveCustomMapName).toHaveBeenCalledWith("guild-1", "map-1");
+    expect(result.lobby).toEqual(expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" }));
+    expect(directory.getLobby("guild-1", "room-1")).toEqual(
+      expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" })
+    );
+    expect(directory.listLobbies("guild-1")).toEqual([
+      expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" })
+    ]);
+  });
+
+  it("rejects lobby creation when the selected custom map is unknown", async () => {
+    const directory = createDirectory({
+      resolveCustomMapName: async () => undefined
+    });
+
+    await expect(
+      directory.createLobby("guild-1", {
+        name: "Missing Map Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player",
+        mapId: "missing-map"
+      })
+    ).rejects.toThrow("Custom map not found.");
+    expect(() => directory.getLobby("guild-1", "room-1")).toThrow("Lobby not found.");
+  });
+
   it("rejects duplicate aliases in the same lobby case-insensitively after trim but allows them in different lobbies", async () => {
     const directory = createDirectory();
     await directory.createLobby("guild-1", {

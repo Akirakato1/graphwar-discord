@@ -82,7 +82,7 @@ export class MatchController {
     return this.getSnapshot();
   }
 
-  startMatch(modeId: MatchModeId): MatchState {
+  startMatch(modeId: MatchModeId, generatedMap?: GeneratedMap): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Match has already started");
     }
@@ -96,7 +96,7 @@ export class MatchController {
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
-    const map = this.createMap(modeId, teams, playerIds);
+    const map = generatedMap ?? this.createMap(modeId, teams, playerIds);
     const spawnsByPlayerId = new Map(map.spawns.map((spawn) => [spawn.playerId, spawn.position]));
     const players = lobbyPlayers.map((player) => ({
       id: player.id,

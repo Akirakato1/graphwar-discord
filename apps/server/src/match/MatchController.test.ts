@@ -26,6 +26,36 @@ describe("MatchController", () => {
     expect(snapshot.turn.activePlayerId).toBe("alice");
   });
 
+  it("starts a match with an injected generated map when provided", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+
+    const snapshot = controller.startMatch("free-for-all", {
+      terrain: {
+        blobs: [
+          {
+            id: "custom-platform",
+            outer: [
+              { x: -1, y: -1 },
+              { x: 1, y: -1 },
+              { x: 0, y: 1 }
+            ],
+            holes: []
+          }
+        ]
+      },
+      spawns: [
+        { playerId: "alice", position: { x: -7, y: 3 } },
+        { playerId: "bob", position: { x: 9, y: -4 } }
+      ]
+    });
+
+    expect(snapshot.terrain.blobs).toEqual([expect.objectContaining({ id: "custom-platform" })]);
+    expect(snapshot.players.find((player) => player.id === "alice")?.position).toEqual({ x: -7, y: 3 });
+    expect(snapshot.players.find((player) => player.id === "bob")?.position).toEqual({ x: 9, y: -4 });
+  });
+
   it("rejects a shot from a non-active player", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");

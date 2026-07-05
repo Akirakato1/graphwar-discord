@@ -90,7 +90,8 @@ export async function buildServer(options: BuildServerOptions = {}) {
   const lobbies =
     options.lobbies ??
     new LobbyDirectory({
-      upsertStatsEntry: (guildId, discordUserId, alias) => stateStore.upsertStatsEntry(guildId, discordUserId, alias)
+      upsertStatsEntry: (guildId, discordUserId, alias) => stateStore.upsertStatsEntry(guildId, discordUserId, alias),
+      resolveCustomMapName: async (guildId, mapId) => (await stateStore.getCustomMap(guildId, mapId))?.name
     });
   const rooms = options.rooms ?? new RoomManager(lobbies, stateStore);
   const wss = new WebSocketServer({ noServer: true });

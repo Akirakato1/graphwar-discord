@@ -8,6 +8,7 @@ import type {
 } from "@graphwar/shared";
 import WebSocket from "ws";
 import { LobbyDirectory, type LobbySessionIdentity } from "../lobbies/LobbyDirectory";
+import { CustomMapSpawner } from "../maps/CustomMapSpawner";
 import { MatchController } from "../match/MatchController";
 import { LocalStateStore } from "../persistence/LocalStateStore";
 
@@ -22,6 +23,7 @@ export class GameRoom {
   private readonly lobbySessions = new WeakMap<WebSocket, LobbySessionIdentity>();
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly match: MatchController;
+  private readonly customMapSpawner = new CustomMapSpawner();
 
   constructor(
     private readonly roomId: RoomId,
@@ -193,8 +195,18 @@ export class GameRoom {
         }
         this.syncLobbySnapshot();
         context.lobbies.assertCanStart(context.guildId, this.roomId, session.discordUserId);
+        const openLobby = context.lobbies.getLobby(context.guildId, this.roomId);
+        const generatedMap = openLobby.mapId
+          ? this.customMapSpawner.generate(
+              openLobby.mode,
+              await this.loadCustomMap(context, openLobby.mapId),
+              openLobby.occupants
+                .filter((occupant) => occupant.slot === "player")
+                .map((occupant) => ({ playerId: occupant.playerId, placement: occupant.placement }))
+            )
+          : undefined;
         const lobby = context.lobbies.markPlaying(context.guildId, this.roomId);
-        const snapshot = this.match.startMatch(lobby.mode);
+        const snapshot = this.match.startMatch(lobby.mode, generatedMap);
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
         this.broadcast({
           type: "turn-started",
@@ -354,6 +366,14 @@ export class GameRoom {
     } catch {
       // Match resolution is authoritative; leaderboard persistence must not hide the completed match from clients.
     }
+  }
+
+  private async loadCustomMap(context: LobbyContext, mapId: string) {
+    const map = await context.stateStore.getCustomMap(context.guildId, mapId);
+    if (!map) {
+      throw new Error("Custom map not found.");
+    }
+    return map;
   }
 
   private resolveLobbyPlacement(

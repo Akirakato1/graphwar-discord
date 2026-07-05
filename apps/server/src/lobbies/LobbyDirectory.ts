@@ -21,6 +21,7 @@ export type LobbyDirectoryOptions = {
   createRoomId?: () => string;
   createSessionToken?: () => string;
   upsertStatsEntry?: (guildId: string, discordUserId: string, alias: string) => Promise<unknown>;
+  resolveCustomMapName?: (guildId: string, mapId: string) => Promise<string | undefined>;
 };
 
 export type LobbySessionIdentity = {
@@ -44,6 +45,8 @@ type RuntimeLobby = {
   sessionTokens: Map<DiscordUserId, string>;
   createdAt: string;
   startedAt?: string;
+  mapId?: string;
+  mapName?: string;
 };
 
 export class LobbyDirectory {
@@ -53,20 +56,28 @@ export class LobbyDirectory {
   private readonly createRoomId: () => string;
   private readonly createSessionToken: () => string;
   private readonly upsertStatsEntry: (guildId: string, discordUserId: string, alias: string) => Promise<unknown>;
+  private readonly resolveCustomMapName: (guildId: string, mapId: string) => Promise<string | undefined>;
 
   constructor(options: LobbyDirectoryOptions = {}) {
     this.now = options.now ?? (() => new Date());
     this.createRoomId = options.createRoomId ?? (() => randomUUID().slice(0, 8));
     this.createSessionToken = options.createSessionToken ?? (() => randomUUID());
     this.upsertStatsEntry = options.upsertStatsEntry ?? (async () => undefined);
+    this.resolveCustomMapName = options.resolveCustomMapName ?? (async () => undefined);
   }
 
   async createLobby(guildId: string, request: CreateLobbyRequest): Promise<LobbyJoinResult> {
     const roomId = this.createRoomId();
     const name = request.name.trim();
+    const mapId = request.mapId?.trim();
+    const mapName = mapId ? await this.resolveCustomMapName(guildId, mapId) : undefined;
 
     if (!name) {
       throw new Error("Lobby name is required.");
+    }
+
+    if (mapId && !mapName) {
+      throw new Error("Custom map not found.");
     }
 
     const key = this.lobbyKey(guildId, roomId);
@@ -83,7 +94,9 @@ export class LobbyDirectory {
       leaderDiscordUserId: request.leaderDiscordUserId,
       occupants: new Map(),
       sessionTokens: new Map(),
-      createdAt: this.now().toISOString()
+      createdAt: this.now().toISOString(),
+      mapId,
+      mapName
     };
 
     this.lobbies.set(key, lobby);
@@ -175,6 +188,8 @@ export class LobbyDirectory {
           leaderDiscordUserId: lobby.leaderDiscordUserId,
           playerCount: occupants.filter((occupant) => occupant.slot === "player").length,
           spectatorCount: occupants.filter((occupant) => occupant.slot === "spectator").length,
+          mapId: lobby.mapId,
+          mapName: lobby.mapName,
           createdAt: lobby.createdAt
         };
       });
@@ -454,6 +469,8 @@ export class LobbyDirectory {
       occupants: Array.from(lobby.occupants.values()).map((occupant) => ({ ...occupant })),
       canStart: lobby.status === "open" && !startBlockedReason,
       startBlockedReason,
+      mapId: lobby.mapId,
+      mapName: lobby.mapName,
       createdAt: lobby.createdAt,
       startedAt: lobby.startedAt
     };
