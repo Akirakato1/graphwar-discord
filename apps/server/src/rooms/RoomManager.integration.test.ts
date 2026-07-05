@@ -198,6 +198,36 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(alice);
   });
 
+  it("explicitly rejects auto-assign-teams until lobby team assignment is implemented", async () => {
+    const app = await startTestServer();
+    const alice = await connect(socketUrl(app, "auto-assign-test", "alice"));
+    const events = collectEvents(alice);
+
+    send(alice, {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: "auto-assign-test",
+      playerId: "alice-id"
+    });
+
+    const event = await waitForEvent(
+      () => events,
+      (candidate) =>
+        candidate.type === "shot-rejected" &&
+        candidate.playerId === "alice-id" &&
+        candidate.reason === "Unsupported command: auto-assign-teams"
+    );
+
+    expect(event).toMatchObject({
+      type: "shot-rejected",
+      roomId: "auto-assign-test",
+      playerId: "alice-id",
+      reason: "Unsupported command: auto-assign-teams"
+    });
+
+    await closeSocket(alice);
+  });
+
   it("converts duplicate start-match lifecycle errors into safe rejections", async () => {
     const app = await startTestServer();
     const alice = await connect(socketUrl(app, "lifecycle-test", "alice"));

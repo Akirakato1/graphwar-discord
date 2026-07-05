@@ -82,6 +82,7 @@ export class GameRoom {
           return;
         }
         case "set-team":
+        case "auto-assign-teams":
         case "send-chat":
         case "request-rematch":
           this.sendRejection(socket, command.playerId, `Unsupported command: ${command.type}`);

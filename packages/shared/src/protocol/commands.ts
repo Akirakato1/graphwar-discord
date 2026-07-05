@@ -3,7 +3,8 @@ import type {
   FunctionFamilyId,
   MatchModeId,
   PlayerId,
-  RoomId
+  RoomId,
+  TeamId
 } from "../state/types";
 import type { DiscordUserId, GuildId, LobbyPlacementId, LobbySlot } from "../lobby/types";
 
@@ -29,8 +30,9 @@ export type SetTeamCommand = {
   guildId?: GuildId;
   roomId: RoomId;
   playerId: PlayerId;
-  targetPlayerId: PlayerId;
-  placement: LobbyPlacementId;
+  targetPlayerId?: PlayerId;
+  placement?: LobbyPlacementId;
+  teamId?: TeamId;
 };
 export type AutoAssignTeamsCommand = {
   type: "auto-assign-teams";

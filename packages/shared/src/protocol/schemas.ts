@@ -41,7 +41,7 @@ export const matchSnapshotSchema = z.object({
   turn: z.object({ activePlayerId: z.string(), order: z.array(z.string()), turnNumber: positiveIntegerSchema })
 });
 
-export const clientCommandSchema = z.discriminatedUnion("type", [
+const clientCommandUnionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("join-room"),
     guildId: optionalGuildIdSchema,
@@ -64,8 +64,9 @@ export const clientCommandSchema = z.discriminatedUnion("type", [
     guildId: optionalGuildIdSchema,
     roomId: z.string(),
     playerId: z.string(),
-    targetPlayerId: z.string(),
-    placement: lobbyPlacementSchema
+    targetPlayerId: z.string().optional(),
+    placement: lobbyPlacementSchema.optional(),
+    teamId: z.string().optional()
   }),
   z.object({ type: z.literal("auto-assign-teams"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() }),
   z.object({ type: z.literal("start-match"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() }),
@@ -87,6 +88,21 @@ export const clientCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("request-rematch"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() })
 ]);
+
+export const clientCommandSchema = clientCommandUnionSchema.superRefine((command, context) => {
+  if (command.type !== "set-team") {
+    return;
+  }
+
+  if (command.teamId || (command.targetPlayerId && command.placement)) {
+    return;
+  }
+
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "set-team requires either teamId or targetPlayerId and placement"
+  });
+});
 
 export const serverEventSchema = z.discriminatedUnion("type", [
   z.object({

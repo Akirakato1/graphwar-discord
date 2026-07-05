@@ -2,10 +2,12 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { z } from "zod";
 import {
   clientCommandSchema,
+  autoAssignTeamsRequestSchema,
   createLobbyRequestSchema,
   joinLobbyRequestSchema,
   lobbyRuntimeSnapshotSchema,
   serverEventSchema,
+  setLobbyPlacementRequestSchema,
   type ClientCommand,
   type ServerEvent
 } from "@graphwar/shared";
@@ -173,6 +175,39 @@ describe("protocol schemas", () => {
     ).toThrow();
   });
 
+  it("accepts legacy and guild-scoped set-team commands", () => {
+    const legacyCommand: ClientCommand = {
+      type: "set-team",
+      roomId: "local-test",
+      playerId: "alice",
+      teamId: "team-a"
+    };
+
+    expect(clientCommandSchema.parse(legacyCommand)).toEqual(legacyCommand);
+
+    const lobbyCommand: ClientCommand = {
+      type: "set-team",
+      guildId: "local-guild",
+      roomId: "room-1",
+      playerId: "alice-id",
+      targetPlayerId: "bob-id",
+      placement: "team-b"
+    };
+
+    expect(clientCommandSchema.parse(lobbyCommand)).toEqual(lobbyCommand);
+  });
+
+  it("accepts auto-assign-teams commands", () => {
+    const command: ClientCommand = {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: "room-1",
+      playerId: "alice-id"
+    };
+
+    expect(clientCommandSchema.parse(command)).toEqual(command);
+  });
+
   it("validates create and join lobby HTTP payloads", () => {
     expect(
       createLobbyRequestSchema.parse({
@@ -191,6 +226,20 @@ describe("protocol schemas", () => {
         slot: "spectator"
       })
     ).toMatchObject({ discordUserId: "bob-id", slot: "spectator" });
+  });
+
+  it("validates lobby placement and auto-assign HTTP payloads", () => {
+    expect(
+      setLobbyPlacementRequestSchema.parse({
+        actorDiscordUserId: "alice-id",
+        targetDiscordUserId: "bob-id",
+        placement: "spectator"
+      })
+    ).toMatchObject({ actorDiscordUserId: "alice-id", placement: "spectator" });
+
+    expect(autoAssignTeamsRequestSchema.parse({ actorDiscordUserId: "alice-id" })).toEqual({
+      actorDiscordUserId: "alice-id"
+    });
   });
 
   it("validates guild-scoped lobby command and snapshot events", () => {

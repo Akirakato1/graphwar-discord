@@ -36,6 +36,16 @@ export const joinLobbyRequestSchema = z.object({
   slot: lobbySlotSchema
 });
 
+export const setLobbyPlacementRequestSchema = z.object({
+  actorDiscordUserId: z.string().trim().min(1),
+  targetDiscordUserId: z.string().trim().min(1),
+  placement: lobbyPlacementSchema
+});
+
+export const autoAssignTeamsRequestSchema = z.object({
+  actorDiscordUserId: z.string().trim().min(1)
+});
+
 export const lobbyOccupantSchema = z.object({
   discordUserId: z.string().min(1),
   playerId: z.string().min(1),
