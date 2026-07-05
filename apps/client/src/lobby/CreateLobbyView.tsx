@@ -7,8 +7,30 @@ type CreateLobbyViewProps = {
   onCreate: (form: { name: string; alias: string; mode: MatchModeId; initialSlot: LobbySlot }) => Promise<void>;
 };
 
+type CreateLobbyForm = {
+  name: string;
+  alias: string;
+  mode: MatchModeId;
+  initialSlot: LobbySlot;
+};
+
+export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLobbyForm } {
+  return {
+    form: {
+      ...form,
+      name: form.name.trim(),
+      alias: form.alias.trim()
+    }
+  };
+}
+
+export function createLobbyErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Could not create lobby.";
+}
+
 export function CreateLobbyView({ defaultAlias, onBack, onCreate }: CreateLobbyViewProps) {
   const [alias, setAlias] = useState(defaultAlias);
+  const [formError, setFormError] = useState<string | undefined>();
   const [initialSlot, setInitialSlot] = useState<LobbySlot>("player");
   const [mode, setMode] = useState<MatchModeId>("team-versus");
   const [name, setName] = useState("Graphwar Lobby");
@@ -17,8 +39,11 @@ export function CreateLobbyView({ defaultAlias, onBack, onCreate }: CreateLobbyV
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSubmitting(true);
+    setFormError(undefined);
     try {
-      await onCreate({ name, alias, mode, initialSlot });
+      await onCreate(prepareCreateLobbyForm({ name, alias, mode, initialSlot }).form);
+    } catch (error) {
+      setFormError(createLobbyErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -32,14 +57,33 @@ export function CreateLobbyView({ defaultAlias, onBack, onCreate }: CreateLobbyV
           <h2 id="create-lobby-title">Create Lobby</h2>
         </div>
       </div>
+      {formError && (
+        <p className="notice" role="alert">
+          {formError}
+        </p>
+      )}
       <form className="menu-form" onSubmit={handleSubmit}>
         <label>
           Lobby name
-          <input required value={name} onChange={(event) => setName(event.currentTarget.value)} />
+          <input
+            required
+            value={name}
+            onChange={(event) => {
+              setName(event.currentTarget.value);
+              setFormError(undefined);
+            }}
+          />
         </label>
         <label>
           Alias
-          <input required value={alias} onChange={(event) => setAlias(event.currentTarget.value)} />
+          <input
+            required
+            value={alias}
+            onChange={(event) => {
+              setAlias(event.currentTarget.value);
+              setFormError(undefined);
+            }}
+          />
         </label>
         <label>
           Match mode
