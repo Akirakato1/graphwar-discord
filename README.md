@@ -8,6 +8,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/specs/2026-07-04-graphwar-discord-activity-design.md`
   - `docs/superpowers/specs/2026-07-05-lobby-menu-flow-design.md`
   - `docs/superpowers/specs/2026-07-05-gameplay-ui-fixes-design.md`
+  - `docs/superpowers/specs/2026-07-06-custom-maps-and-map-maker-design.md`
 - Implementation plans:
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
@@ -16,7 +17,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: guild-scoped centered main menu, create/join lobby flow, leader-controlled setup, spectator support, server-enforced spectator settings, persisted leaderboard entries, CORS/WebSocket origin allowlist defaults and environment override, server-issued lobby session tokens for guild WebSocket commands, schema-validating WebSocket client, Zustand room store, normal-function shot input palette and implicit multiplication parser, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with linearly attenuated authoritative shot paths, a `50.0` unit normal-shot travel cap before field-boundary clipping, shot playback that stages terrain/player damage until visual impact and clears after animation, match-ending shot playback before a blocking winner popup, Discord 16:9 no-scroll viewport fitting, and Playwright coverage for the visible create/join/spectator/final-shot flow.
+- Current checkpoint: guild-scoped centered main menu, create/join lobby flow, leader-controlled setup, spectator support, server-enforced spectator settings, persisted leaderboard entries, CORS/WebSocket origin allowlist defaults and environment override, server-issued lobby session tokens for guild WebSocket commands, schema-validating WebSocket client, Zustand room store, normal-function shot input palette and implicit multiplication parser, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with linearly attenuated authoritative shot paths, a `50.0` unit normal-shot travel cap before field-boundary clipping, shot playback that stages terrain/player damage until visual impact and clears after animation, match-ending shot playback before a blocking winner popup, Discord 16:9 no-scroll viewport fitting, Playwright coverage for the visible create/join/spectator/final-shot flow, and an approved custom maps plus local Electron map-maker design.
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -28,6 +29,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Zod shared protocol validation
 - `expr-eval` for normal-function parsing
 - `polygon-clipping` for terrain craters
+- Electron + Vite + React for the separate local map maker
 - Vitest + Playwright
 
 ## Current Workspace
@@ -122,3 +124,4 @@ Every major implementation task should:
 - Added a focused gameplay/UI fixes design covering the halved shot travel limit, final-shot animation ordering, match-end winner popup, and centered main menu checkpoint.
 - Added a gameplay/UI fixes implementation plan for server shot sequencing, client match-end modal flow, E2E coverage, centered menu styling, and verification.
 - Halved normal shot travel to `50.0` units before field-boundary clipping, sequenced match-ending shots as `shot-resolved` before `match-ended`, added a focus-managed winner popup with only `Return to Menu`, centered the main menu, and expanded Playwright coverage for final-shot playback before match end.
+- Added an approved custom maps and local Electron map-maker design covering guild-scoped persisted map storage, a Custom Maps menu flow, create-lobby map selection, custom-map spawn assignment for team-versus/free-for-all, and a desktop editor that exports `.graphwar-map.json`.
