@@ -8,21 +8,42 @@ type Player = {
 const alice: Player = { id: "alice", displayName: "Alice" };
 const bob: Player = { id: "bob", displayName: "Bob" };
 
-function roomIdFor(testTitle: string): string {
+function idFor(testTitle: string, label: string): string {
   const safeTitle = testTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `e2e-${safeTitle}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `e2e-${label}-${safeTitle.slice(0, 28)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function joinLocalRoom(page: Page, roomId: string, player: Player): Promise<void> {
-  await page.goto(`/?room=${roomId}&mockPlayer=${player.id}&displayName=${encodeURIComponent(player.displayName)}`);
-  await expect(page.getByRole("heading", { name: "Connected" })).toBeVisible();
-  await expect(page.getByTestId(`player-${player.id}`)).toContainText(player.displayName);
+async function openLocalMenu(page: Page, player: Player, guildId: string): Promise<void> {
+  await page.goto(`/?guild=${guildId}&user=${player.id}`);
+  await expect(page.getByRole("heading", { name: "Graphwar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create Lobby" })).toBeVisible();
 }
 
-async function expectBothPagesShowPlayers(pages: Page[]): Promise<void> {
+async function createLobby(page: Page, lobbyName: string, alias: string): Promise<void> {
+  await page.getByRole("button", { name: "Create Lobby" }).click();
+  await page.getByLabel("Lobby name").fill(lobbyName);
+  await page.getByLabel("Alias").fill(alias);
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
+}
+
+async function joinLobby(
+  page: Page,
+  lobbyName: string,
+  alias: string,
+  slot: "player" | "spectator" = "player"
+): Promise<void> {
+  await page.getByRole("button", { name: "Join Lobby" }).click();
+  await page.getByRole("button", { name: lobbyName }).click();
+  await page.getByLabel("Alias").fill(alias);
+  await page.getByRole("button", { name: slot === "spectator" ? "Spectate" : "Join As Player" }).click();
+  await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
+}
+
+async function expectSetupShowsPlayers(pages: Page[]): Promise<void> {
   for (const page of pages) {
-    await expect(page.getByTestId("player-alice")).toContainText("Alice");
-    await expect(page.getByTestId("player-bob")).toContainText("Bob");
+    await expect(page.getByTestId("setup-player-alice")).toContainText("Alice");
+    await expect(page.getByTestId("setup-player-bob")).toContainText("Bob");
   }
 }
 
@@ -59,21 +80,46 @@ async function canvasPathPoints(page: Page): Promise<number> {
 }
 
 test("two local players can start a match and advance turns with a function shot", async ({ browser }, testInfo) => {
-  const roomId = roomIdFor(testInfo.title);
+  const guildId = idFor(testInfo.title, "guild");
+  const lobbyName = idFor(testInfo.title, "lobby");
   const aliceContext = await browser.newContext();
   const bobContext = await browser.newContext();
+  const spectatorContext = await browser.newContext();
   const alicePage = await aliceContext.newPage();
   const bobPage = await bobContext.newPage();
+  const spectatorPage = await spectatorContext.newPage();
 
   try {
-    await joinLocalRoom(alicePage, roomId, alice);
-    await joinLocalRoom(bobPage, roomId, bob);
-    await expectBothPagesShowPlayers([alicePage, bobPage]);
+    await openLocalMenu(alicePage, alice, guildId);
+    await createLobby(alicePage, lobbyName, "Alice");
+
+    await openLocalMenu(bobPage, bob, guildId);
+    await bobPage.getByRole("button", { name: "Join Lobby" }).click();
+    await bobPage.getByRole("button", { name: lobbyName }).click();
+    await bobPage.getByLabel("Alias").fill("Alice");
+    await bobPage.getByRole("button", { name: "Join As Player" }).click();
+    await expect(bobPage.getByLabel("Alias")).toHaveAttribute("aria-invalid", "true");
+    await expect(bobPage.getByText("Alias is already taken.")).toBeVisible();
+    await bobPage.getByLabel("Alias").fill("Bob");
+    await bobPage.getByRole("button", { name: "Join As Player" }).click();
+    await expect(bobPage.getByRole("heading", { name: lobbyName })).toBeVisible();
+    await expectSetupShowsPlayers([alicePage, bobPage]);
+
+    await alicePage.getByTestId("setup-player-bob").getByRole("button", { name: "Move Bob to Spectators" }).click();
+    await expect(alicePage.getByRole("region", { name: "Spectators" })).toContainText("Bob");
+    await alicePage.getByRole("button", { name: "Auto Assign" }).click();
+    await expect(alicePage.getByRole("region", { name: "Team B" })).toContainText("Bob");
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();
 
     await expect(alicePage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
     await expect(bobPage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
+
+    await openLocalMenu(spectatorPage, { id: "charlie", displayName: "Charlie" }, guildId);
+    await joinLobby(spectatorPage, lobbyName, "Charlie", "spectator");
+    await expect(spectatorPage.getByTestId("game-canvas")).toBeVisible();
+    await expect(spectatorPage.getByText("Spectating")).toBeVisible();
+    await expect(spectatorPage.getByLabel("Function Shot")).toHaveCount(0);
 
     const aliceTurn = await activeTurnText(alicePage);
     const activePage = aliceTurn.includes("Your Turn") ? alicePage : bobPage;
@@ -99,20 +145,24 @@ test("two local players can start a match and advance turns with a function shot
   } finally {
     await aliceContext.close();
     await bobContext.close();
+    await spectatorContext.close();
   }
 });
 
 test("player damage appears after the shot playback reaches impact", async ({ browser }, testInfo) => {
-  const roomId = roomIdFor(testInfo.title);
+  const guildId = idFor(testInfo.title, "guild");
+  const lobbyName = idFor(testInfo.title, "lobby");
   const aliceContext = await browser.newContext();
   const bobContext = await browser.newContext();
   const alicePage = await aliceContext.newPage();
   const bobPage = await bobContext.newPage();
 
   try {
-    await joinLocalRoom(alicePage, roomId, alice);
-    await joinLocalRoom(bobPage, roomId, bob);
-    await expectBothPagesShowPlayers([alicePage, bobPage]);
+    await openLocalMenu(alicePage, alice, guildId);
+    await createLobby(alicePage, lobbyName, "Alice");
+    await openLocalMenu(bobPage, bob, guildId);
+    await joinLobby(bobPage, lobbyName, "Bob");
+    await expectSetupShowsPlayers([alicePage, bobPage]);
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();
     await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
@@ -139,16 +189,19 @@ test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling
   ];
 
   for (const viewport of viewports) {
-    const roomId = `${roomIdFor(testInfo.title)}-${viewport.width}`;
+    const guildId = `${idFor(testInfo.title, "guild")}-${viewport.width}`;
+    const lobbyName = `${idFor(testInfo.title, "lobby")}-${viewport.width}`;
     const aliceContext = await browser.newContext({ viewport });
     const bobContext = await browser.newContext({ viewport });
     const alicePage = await aliceContext.newPage();
     const bobPage = await bobContext.newPage();
 
     try {
-      await joinLocalRoom(alicePage, roomId, alice);
-      await joinLocalRoom(bobPage, roomId, bob);
-      await expectBothPagesShowPlayers([alicePage, bobPage]);
+      await openLocalMenu(alicePage, alice, guildId);
+      await createLobby(alicePage, lobbyName, "Alice");
+      await openLocalMenu(bobPage, bob, guildId);
+      await joinLobby(bobPage, lobbyName, "Bob");
+      await expectSetupShowsPlayers([alicePage, bobPage]);
 
       await expectNoPageScroll(alicePage);
       await expectNoPageScroll(bobPage);

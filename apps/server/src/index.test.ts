@@ -40,6 +40,25 @@ describe("isMainModule", () => {
 });
 
 describe("guild HTTP routes", () => {
+  it("answers browser CORS preflight requests for lobby APIs", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/guilds/local-guild/lobbies",
+      headers: {
+        origin: "http://127.0.0.1:5173",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("POST");
+    expect(response.headers["access-control-allow-headers"]).toContain("content-type");
+  });
+
   it("lists created lobby summaries scoped to the requested guild", async () => {
     const { app } = await createTestServer();
 

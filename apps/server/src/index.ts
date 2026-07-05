@@ -13,6 +13,14 @@ function terminateWebSocketClients(wss: WebSocketServer): void {
   }
 }
 
+function headerValue(value: string | string[] | undefined, fallback: string): string {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return value ?? fallback;
+}
+
 function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomId: string } | undefined {
   try {
     const url = new URL(requestUrl ?? "/", "http://localhost");
@@ -43,6 +51,23 @@ export async function buildServer(options: BuildServerOptions = {}) {
     });
   const rooms = options.rooms ?? new RoomManager(lobbies, stateStore);
   const wss = new WebSocketServer({ noServer: true });
+
+  app.addHook("onRequest", async (request, reply) => {
+    const origin = request.headers.origin;
+    if (origin) {
+      reply.header("access-control-allow-origin", origin);
+      reply.header("access-control-allow-methods", "GET, POST, PUT, OPTIONS");
+      reply.header(
+        "access-control-allow-headers",
+        headerValue(request.headers["access-control-request-headers"], "content-type")
+      );
+      reply.header("vary", "Origin");
+    }
+
+    if (request.method === "OPTIONS") {
+      return reply.code(204).send();
+    }
+  });
 
   app.get("/health", async () => ({ ok: true }));
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import type { LobbySlot, LobbySummary } from "@graphwar/shared";
 
 type JoinLobbyViewProps = {
@@ -22,6 +22,14 @@ export function isAliasConflictError(error: unknown): boolean {
   );
 }
 
+export function joinActionLabel(slot: LobbySlot): string {
+  return slot === "spectator" ? "Spectate" : "Join As Player";
+}
+
+export function isJoinActionDisabled(lobby: LobbySummary, slot: LobbySlot, joiningRoomId: string | undefined): boolean {
+  return joiningRoomId === lobby.roomId || (slot === "player" && lobby.status === "playing");
+}
+
 function messageFromError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -32,7 +40,8 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
   const [formError, setFormError] = useState<string | undefined>();
   const [joiningRoomId, setJoiningRoomId] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | undefined>();
-  const [slot, setSlot] = useState<LobbySlot>("player");
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
+  const selectedLobby = lobbies.find((lobby) => lobby.roomId === selectedRoomId);
 
   async function loadLobbies(): Promise<void> {
     setLoadError(undefined);
@@ -47,7 +56,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
     void loadLobbies();
   }, [onLoad]);
 
-  async function handleJoin(roomId: string, event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleJoin(roomId: string, slot: LobbySlot, event: SyntheticEvent): Promise<void> {
     event.preventDefault();
     setAliasTaken(false);
     setFormError(undefined);
@@ -98,13 +107,6 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
             }}
           />
         </label>
-        <label>
-          Slot
-          <select value={slot} onChange={(event) => setSlot(event.currentTarget.value as LobbySlot)}>
-            <option value="player">Player</option>
-            <option value="spectator">Spectator</option>
-          </select>
-        </label>
       </div>
       {(loadError || formError) && (
         <p className="notice" role="alert">
@@ -117,27 +119,45 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
           <p className="muted">No lobbies available.</p>
         ) : (
           lobbies.map((lobby) => {
-            const playerJoinDisabled = slot === "player" && lobby.status === "playing";
             return (
-              <form className="lobby-row" key={lobby.roomId} onSubmit={(event) => void handleJoin(lobby.roomId, event)}>
+              <div className="lobby-row" key={lobby.roomId}>
                 <div>
-                  <strong>{lobby.name}</strong>
+                  <button
+                    aria-pressed={selectedRoomId === lobby.roomId}
+                    className="lobby-select-button"
+                    onClick={() => {
+                      setSelectedRoomId(lobby.roomId);
+                      setFormError(undefined);
+                    }}
+                    type="button"
+                  >
+                    {lobby.name}
+                  </button>
                   <span>
                     {lobby.status} - {lobby.playerCount} players - {lobby.spectatorCount} spectators
                   </span>
                 </div>
-                <button
-                  className="primary-action"
-                  disabled={playerJoinDisabled || joiningRoomId === lobby.roomId}
-                  type="submit"
-                >
-                  {joiningRoomId === lobby.roomId ? "Joining" : "Join"}
-                </button>
-              </form>
+              </div>
             );
           })
         )}
       </div>
+
+      {selectedLobby && (
+        <div className="form-actions" aria-label={`Join ${selectedLobby.name}`}>
+          {(["player", "spectator"] as const).map((actionSlot) => (
+            <button
+              className={actionSlot === "player" ? "primary-action" : "secondary-action"}
+              disabled={isJoinActionDisabled(selectedLobby, actionSlot, joiningRoomId)}
+              key={actionSlot}
+              onClick={(event) => void handleJoin(selectedLobby.roomId, actionSlot, event)}
+              type="button"
+            >
+              {joinActionLabel(actionSlot)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="form-actions">
         <button className="secondary-action" onClick={onBack} type="button">

@@ -449,6 +449,42 @@ dd {
   gap: 8px;
 }
 
+.lobby-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.lobby-row {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #34342f;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.lobby-row span {
+  display: block;
+  color: #b0a997;
+  font-size: 12px;
+}
+
+.lobby-select-button {
+  min-height: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff8e7;
+  font-weight: 800;
+  padding: 0;
+  text-align: left;
+}
+
+.lobby-select-button[aria-pressed="true"],
+.lobby-select-button:hover,
+.lobby-select-button:focus-visible {
+  color: #9fd3c5;
+}
+
 .surface-list {
   min-width: 0;
   border: 1px solid #34342f;

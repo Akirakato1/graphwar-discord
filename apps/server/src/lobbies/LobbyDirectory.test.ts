@@ -230,6 +230,30 @@ describe("LobbyDirectory", () => {
     );
   });
 
+  it("promotes spectators into teams when the leader auto-assigns", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    directory.moveOccupant("guild-1", "room-1", "alice-id", "bob-id", "spectator");
+
+    const assigned = directory.autoAssignTeams("guild-1", "room-1", "alice-id");
+
+    expect(assigned.occupants).toEqual([
+      expect.objectContaining({ alias: "Alice", slot: "player", placement: "team-a" }),
+      expect.objectContaining({ alias: "Bob", slot: "player", placement: "team-b" })
+    ]);
+  });
+
   it("only lets started lobbies be joined as spectators", async () => {
     const directory = createDirectory();
     await directory.createLobby("guild-1", {

@@ -203,10 +203,7 @@ export class LobbyDirectory {
 
     let playerIndex = 0;
     for (const occupant of lobby.occupants.values()) {
-      if (occupant.slot === "spectator") {
-        continue;
-      }
-
+      occupant.slot = "player";
       occupant.placement = playerIndex % 2 === 0 ? "team-a" : "team-b";
       playerIndex += 1;
     }
