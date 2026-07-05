@@ -11,6 +11,6 @@ describe("App", () => {
     expect(html).toContain("Battlefield");
     expect(html).toContain("Lobby");
     expect(html).toContain("Start Match");
-    expect(html).toContain("Recent Events");
+    expect(html).not.toContain("Recent Events");
   });
 });

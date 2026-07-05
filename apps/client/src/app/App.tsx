@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { GameCanvas } from "../game-renderer/GameCanvas";
 import { LobbyPanel } from "../hud/LobbyPanel";
 import { MatchHud } from "../hud/MatchHud";
-import { useGameStore, type ConnectionStatus, type GameLogEntry } from "./useGameStore";
+import { useGameStore, type ConnectionStatus } from "./useGameStore";
 
 function statusText(status: ConnectionStatus): string {
   switch (status) {
@@ -21,46 +21,13 @@ function statusText(status: ConnectionStatus): string {
   }
 }
 
-type EventLogProps = {
-  entries: GameLogEntry[];
-  onClear: () => void;
-};
-
-function EventLog({ entries, onClear }: EventLogProps) {
-  return (
-    <section className="panel event-log" aria-labelledby="event-log-title">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">Recent Events</p>
-          <h2 id="event-log-title">Room Log</h2>
-        </div>
-        <button className="secondary-action" disabled={entries.length === 0} onClick={onClear} type="button">
-          Clear
-        </button>
-      </div>
-
-      {entries.length === 0 ? (
-        <p className="muted">Room events will appear here.</p>
-      ) : (
-        <ol className="log-list" aria-live="polite">
-          {entries.map((entry) => (
-            <li key={entry.id}>{entry.message}</li>
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
 export function App() {
-  const clearLog = useGameStore((state) => state.clearLog);
   const connect = useGameStore((state) => state.connect);
   const connectionStatus = useGameStore((state) => state.connectionStatus);
   const disconnect = useGameStore((state) => state.disconnect);
   const joinRoom = useGameStore((state) => state.joinRoom);
   const lastError = useGameStore((state) => state.lastError);
   const lastRejection = useGameStore((state) => state.lastRejection);
-  const log = useGameStore((state) => state.log);
   const recentEvents = useGameStore((state) => state.recentEvents);
   const selectMode = useGameStore((state) => state.selectMode);
   const session = useGameStore((state) => state.session);
@@ -90,7 +57,7 @@ export function App() {
         </div>
       </header>
 
-      <div className={isPlaying ? "app-grid playing-grid" : "app-grid"}>
+      <div className={isPlaying ? "app-grid playing-grid" : "app-grid lobby-activity-grid"}>
         <GameCanvas events={recentEvents} snapshot={snapshot} />
 
         {!isPlaying && (
@@ -143,16 +110,16 @@ export function App() {
           />
         )}
 
-        <MatchHud
-          connectionStatus={connectionStatus}
-          lastError={lastError}
-          lastRejection={lastRejection}
-          onSubmitShot={submitShot}
-          session={session}
-          snapshot={snapshot}
-        />
-
-        {!isPlaying && <EventLog entries={log} onClear={clearLog} />}
+        {isPlaying && (
+          <MatchHud
+            connectionStatus={connectionStatus}
+            lastError={lastError}
+            lastRejection={lastRejection}
+            onSubmitShot={submitShot}
+            session={session}
+            snapshot={snapshot}
+          />
+        )}
       </div>
     </main>
   );

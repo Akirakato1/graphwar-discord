@@ -11,7 +11,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: client local-session parsing, Discord-ready session placeholder, schema-validating WebSocket client, Zustand room store, a practical local multi-tab lobby/match control surface, normal-function shot input palette, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with attenuated authoritative shot paths, turn-start shot clearing, and a Playwright two-client local lobby smoke test.
+- Current checkpoint: client local-session parsing, Discord-ready session placeholder, schema-validating WebSocket client, Zustand room store, a practical local multi-tab lobby/match control surface, normal-function shot input palette, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with attenuated authoritative shot paths, turn-start shot clearing, Discord 16:9 no-scroll viewport fitting, and Playwright local lobby/gameplay smoke tests.
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -29,7 +29,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 
 The workspace now contains:
 
-- `apps/client`: Vite + React browser activity prototype with local query-parameter sessions, a Discord session factory placeholder, validated WebSocket room client, Zustand game store, Canvas 2D battlefield rendering, authoritative shot path/impact playback, connection panel, lobby roster/team display, mode controls, start-match control, turn summary, recent event log, compact playing HUD, 8-way direction dial with mouse-wheel stepping, normal-function shot input with snippet buttons for common functions, constants, operators, and templates, and Playwright coverage for two local mock clients joining, starting, firing, and advancing turns.
+- `apps/client`: Vite + React browser activity prototype with local query-parameter sessions, a Discord session factory placeholder, validated WebSocket room client, Zustand game store, Canvas 2D battlefield rendering, authoritative shot path/impact playback, compact lobby controls, compact playing HUD, hidden nonessential/debug panels during gameplay, 8-way direction dial with mouse-wheel stepping, normal-function shot input with snippet buttons for common functions, constants, operators, and templates, and Playwright coverage for two local mock clients joining, starting, firing, advancing turns, and fitting lobby/gameplay inside 16:9 Discord-style viewports without page scrolling.
 - `apps/server`: Fastify server with a `/health` route on port `8787`, `/rooms/:roomId` WebSocket upgrades, normal-function parsing/sampling helpers for shot trajectories, authoritative rotated-axis shot simulation and collision resolution, server-side destructible terrain crater logic, match mode rules, deterministic map generators, a match controller for lobby joins, match starts, shot submissions, turn advancement, and victory resolution, and a local room manager for command routing.
 - `packages/shared`: shared constants, geometry/state types, 8-way aim direction and coordinate helpers, polygon helpers, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation with compile-time protocol alignment checks.
 - Root TypeScript project references, Vitest config, and Playwright config.
@@ -56,7 +56,11 @@ npm --workspace apps/client run build
 npm --workspace apps/server run build
 ```
 
-The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, match controller orchestration, WebSocket room integration, client local-session/network/store/UI/renderer behavior, function input palette insertion behavior, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, exercise a two-client local lobby smoke test with Playwright, and verify the client and server build outputs.
+The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, match controller orchestration, WebSocket room integration, client local-session/network/store/UI/renderer behavior, function input palette insertion behavior, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, exercise two-client local lobby/gameplay and 16:9 no-scroll viewport smoke tests with Playwright, and verify the client and server build outputs.
+
+## Discord Viewport Constraint
+
+All first-party gameplay and lobby UI must fit inside a Discord Activity-style 16:9 viewport without page scrolling. Nonessential panels such as event logs, debug/status surfaces, and setup-only details should be hidden or compressed when irrelevant, especially during gameplay and phone landscape layouts.
 
 ## Local Development Target
 
@@ -101,4 +105,4 @@ Every major implementation task should:
 - Scaffolded the TypeScript workspace with client, server, and shared packages.
 - `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
 - Added shared coordinate and polygon helpers with validated circle polygon inputs and targeted geometry coverage.
-- Current: added the client-side local session boundary, future Discord session placeholder, schema-validated WebSocket client, Zustand store actions for room commands/events, a usable multi-tab lobby/match control surface, Canvas 2D world rendering with shot path/impact playback, a normal-function shot input palette, 8-way rotated local aim directions, minimal in-turn HUD, shot path attenuation and turn-start clearing, and a Playwright two-client smoke test for `alice`/`bob` local testing.
+- Current: added the client-side local session boundary, future Discord session placeholder, schema-validated WebSocket client, Zustand store actions for room commands/events, a usable multi-tab lobby/match control surface, Canvas 2D world rendering with shot path/impact playback, a normal-function shot input palette, 8-way rotated local aim directions, minimal in-turn HUD, shot path attenuation and turn-start clearing, Discord 16:9 no-scroll viewport fitting, and Playwright smoke tests for `alice`/`bob` local testing.

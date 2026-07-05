@@ -30,6 +30,29 @@ async function activeTurnText(page: Page): Promise<string> {
   return (await page.getByTestId("active-turn").textContent()) ?? "";
 }
 
+async function expectNoPageScroll(page: Page): Promise<void> {
+  await expect
+    .poll(async () =>
+      page.evaluate(() => ({
+        documentHeight: document.documentElement.scrollHeight,
+        viewportHeight: document.documentElement.clientHeight,
+        bodyHeight: document.body.scrollHeight
+      }))
+    )
+    .toMatchObject({
+      documentHeight: expect.any(Number),
+      viewportHeight: expect.any(Number),
+      bodyHeight: expect.any(Number)
+    });
+
+  const metrics = await page.evaluate(() => ({
+    documentHeight: document.documentElement.scrollHeight,
+    viewportHeight: document.documentElement.clientHeight,
+    bodyHeight: document.body.scrollHeight
+  }));
+  expect(Math.max(metrics.documentHeight, metrics.bodyHeight)).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+}
+
 test("two local players can start a match and advance turns with a function shot", async ({ browser }, testInfo) => {
   const roomId = roomIdFor(testInfo.title);
   const aliceContext = await browser.newContext();
@@ -66,5 +89,39 @@ test("two local players can start a match and advance turns with a function shot
   } finally {
     await aliceContext.close();
     await bobContext.close();
+  }
+});
+
+test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling", async ({ browser }, testInfo) => {
+  const viewports = [
+    { width: 1280, height: 720 },
+    { width: 640, height: 360 }
+  ];
+
+  for (const viewport of viewports) {
+    const roomId = `${roomIdFor(testInfo.title)}-${viewport.width}`;
+    const aliceContext = await browser.newContext({ viewport });
+    const bobContext = await browser.newContext({ viewport });
+    const alicePage = await aliceContext.newPage();
+    const bobPage = await bobContext.newPage();
+
+    try {
+      await joinLocalRoom(alicePage, roomId, alice);
+      await joinLocalRoom(bobPage, roomId, bob);
+      await expectBothPagesShowPlayers([alicePage, bobPage]);
+
+      await expectNoPageScroll(alicePage);
+      await expectNoPageScroll(bobPage);
+
+      await alicePage.getByRole("button", { name: "Start Match" }).click();
+      await expect(alicePage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
+      await expect(bobPage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
+
+      await expectNoPageScroll(alicePage);
+      await expectNoPageScroll(bobPage);
+    } finally {
+      await aliceContext.close();
+      await bobContext.close();
+    }
   }
 });
