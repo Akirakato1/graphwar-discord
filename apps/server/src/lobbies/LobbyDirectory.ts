@@ -185,6 +185,11 @@ export class LobbyDirectory {
 
   autoAssignTeams(guildId: string, roomId: string, actorId: string): LobbyRuntimeSnapshot {
     const lobby = this.requireLobby(guildId, roomId);
+
+    if (lobby.status !== "open") {
+      throw new Error("Cannot move occupants after match has started.");
+    }
+
     this.assertLeader(lobby, actorId);
 
     if (lobby.mode !== "team-versus") {
