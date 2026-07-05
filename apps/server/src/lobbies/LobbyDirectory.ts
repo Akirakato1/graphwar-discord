@@ -166,6 +166,10 @@ export class LobbyDirectory {
   ): LobbyRuntimeSnapshot {
     const lobby = this.requireLobby(guildId, roomId);
 
+    if (lobby.status !== "open") {
+      throw new Error("Cannot move occupants after match has started.");
+    }
+
     if (actorId !== targetId && actorId !== lobby.leaderDiscordUserId) {
       throw new Error("Only the lobby leader can move another player.");
     }

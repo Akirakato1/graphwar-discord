@@ -590,4 +590,38 @@ describe("LobbyDirectory", () => {
       expect.objectContaining({ discordUserId: "bob-id" })
     );
   });
+
+  it("prevents spectators from moving into player slots after the match has started", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    directory.autoAssignTeams("guild-1", "room-1", "alice-id");
+    directory.markPlaying("guild-1", "room-1");
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "charlie-id",
+      alias: "Charlie",
+      slot: "spectator"
+    });
+
+    expect(() => directory.moveOccupant("guild-1", "room-1", "charlie-id", "charlie-id", "team-a")).toThrow(
+      "Cannot move occupants after match has started."
+    );
+    expect(directory.getLobby("guild-1", "room-1").occupants).toContainEqual(
+      expect.objectContaining({
+        discordUserId: "charlie-id",
+        slot: "spectator",
+        placement: "spectator"
+      })
+    );
+  });
 });
