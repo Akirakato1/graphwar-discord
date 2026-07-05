@@ -1,17 +1,27 @@
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
 import { serverEventSchema, type ServerEvent } from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer } from "../index";
+import { LocalStateStore } from "../persistence/LocalStateStore";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
 
 const servers: TestServer[] = [];
 const sockets: WebSocket[] = [];
+const tempDirs: string[] = [];
 
 function socketUrl(app: TestServer, roomId: string, mockPlayer: string): string {
   const address = app.server.address() as AddressInfo;
   return `ws://127.0.0.1:${address.port}/rooms/${roomId}?mockPlayer=${mockPlayer}`;
+}
+
+function guildSocketUrl(app: TestServer, guildId: string, roomId: string): string {
+  const address = app.server.address() as AddressInfo;
+  return `ws://127.0.0.1:${address.port}/guilds/${guildId}/rooms/${roomId}`;
 }
 
 function connect(url: string): Promise<WebSocket> {
@@ -45,7 +55,9 @@ function collectEvents(socket: WebSocket): ServerEvent[] {
 }
 
 async function startTestServer(): Promise<TestServer> {
-  const app = await buildServer();
+  const dir = await mkdtemp(join(tmpdir(), "graphwar-server-"));
+  tempDirs.push(dir);
+  const app = await buildServer({ stateStore: new LocalStateStore(join(dir, "local-state.json")) });
   await app.listen({ port: 0, host: "127.0.0.1" });
   servers.push(app);
   return app;
@@ -125,6 +137,7 @@ describe("RoomManager WebSocket integration", () => {
       }
     }
     await Promise.all(servers.splice(0).map((app) => app.close()));
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
   it("resolves a submitted shot for two joined websocket clients", async () => {
@@ -226,6 +239,90 @@ describe("RoomManager WebSocket integration", () => {
     });
 
     await closeSocket(alice);
+  });
+
+  it("creates and joins a guild-scoped lobby through HTTP before opening websocket clients", async () => {
+    const app = await startTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Friday Graphwar",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+
+    const duplicateResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "alice", slot: "player" }
+    });
+    expect(duplicateResponse.statusCode).toBe(409);
+
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    expect(joinResponse.statusCode).toBe(200);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      discordUserId: "alice-id",
+      alias: "Alice",
+      displayName: "Alice",
+      slot: "player"
+    });
+    send(bob, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      discordUserId: "bob-id",
+      alias: "Bob",
+      displayName: "Bob",
+      slot: "player"
+    });
+
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) =>
+        candidate.type === "room-snapshot" &&
+        candidate.guildId === "local-guild" &&
+        candidate.lobby?.occupants.length === 2
+    );
+
+    send(bob, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "bob-id" });
+    await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason === "Only the lobby leader can start."
+    );
+
+    send(alice, {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id"
+    });
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForEvent(() => [...aliceEvents, ...bobEvents], (candidate) => candidate.type === "match-started");
+
+    await closeSocket(alice);
+    await closeSocket(bob);
   });
 
   it("converts duplicate start-match lifecycle errors into safe rejections", async () => {
