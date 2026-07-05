@@ -1,10 +1,41 @@
-import type { AimDirectionId, ClientCommand, MatchModeId, MatchSnapshot, ServerEvent } from "@graphwar/shared";
+import type {
+  AimDirectionId,
+  ClientCommand,
+  GuildSettings,
+  LobbyPlacementId,
+  LobbyRuntimeSnapshot,
+  LobbySlot,
+  LobbySummary,
+  MatchModeId,
+  MatchSnapshot,
+  PlayerStatsEntry,
+  ServerEvent
+} from "@graphwar/shared";
 import { create } from "zustand";
 import { createStore, type StateCreator, type StoreApi } from "zustand/vanilla";
 import { connectGameClient, type ConnectGameClientOptions, type GameClient } from "../networking/gameClient";
+import { createLobbyApi, type LobbyApi } from "../networking/lobbyApi";
 import { readLocalSession, type ClientSession } from "../sessions/localSession";
 
 export type ConnectionStatus = "idle" | "connecting" | "open" | "closed" | "reconnecting" | "error";
+
+export type AppView =
+  | "main-menu"
+  | "create-lobby"
+  | "join-lobby"
+  | "settings"
+  | "leaderboard"
+  | "lobby-setup"
+  | "game";
+
+export type SelectedLobbySession = {
+  guildId: string;
+  roomId: string;
+  discordUserId: string;
+  playerId: string;
+  alias: string;
+  slot: "player" | "spectator";
+};
 
 export type GameLogEntry = {
   id: number;
@@ -20,24 +51,40 @@ export type CommandRejection = {
 export type GameClientFactory = (options: ConnectGameClientOptions) => GameClient;
 
 export type GameStoreState = {
+  autoAssignTeams(): void;
   clearLog(): void;
   connect(): void;
   connectionStatus: ConnectionStatus;
+  createLobby(form: { name: string; alias: string; mode: MatchModeId; initialSlot: LobbySlot }): Promise<void>;
+  currentLobby?: LobbyRuntimeSnapshot;
   disconnect(): void;
   joinRoom(): void;
+  joinLobby(roomId: string, form: { alias: string; slot: LobbySlot }): Promise<void>;
   lastError?: string;
   lastRejection?: CommandRejection;
+  leaderboard: PlayerStatsEntry[];
+  loadLeaderboard(): Promise<void>;
+  loadLobbies(): Promise<void>;
+  loadSettings(): Promise<void>;
   log: GameLogEntry[];
+  lobbies: LobbySummary[];
   recentEvents: ServerEvent[];
   selectMode(mode: MatchModeId): void;
+  selectedLobbySession?: SelectedLobbySession;
   session: ClientSession;
+  settings?: GuildSettings;
+  saveSettings(settings: GuildSettings): Promise<void>;
+  setTeam(targetPlayerId: string, placement: LobbyPlacementId): void;
+  setView(view: AppView): void;
   snapshot?: MatchSnapshot;
   startMatch(): void;
   submitShot(expression: string, aimDirection: AimDirectionId): void;
+  view: AppView;
 };
 
 export type CreateGameStoreOptions = {
   clientFactory?: GameClientFactory;
+  lobbyApi?: LobbyApi;
   logLimit?: number;
   session?: ClientSession;
 };
@@ -127,8 +174,8 @@ function describeEvent(event: ServerEvent): string {
 
 export function createGameState(options: CreateGameStoreOptions = {}): StateCreator<GameStoreState> {
   const session = options.session ?? readLocalSession();
-  const roomId = session.roomId ?? "local-test";
   const clientFactory = options.clientFactory ?? connectGameClient;
+  const lobbyApi = options.lobbyApi ?? createLobbyApi(session.serverUrl);
   const logLimit = options.logLimit ?? 30;
   let client: GameClient | undefined;
   let connectionId = 0;
@@ -154,24 +201,60 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       client.send(command);
     }
 
+    function selectedRoom(): SelectedLobbySession | undefined {
+      const selected = get().selectedLobbySession;
+      if (!selected) {
+        const message = "Choose or create a lobby before sending commands.";
+        set({ lastError: message, lastRejection: undefined });
+        appendLog(message);
+        return undefined;
+      }
+
+      return selected;
+    }
+
     function handleEvent(event: ServerEvent): void {
       set((state) => ({
+        currentLobby: "lobby" in event && event.lobby ? event.lobby : state.currentLobby,
         lastRejection:
           event.type === "shot-rejected" ? { playerId: event.playerId, reason: event.reason } : undefined,
         lastError: event.type === "shot-rejected" ? state.lastError : undefined,
         recentEvents: [...state.recentEvents, event].slice(-logLimit),
-        snapshot: applyEventToSnapshot(state.snapshot, event)
+        snapshot: applyEventToSnapshot(state.snapshot, event),
+        view:
+          event.type === "match-started" || ("lobby" in event && event.lobby?.status === "playing")
+            ? "game"
+            : state.view
       }));
       appendLog(describeEvent(event), event.type);
     }
 
     return {
+      autoAssignTeams() {
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({
+          type: "auto-assign-teams",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId
+        });
+      },
       clearLog() {
         set({ log: [], recentEvents: [] });
       },
       connect() {
         const status = get().connectionStatus;
         if (client && (status === "connecting" || status === "open" || status === "reconnecting")) {
+          return;
+        }
+
+        const selected = get().selectedLobbySession;
+        if (!selected) {
+          set({ lastError: "Choose or create a lobby before connecting.", lastRejection: undefined });
           return;
         }
 
@@ -184,8 +267,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
 
           set({ connectionStatus: "connecting", lastError: undefined, lastRejection: undefined });
           client = clientFactory({
-            guildId: session.guildId,
-            roomId,
+            guildId: selected.guildId,
+            roomId: selected.roomId,
             serverUrl: session.serverUrl,
             onClose: () => {
               if (nextConnectionId !== connectionId) {
@@ -230,6 +313,30 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         }
       },
       connectionStatus: "idle",
+      async createLobby(form) {
+        try {
+          const result = await lobbyApi.createLobby(session.guildId, {
+            name: form.name,
+            leaderDiscordUserId: session.discordUserId,
+            alias: form.alias,
+            mode: form.mode,
+            initialSlot: form.initialSlot
+          });
+          set({
+            currentLobby: result.lobby,
+            selectedLobbySession: result.session,
+            view: "lobby-setup",
+            lastError: undefined,
+            lastRejection: undefined
+          });
+          get().connect();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not create lobby.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
+      currentLobby: undefined,
       disconnect() {
         connectionId += 1;
         const currentClient = client;
@@ -238,22 +345,124 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         set({ connectionStatus: "closed", lastRejection: undefined });
         appendLog("Disconnected.");
       },
+      async joinLobby(roomId, form) {
+        try {
+          const result = await lobbyApi.joinLobby(session.guildId, roomId, {
+            discordUserId: session.discordUserId,
+            alias: form.alias,
+            slot: form.slot
+          });
+          set({
+            currentLobby: result.lobby,
+            selectedLobbySession: result.session,
+            view: "lobby-setup",
+            lastError: undefined,
+            lastRejection: undefined
+          });
+          get().connect();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not join lobby.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
       joinRoom() {
+        const selected = get().selectedLobbySession;
+        if (!selected) {
+          return;
+        }
+
         sendCommand({
           type: "join-room",
-          roomId,
-          playerId: session.playerId,
-          displayName: session.displayName
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          discordUserId: selected.discordUserId,
+          alias: selected.alias,
+          displayName: selected.alias,
+          slot: selected.slot
         });
       },
+      leaderboard: [],
+      async loadLeaderboard() {
+        try {
+          const leaderboard = await lobbyApi.getLeaderboard(session.guildId);
+          set({ leaderboard, lastError: undefined, lastRejection: undefined });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not load leaderboard.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
+      async loadLobbies() {
+        try {
+          const lobbies = await lobbyApi.listLobbies(session.guildId);
+          set({ lobbies, lastError: undefined, lastRejection: undefined });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not load lobbies.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
+      async loadSettings() {
+        try {
+          const settings = await lobbyApi.getSettings(session.guildId);
+          set({ settings, lastError: undefined, lastRejection: undefined });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not load settings.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
       log: [],
+      lobbies: [],
       recentEvents: [],
       selectMode(mode) {
-        sendCommand({ type: "select-mode", roomId, playerId: session.playerId, mode });
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({ type: "select-mode", guildId: selected.guildId, roomId: selected.roomId, playerId: selected.playerId, mode });
       },
+      selectedLobbySession: undefined,
       session,
+      settings: undefined,
+      async saveSettings(settings) {
+        try {
+          const savedSettings = await lobbyApi.saveSettings(settings);
+          set({ settings: savedSettings, lastError: undefined, lastRejection: undefined });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not save settings.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
+      setTeam(targetPlayerId, placement) {
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({
+          type: "set-team",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          targetPlayerId,
+          placement
+        });
+      },
+      setView(view) {
+        set({ view, lastError: undefined, lastRejection: undefined });
+      },
       startMatch() {
-        sendCommand({ type: "start-match", roomId, playerId: session.playerId });
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({ type: "start-match", guildId: selected.guildId, roomId: selected.roomId, playerId: selected.playerId });
       },
       submitShot(expression, aimDirection) {
         const trimmedExpression = expression.trim();
@@ -264,15 +473,22 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           return;
         }
 
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
         sendCommand({
           type: "submit-shot",
-          roomId,
-          playerId: session.playerId,
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
           functionFamilyId: "normal",
           aimDirection,
           expression: trimmedExpression
         });
-      }
+      },
+      view: "main-menu"
     };
   };
 }
