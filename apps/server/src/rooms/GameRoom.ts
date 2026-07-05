@@ -206,7 +206,9 @@ export class GameRoom {
             )
           : undefined;
         const lobby = context.lobbies.markPlaying(context.guildId, this.roomId);
-        const snapshot = this.match.startMatch(lobby.mode, generatedMap);
+        const snapshot = this.match.startMatch(lobby.mode, generatedMap, {
+          maxFunctionLength: lobby.maxFunctionLength
+        });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
         this.broadcast({
           type: "turn-started",
@@ -279,6 +281,7 @@ export class GameRoom {
       .map((occupant) => ({
         id: occupant.playerId,
         displayName: occupant.alias,
+        color: occupant.color,
         teamId: occupant.placement === "team-a" || occupant.placement === "team-b" ? occupant.placement : undefined
       }));
     return this.match.setLobbyPlayers(lobby.mode, players);

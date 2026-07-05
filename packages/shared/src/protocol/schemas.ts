@@ -3,7 +3,8 @@ import {
   lobbyPlacementSchema,
   lobbyRuntimeSnapshotSchema,
   lobbySlotSchema,
-  matchModeSchema
+  matchModeSchema,
+  playerColorSchema
 } from "../lobby/schemas";
 import { aimDirections } from "../state/types";
 
@@ -31,6 +32,7 @@ export const matchSnapshotSchema = z.object({
     z.object({
       id: z.string(),
       displayName: z.string(),
+      color: playerColorSchema.optional(),
       teamId: z.string(),
       position: pointSchema,
       hp: nonNegativeFiniteNumberSchema,

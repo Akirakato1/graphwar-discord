@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 import { LobbyDirectory, type LobbyDirectoryOptions } from "./LobbyDirectory";
 
 type Deferred = {
@@ -41,6 +42,7 @@ describe("LobbyDirectory", () => {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
+      color: defaultPlayerColor,
       slot: "player",
       sessionToken: expect.any(String)
     });
@@ -49,11 +51,42 @@ describe("LobbyDirectory", () => {
         discordUserId: "alice-id",
         playerId: "alice-id",
         alias: "Alice",
+        color: defaultPlayerColor,
         slot: "player",
         placement: "team-a",
         connected: true,
         isLeader: true
       }
+    ]);
+  });
+
+  it("stores selected player colors and max function length in lobby snapshots and sessions", async () => {
+    const directory = createDirectory();
+
+    const created = await directory.createLobby("guild-1", {
+      name: "Color Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      color: playerColorPalette[2],
+      maxFunctionLength: 35
+    });
+    const joined = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player",
+      color: playerColorPalette[4]
+    });
+
+    expect(created.session).toEqual(expect.objectContaining({ color: playerColorPalette[2] }));
+    expect(created.lobby.maxFunctionLength).toBe(35);
+    expect(created.lobby.occupants[0]).toEqual(expect.objectContaining({ color: playerColorPalette[2] }));
+    expect(joined.session).toEqual(expect.objectContaining({ color: playerColorPalette[4] }));
+    expect(joined.lobby).toEqual(expect.objectContaining({ maxFunctionLength: 35 }));
+    expect(joined.lobby.occupants).toEqual([
+      expect.objectContaining({ discordUserId: "alice-id", color: playerColorPalette[2] }),
+      expect.objectContaining({ discordUserId: "bob-id", color: playerColorPalette[4] })
     ]);
   });
 
@@ -333,6 +366,7 @@ describe("LobbyDirectory", () => {
       discordUserId: "carol-id",
       playerId: "carol-id",
       alias: "Carol",
+      color: defaultPlayerColor,
       slot: "spectator",
       sessionToken: expect.any(String)
     });

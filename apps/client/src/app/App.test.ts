@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { defaultPlayerColor } from "@graphwar/shared";
 import { App, GameSessionPill, resolveLocalLobbyIdentity } from "./App";
 import { LobbySetupView } from "../lobby/LobbySetupView";
 
@@ -41,6 +42,7 @@ describe("App", () => {
           occupants: [],
           canStart: false,
           startBlockedReason: "Need at least two players.",
+          maxFunctionLength: 50,
           createdAt: "2026-07-05T00:00:00.000Z"
         },
         onAutoAssign: () => {},
@@ -63,6 +65,7 @@ describe("App", () => {
           discordUserId: "alice",
           playerId: "alice-id",
           alias: "Alice",
+          color: defaultPlayerColor,
           slot: "player",
           sessionToken: "session-token"
         },
@@ -97,6 +100,7 @@ describe("App", () => {
             discordUserId: "alice-discord",
             playerId: "alice-player",
             alias: "Alice",
+            color: defaultPlayerColor,
             slot: "spectator",
             placement: "spectator",
             connected: true,
@@ -104,6 +108,7 @@ describe("App", () => {
           }
         ],
         canStart: false,
+        maxFunctionLength: 50,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       selectedLobbySession: {
@@ -112,6 +117,7 @@ describe("App", () => {
         discordUserId: "alice-discord",
         playerId: "alice-player",
         alias: "Alice",
+        color: defaultPlayerColor,
         slot: "player",
         sessionToken: "session-token"
       },

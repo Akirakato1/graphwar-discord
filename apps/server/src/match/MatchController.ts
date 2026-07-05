@@ -1,5 +1,6 @@
 import {
   defaultMatchTuning,
+  defaultMaxFunctionLength,
   type AimDirectionId,
   type FunctionFamilyId,
   type MatchModeId,
@@ -9,7 +10,8 @@ import {
   type ServerEvent,
   type TeamState,
   type TerrainState,
-  type WorldPoint
+  type WorldPoint,
+  normalizeMaxFunctionLength
 } from "@graphwar/shared";
 import { FunctionRegistry } from "../functions/FunctionRegistry";
 import { FreeForAllMapGenerator } from "../maps/FreeForAllMapGenerator";
@@ -34,6 +36,10 @@ export type ShotSubmissionEvents =
   | [ShotResolvedEvent]
   | [ShotResolvedEvent, MatchEndedEvent];
 
+export type MatchStartOptions = {
+  maxFunctionLength?: number;
+};
+
 function cloneSnapshot(snapshot: MatchState): MatchState {
   return structuredClone(snapshot);
 }
@@ -42,18 +48,19 @@ export class MatchController {
   private readonly lobbyPlayers = new Map<PlayerId, LobbyPlayer>();
   private readonly functionRegistry = new FunctionRegistry();
   private readonly shotSimulator = new ShotSimulator();
+  private maxFunctionLength: number = defaultMaxFunctionLength;
   private snapshot: MatchState;
 
   constructor(private readonly roomId: RoomId) {
     this.snapshot = this.createEmptyLobbySnapshot();
   }
 
-  join(playerId: PlayerId, displayName: string): MatchState {
+  join(playerId: PlayerId, displayName: string, color?: LobbyPlayer["color"]): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Cannot join after match has started");
     }
 
-    this.lobbyPlayers.set(playerId, { id: playerId, displayName });
+    this.lobbyPlayers.set(playerId, { id: playerId, displayName, color });
     this.snapshot = this.createLobbySnapshot(this.snapshot.mode);
 
     return this.getSnapshot();
@@ -82,7 +89,7 @@ export class MatchController {
     return this.getSnapshot();
   }
 
-  startMatch(modeId: MatchModeId, generatedMap?: GeneratedMap): MatchState {
+  startMatch(modeId: MatchModeId, generatedMap?: GeneratedMap, options: MatchStartOptions = {}): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Match has already started");
     }
@@ -93,6 +100,7 @@ export class MatchController {
     }
 
     const mode = this.createMode(modeId);
+    this.maxFunctionLength = normalizeMaxFunctionLength(options.maxFunctionLength);
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
@@ -101,6 +109,7 @@ export class MatchController {
     const players = lobbyPlayers.map((player) => ({
       id: player.id,
       displayName: player.displayName,
+      color: player.color,
       teamId: teamIdsByPlayerId.get(player.id) ?? "",
       position: spawnsByPlayerId.get(player.id) ?? lobbyPosition,
       hp: defaultMatchTuning.soldierHp,
@@ -155,7 +164,8 @@ export class MatchController {
       players: this.snapshot.players,
       terrain: this.snapshot.terrain,
       shot,
-      aimDirection
+      aimDirection,
+      maxFunctionLength: this.maxFunctionLength
     });
 
     const nextTurn = this.nextTurn(result.players);
@@ -240,6 +250,7 @@ export class MatchController {
       players: lobbyPlayers.map((player) => ({
         id: player.id,
         displayName: player.displayName,
+        color: player.color,
         teamId: teamIdsByPlayerId.get(player.id) ?? "",
         position: lobbyPosition,
         hp: defaultMatchTuning.soldierHp,

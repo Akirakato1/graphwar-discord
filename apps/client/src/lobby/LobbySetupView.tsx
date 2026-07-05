@@ -14,6 +14,39 @@ function occupantsFor(lobby: LobbyRuntimeSnapshot, placement: LobbyPlacementId) 
   return lobby.occupants.filter((occupant) => occupant.placement === placement);
 }
 
+const groupActionLabels: Record<LobbyPlacementId, string> = {
+  "team-a": "Join A",
+  "team-b": "Join B",
+  players: "Join Players",
+  spectator: "Join Spectator"
+};
+
+type GroupMoveActionInput = {
+  currentPlacement?: LobbyPlacementId;
+  currentPlayerId?: string;
+  isLeader: boolean;
+  targetPlacement: LobbyPlacementId;
+};
+
+export function groupMoveAction({
+  currentPlacement,
+  currentPlayerId,
+  targetPlacement
+}: GroupMoveActionInput):
+  | { label: string; targetPlayerId: string; placement: LobbyPlacementId; disabled: boolean }
+  | undefined {
+  if (!currentPlayerId) {
+    return undefined;
+  }
+
+  return {
+    label: groupActionLabels[targetPlacement],
+    targetPlayerId: currentPlayerId,
+    placement: targetPlacement,
+    disabled: currentPlacement === targetPlacement
+  };
+}
+
 export function LobbySetupView({
   currentDiscordUserId,
   currentPlayerId,
@@ -28,7 +61,8 @@ export function LobbySetupView({
   );
   const isLeader = currentOccupant?.isLeader ?? lobby.leaderDiscordUserId === currentDiscordUserId;
   const currentOccupantPlayerId = currentOccupant?.playerId ?? currentPlayerId;
-  const canMove = (targetPlayerId: string) => isLeader || targetPlayerId === currentOccupantPlayerId;
+  const currentPlacement = currentOccupant?.placement;
+  const canMoveCurrentOccupant = Boolean(currentOccupant) && (isLeader || currentOccupant?.playerId === currentOccupantPlayerId);
   const boxes: Array<{ placement: LobbyPlacementId; title: string }> =
     lobby.mode === "team-versus"
       ? [
@@ -66,28 +100,41 @@ export function LobbySetupView({
       <div className="setup-grid">
         {boxes.map((box) => (
           <section className="setup-column" key={box.placement} aria-label={box.title}>
-            <h2>{box.title}</h2>
+            <div className="setup-column-header">
+              <h2>{box.title}</h2>
+              {(() => {
+                const action = groupMoveAction({
+                  currentPlacement,
+                  currentPlayerId: currentOccupantPlayerId,
+                  isLeader,
+                  targetPlacement: box.placement
+                });
+
+                return action ? (
+                  <button
+                    className="setup-group-join"
+                    disabled={!canMoveCurrentOccupant || action.disabled}
+                    onClick={() => onMove(action.targetPlayerId, action.placement)}
+                    type="button"
+                  >
+                    {action.label}
+                  </button>
+                ) : null;
+              })()}
+            </div>
             <ul className="roster-list">
               {occupantsFor(lobby, box.placement).map((occupant) => (
                 <li key={occupant.discordUserId} data-testid={`setup-player-${occupant.playerId}`}>
-                  <span className="player-name">
+                  <span
+                    className="player-name setup-player-name"
+                    style={{ color: (occupant as typeof occupant & { color?: string }).color }}
+                  >
+                    {occupant.isLeader ? (
+                      <span aria-label="Lobby leader" className="leader-crown" role="img">
+                        ♛
+                      </span>
+                    ) : null}
                     {occupant.alias}
-                    {occupant.isLeader ? " Leader" : ""}
-                  </span>
-                  <span className="setup-move-actions">
-                    {boxes
-                      .filter((target) => target.placement !== box.placement)
-                      .map((target) => (
-                        <button
-                          aria-label={`Move ${occupant.alias} to ${target.title}`}
-                          disabled={!canMove(occupant.playerId)}
-                          key={target.placement}
-                          onClick={() => onMove(occupant.playerId, target.placement)}
-                          type="button"
-                        >
-                          {target.title}
-                        </button>
-                      ))}
                   </span>
                 </li>
               ))}

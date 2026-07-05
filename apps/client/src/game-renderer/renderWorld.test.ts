@@ -74,6 +74,7 @@ class RecordingCanvasContext {
 
   public set fillStyle(value: string) {
     this.currentFillStyle = value;
+    this.record("setFillStyle", [value]);
   }
 
   public get strokeStyle() {
@@ -383,5 +384,27 @@ describe("renderWorld", () => {
     expect(pathStrokeAlphas[0]).toBeCloseTo(0.95);
     expect(pathStrokeAlphas[1]).toBeCloseTo(0.575);
     expect(pathStrokeAlphas[2]).toBeCloseTo(0.2);
+  });
+
+  it("uses a player's chosen lobby color for their marker and name label", () => {
+    const context = new RecordingCanvasContext();
+
+    renderWorld(context as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      snapshot: {
+        ...snapshot,
+        players: [
+          {
+            ...snapshot.players[0],
+            color: "#f72585"
+          }
+        ],
+        teams: [{ id: "red", playerIds: ["alice"] }]
+      }
+    });
+
+    const fillStyles = context.calls
+      .filter((call) => call.name === "setFillStyle")
+      .map((call) => String(call.args[0]));
+    expect(fillStyles.filter((value) => value === "#f72585")).toHaveLength(2);
   });
 });

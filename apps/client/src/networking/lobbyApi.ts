@@ -13,11 +13,19 @@ import {
   type JoinLobbyRequest,
   type LobbyJoinResult,
   type LobbySummary,
+  type PlayerColor,
   type PlayerStatsEntry,
   type SaveCustomMapRequest
 } from "@graphwar/shared";
 
 export type LobbyApi = ReturnType<typeof createLobbyApi>;
+export type ClientCreateLobbyRequest = CreateLobbyRequest & {
+  color: PlayerColor;
+  maxFunctionLength: number;
+};
+export type ClientJoinLobbyRequest = JoinLobbyRequest & {
+  color: PlayerColor;
+};
 
 function httpBase(serverUrl: string | undefined, locationHref?: string): string {
   if (serverUrl) {
@@ -80,21 +88,23 @@ export function createLobbyApi(serverUrl?: string, locationHref?: string) {
       const response = await fetch(`${base}/guilds/${encodeURIComponent(guildId)}/lobbies`);
       return readJson(response, (value) => lobbySummarySchema.array().parse(value));
     },
-    async createLobby(guildId: string, request: CreateLobbyRequest): Promise<LobbyJoinResult> {
+    async createLobby(guildId: string, request: ClientCreateLobbyRequest): Promise<LobbyJoinResult> {
+      const parsedRequest = createLobbyRequestSchema.parse(request);
       const response = await fetch(`${base}/guilds/${encodeURIComponent(guildId)}/lobbies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(createLobbyRequestSchema.parse(request))
+        body: JSON.stringify(parsedRequest)
       });
       return readJson(response, (value) => lobbyJoinResultSchema.parse(value));
     },
-    async joinLobby(guildId: string, roomId: string, request: JoinLobbyRequest): Promise<LobbyJoinResult> {
+    async joinLobby(guildId: string, roomId: string, request: ClientJoinLobbyRequest): Promise<LobbyJoinResult> {
+      const parsedRequest = joinLobbyRequestSchema.parse(request);
       const response = await fetch(
         `${base}/guilds/${encodeURIComponent(guildId)}/lobbies/${encodeURIComponent(roomId)}/join`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(joinLobbyRequestSchema.parse(request))
+          body: JSON.stringify(parsedRequest)
         }
       );
       return readJson(response, (value) => lobbyJoinResultSchema.parse(value));

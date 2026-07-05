@@ -8,6 +8,7 @@ import {
   createLobbyInitialForm,
   prepareCreateLobbyForm
 } from "./CreateLobbyView";
+import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 
 describe("CreateLobbyView helpers", () => {
   it("trims lobby name and alias before creating", () => {
@@ -17,6 +18,8 @@ describe("CreateLobbyView helpers", () => {
         alias: "  Alice  ",
         mode: "team-versus",
         initialSlot: "player",
+        color: playerColorPalette[1],
+        maxFunctionLength: 72,
         mapId: "map-1"
       })
     ).toEqual({
@@ -25,6 +28,8 @@ describe("CreateLobbyView helpers", () => {
         alias: "Alice",
         mode: "team-versus",
         initialSlot: "player",
+        color: playerColorPalette[1],
+        maxFunctionLength: 72,
         mapId: "map-1"
       }
     });
@@ -42,12 +47,14 @@ describe("CreateLobbyView helpers", () => {
       name: "Graphwar Lobby",
       alias: "Alice",
       mode: "free-for-all",
-      initialSlot: "player"
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50
     });
     expect(availableInitialSlots(settings)).toEqual(["player"]);
   });
 
-  it("renders default and custom map choices", () => {
+  it("renders lobby identity and custom map choices", () => {
     const html = renderToStaticMarkup(
       React.createElement(CreateLobbyView, {
         defaultAlias: "Alice",
@@ -70,5 +77,9 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Map");
     expect(html).toContain("Default Map");
     expect(html).toContain("Imported Arena");
+    expect(html).toContain("Color");
+    expect(html).toContain("Max function length");
+    expect(html).toContain('min="20"');
+    expect(html).toContain('max="100"');
   });
 });

@@ -1,4 +1,4 @@
-import type { ClientCommand, MatchSnapshot, ServerEvent } from "@graphwar/shared";
+import { defaultPlayerColor, playerColorPalette, type ClientCommand, type MatchSnapshot, type ServerEvent } from "@graphwar/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectGameClient, type ConnectGameClientOptions, type WebSocketConstructor } from "../networking/gameClient";
 import type { LobbyApi } from "../networking/lobbyApi";
@@ -84,6 +84,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         leaderDiscordUserId: request.leaderDiscordUserId,
         occupants: [],
         canStart: false,
+        maxFunctionLength: request.maxFunctionLength ?? 50,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       session: {
@@ -92,6 +93,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         discordUserId: request.leaderDiscordUserId,
         playerId: request.leaderDiscordUserId,
         alias: request.alias,
+        color: request.color ?? defaultPlayerColor,
         slot: request.initialSlot,
         sessionToken: "session-token"
       }
@@ -107,6 +109,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         leaderDiscordUserId: request.discordUserId,
         occupants: [],
         canStart: false,
+        maxFunctionLength: 50,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       session: {
@@ -115,6 +118,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         discordUserId: request.discordUserId,
         playerId: request.discordUserId,
         alias: request.alias,
+        color: request.color ?? defaultPlayerColor,
         slot: request.slot,
         sessionToken: "join-session-token"
       }
@@ -140,7 +144,9 @@ async function selectLobby(store: ReturnType<typeof createGameStore>): Promise<v
     name: "Local Test",
     alias: session.defaultAlias,
     mode: "team-versus",
-    initialSlot: "player"
+    initialSlot: "player",
+    color: defaultPlayerColor,
+    maxFunctionLength: 50
   });
 }
 
@@ -179,6 +185,7 @@ describe("createGameStore", () => {
       leaderDiscordUserId: "alice-id",
       occupants: [],
       canStart: false,
+      maxFunctionLength: 50,
       createdAt: "2026-07-05T00:00:00.000Z"
     };
     const selectedLobbySession = {
@@ -187,6 +194,7 @@ describe("createGameStore", () => {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
+      color: defaultPlayerColor,
       slot: "player" as const,
       sessionToken: "alice-session"
     };
@@ -235,7 +243,9 @@ describe("createGameStore", () => {
       name: "Friday Graphwar",
       alias: "Alice",
       mode: "team-versus",
-      initialSlot: "player"
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 64
     });
     onOpen?.();
 
@@ -248,7 +258,9 @@ describe("createGameStore", () => {
           leaderDiscordUserId: "alice-id",
           alias: "Alice",
           mode: "team-versus",
-          initialSlot: "player"
+          initialSlot: "player",
+          color: defaultPlayerColor,
+          maxFunctionLength: 64
         }
       }
     ]);
@@ -276,6 +288,29 @@ describe("createGameStore", () => {
     ]);
   });
 
+  it("passes the selected color when joining a lobby", async () => {
+    const joinLobbyCalls: Array<Parameters<LobbyApi["joinLobby"]>> = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor("room-join"),
+        joinLobby: async (guildId, roomId, request) => {
+          joinLobbyCalls.push([guildId, roomId, request]);
+          return lobbyApiFor("room-join").joinLobby(guildId, roomId, request);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().joinLobby("room-join", {
+      alias: "Bob",
+      slot: "player",
+      color: playerColorPalette[2]
+    });
+
+    expect(joinLobbyCalls[0]?.[2]).toMatchObject({ color: playerColorPalette[2] });
+  });
+
   it("passes the selected custom map id when creating a lobby", async () => {
     const createLobbyCalls: Array<Parameters<LobbyApi["createLobby"]>> = [];
     const store = createGameStore({
@@ -295,6 +330,8 @@ describe("createGameStore", () => {
       alias: "Alice",
       mode: "team-versus",
       initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50,
       mapId: "map-1"
     });
 
@@ -383,6 +420,7 @@ describe("createGameStore", () => {
               leaderDiscordUserId: request.leaderDiscordUserId,
               occupants: [],
               canStart: false,
+              maxFunctionLength: request.maxFunctionLength ?? 50,
               createdAt: "2026-07-05T00:00:00.000Z"
             },
             session: {
@@ -391,6 +429,7 @@ describe("createGameStore", () => {
               discordUserId: request.leaderDiscordUserId,
               playerId: request.leaderDiscordUserId,
               alias: request.alias,
+              color: request.color ?? defaultPlayerColor,
               slot: request.initialSlot,
               sessionToken: `session-${createCount}`
             }
@@ -411,14 +450,18 @@ describe("createGameStore", () => {
       name: "First Lobby",
       alias: "Alice",
       mode: "team-versus",
-      initialSlot: "player"
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50
     });
     onOpen?.();
     await store.getState().createLobby({
       name: "Second Lobby",
       alias: "Alice",
       mode: "team-versus",
-      initialSlot: "player"
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50
     });
     onOpen?.();
 

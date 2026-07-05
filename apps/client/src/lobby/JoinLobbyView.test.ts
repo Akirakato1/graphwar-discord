@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { playerColorPalette } from "@graphwar/shared";
 import {
   availableJoinSlots,
   isAliasConflictError,
   isJoinActionDisabled,
+  prepareJoinLobbyForm,
   joinActionLabel,
   validateJoinAlias
 } from "./JoinLobbyView";
@@ -24,6 +26,14 @@ describe("JoinLobbyView helpers", () => {
   it("rejects blank aliases before submitting a join request", () => {
     expect(validateJoinAlias("   ")).toBe("Enter an alias.");
     expect(validateJoinAlias(" Alice ")).toBeUndefined();
+  });
+
+  it("trims aliases and preserves the selected color before joining", () => {
+    expect(prepareJoinLobbyForm({ alias: " Bob ", slot: "player", color: playerColorPalette[2] })).toEqual({
+      alias: "Bob",
+      slot: "player",
+      color: playerColorPalette[2]
+    });
   });
 
   it("recognizes alias conflicts by message or HTTP 409 status", () => {

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { LobbySetupView } from "./LobbySetupView";
+import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import { groupMoveAction, LobbySetupView } from "./LobbySetupView";
 
 const lobby = {
   guildId: "local-guild",
@@ -17,7 +18,8 @@ const lobby = {
       slot: "player" as const,
       placement: "team-a" as const,
       connected: true,
-      isLeader: true
+      isLeader: true,
+      color: defaultPlayerColor
     },
     {
       discordUserId: "bob-id",
@@ -26,11 +28,13 @@ const lobby = {
       slot: "spectator" as const,
       placement: "spectator" as const,
       connected: true,
-      isLeader: false
+      isLeader: false,
+      color: playerColorPalette[2]
     }
   ],
   canStart: false,
   startBlockedReason: "Team B needs at least one player.",
+  maxFunctionLength: 50,
   createdAt: "2026-07-05T00:00:00.000Z"
 };
 
@@ -54,7 +58,7 @@ describe("LobbySetupView", () => {
     expect(html).toContain("Team B needs at least one player.");
   });
 
-  it("uses the current occupant leader state and labels move targets contextually", () => {
+  it("shows leader crowns, player colors, and group-level move actions", () => {
     const html = renderToStaticMarkup(
       <LobbySetupView
         currentPlayerId="alice-player"
@@ -69,7 +73,8 @@ describe("LobbySetupView", () => {
               slot: "player" as const,
               placement: "team-a" as const,
               connected: true,
-              isLeader: true
+              isLeader: true,
+              color: defaultPlayerColor
             },
             {
               discordUserId: "bob-discord",
@@ -78,7 +83,8 @@ describe("LobbySetupView", () => {
               slot: "player" as const,
               placement: "team-b" as const,
               connected: true,
-              isLeader: false
+              isLeader: false,
+              color: playerColorPalette[2]
             }
           ]
         }}
@@ -90,7 +96,30 @@ describe("LobbySetupView", () => {
     );
 
     expect(html).toContain("Auto Assign");
-    expect(html).toContain('aria-label="Move Alice to Team B"');
-    expect(html).toContain('aria-label="Move Bob to Team A"');
+    expect(html).toContain('aria-label="Lobby leader"');
+    expect(html).toContain(`style="color:${defaultPlayerColor}"`);
+    expect(html).toContain("Join B");
+    expect(html).not.toContain('aria-label="Move Alice to Team B"');
+    expect(html).not.toContain('aria-label="Move Bob to Team A"');
+  });
+
+  it("only enables group move actions for a movable local occupant outside the target group", () => {
+    expect(
+      groupMoveAction({
+        currentPlacement: "team-a",
+        currentPlayerId: "alice-id",
+        isLeader: false,
+        targetPlacement: "team-a"
+      })
+    ).toEqual({ label: "Join A", targetPlayerId: "alice-id", placement: "team-a", disabled: true });
+
+    expect(
+      groupMoveAction({
+        currentPlacement: "team-a",
+        currentPlayerId: "alice-id",
+        isLeader: false,
+        targetPlacement: "team-b"
+      })
+    ).toEqual({ label: "Join B", targetPlayerId: "alice-id", placement: "team-b", disabled: false });
   });
 });

@@ -160,7 +160,7 @@ test("two local players can start a match and advance turns with a function shot
     await expect(bobPage.getByRole("heading", { name: lobbyName })).toBeVisible();
     await expectSetupShowsPlayers([alicePage, bobPage]);
 
-    await alicePage.getByTestId("setup-player-bob").getByRole("button", { name: "Move Bob to Spectators" }).click();
+    await bobPage.getByRole("region", { name: "Spectators" }).getByRole("button", { name: "Join Spectator" }).click();
     await expect(alicePage.getByRole("region", { name: "Spectators" })).toContainText("Bob");
     await alicePage.getByRole("button", { name: "Auto Assign" }).click();
     await expect(alicePage.getByRole("region", { name: "Team B" })).toContainText("Bob");

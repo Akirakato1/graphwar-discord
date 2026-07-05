@@ -24,6 +24,7 @@ export type ShotSimulationInput = {
   terrain: TerrainState;
   shot: ShotFunction;
   aimDirection?: AimDirectionId;
+  maxFunctionLength?: number;
 };
 
 export type ShotSimulationResult = {
@@ -45,6 +46,8 @@ type ResolvedImpact =
     });
 
 const POINT_EPSILON = 1e-9;
+const defaultMaxFunctionTravel =
+  defaultMatchTuning.sampleStep * Math.max(0, defaultMatchTuning.maxPathPoints - 1);
 
 function interpolate(start: WorldPoint, end: WorldPoint, t: number): WorldPoint {
   return {
@@ -69,14 +72,15 @@ export class ShotSimulator {
 
   simulate(input: ShotSimulationInput): ShotSimulationResult {
     const aimDirection = input.aimDirection ?? "east";
+    const maxX = Math.min(
+      this.resolveMaxFunctionLength(input.maxFunctionLength),
+      this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection)
+    );
     const sample = input.shot.sample({
       minX: 0,
-      maxX: Math.min(
-        defaultMatchTuning.sampleStep * Math.max(0, defaultMatchTuning.maxPathPoints - 1),
-        this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection)
-      ),
+      maxX,
       step: defaultMatchTuning.sampleStep,
-      maxPathPoints: defaultMatchTuning.maxPathPoints
+      maxPathPoints: this.maxPathPointsFor(maxX)
     });
     const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position, aimDirection));
     const boundaryHit = this.findFirstBoundaryExit(worldPath);
@@ -275,6 +279,18 @@ export class ShotSimulator {
       x: Math.min(fieldBounds.maxX, Math.max(fieldBounds.minX, point.x)),
       y: Math.min(fieldBounds.maxY, Math.max(fieldBounds.minY, point.y))
     };
+  }
+
+  private resolveMaxFunctionLength(value: number | undefined): number {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      return defaultMaxFunctionTravel;
+    }
+
+    return value;
+  }
+
+  private maxPathPointsFor(maxX: number): number {
+    return Math.max(1, Math.ceil(maxX / defaultMatchTuning.sampleStep) + 1);
   }
 
   private forwardFieldBoundaryDistance(shooterPosition: WorldPoint, aimDirection: AimDirectionId): number {

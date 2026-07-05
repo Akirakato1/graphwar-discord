@@ -6,6 +6,8 @@ import {
   createLobbyRequestSchema,
   joinLobbyRequestSchema,
   lobbyRuntimeSnapshotSchema,
+  defaultMaxFunctionLength,
+  defaultPlayerColor,
   serverEventSchema,
   setLobbyPlacementRequestSchema,
   type ClientCommand,
@@ -281,6 +283,7 @@ describe("protocol schemas", () => {
             discordUserId: "alice-id",
             playerId: "alice-id",
             alias: "Alice",
+            color: defaultPlayerColor,
             slot: "player",
             placement: "team-a",
             connected: true,
@@ -289,6 +292,7 @@ describe("protocol schemas", () => {
         ],
         canStart: false,
         startBlockedReason: "Team B needs at least one player.",
+        maxFunctionLength: defaultMaxFunctionLength,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       snapshot

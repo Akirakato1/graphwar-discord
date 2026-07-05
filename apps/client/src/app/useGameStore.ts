@@ -10,6 +10,7 @@ import type {
   LobbySummary,
   MatchModeId,
   MatchSnapshot,
+  PlayerColor,
   PlayerStatsEntry,
   ServerEvent
 } from "@graphwar/shared";
@@ -37,6 +38,7 @@ export type SelectedLobbySession = {
   discordUserId: string;
   playerId: string;
   alias: string;
+  color: PlayerColor;
   slot: "player" | "spectator";
   sessionToken: string;
 };
@@ -64,6 +66,8 @@ export type GameStoreState = {
     alias: string;
     mode: MatchModeId;
     initialSlot: LobbySlot;
+    color: PlayerColor;
+    maxFunctionLength: number;
     mapId?: string;
   }): Promise<void>;
   customMaps: CustomMapSummary[];
@@ -71,7 +75,7 @@ export type GameStoreState = {
   deleteCustomMap(mapId: string): Promise<void>;
   disconnect(): void;
   joinRoom(): void;
-  joinLobby(roomId: string, form: { alias: string; slot: LobbySlot }): Promise<void>;
+  joinLobby(roomId: string, form: { alias: string; slot: LobbySlot; color: PlayerColor }): Promise<void>;
   lastError?: string;
   lastRejection?: CommandRejection;
   leaderboard: PlayerStatsEntry[];
@@ -349,6 +353,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             alias: form.alias,
             mode: form.mode,
             initialSlot: form.initialSlot,
+            color: form.color,
+            maxFunctionLength: form.maxFunctionLength,
             ...(form.mapId ? { mapId: form.mapId } : {})
           });
           closeClientForLobbySwitch();
@@ -395,7 +401,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           const result = await lobbyApi.joinLobby(session.guildId, roomId, {
             discordUserId: session.discordUserId,
             alias: form.alias,
-            slot: form.slot
+            slot: form.slot,
+            color: form.color
           });
           closeClientForLobbySwitch();
           set({

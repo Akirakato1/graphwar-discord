@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   aliasesConflict,
+  defaultPlayerColor,
   type CreateLobbyRequest,
   type DiscordUserId,
   type GuildId,
@@ -12,8 +13,11 @@ import {
   type LobbySlot,
   type LobbyStatus,
   type LobbySummary,
+  normalizeMaxFunctionLength,
+  normalizePlayerColor,
   type RoomId
 } from "@graphwar/shared";
+import type { PlayerColor } from "@graphwar/shared";
 import type { MatchModeId } from "@graphwar/shared";
 
 export type LobbyDirectoryOptions = {
@@ -30,6 +34,7 @@ export type LobbySessionIdentity = {
   discordUserId: DiscordUserId;
   playerId: string;
   alias: string;
+  color: PlayerColor;
   slot: LobbySlot;
   sessionToken: string;
 };
@@ -43,6 +48,7 @@ type RuntimeLobby = {
   leaderDiscordUserId: DiscordUserId;
   occupants: Map<DiscordUserId, LobbyOccupant>;
   sessionTokens: Map<DiscordUserId, string>;
+  maxFunctionLength: number;
   createdAt: string;
   startedAt?: string;
   mapId?: string;
@@ -94,6 +100,7 @@ export class LobbyDirectory {
       leaderDiscordUserId: request.leaderDiscordUserId,
       occupants: new Map(),
       sessionTokens: new Map(),
+      maxFunctionLength: normalizeMaxFunctionLength(request.maxFunctionLength),
       createdAt: this.now().toISOString(),
       mapId,
       mapName
@@ -105,6 +112,7 @@ export class LobbyDirectory {
       return await this.joinLobby(guildId, roomId, {
         discordUserId: request.leaderDiscordUserId,
         alias: request.alias,
+        color: request.color,
         slot: request.initialSlot
       });
     } catch (error) {
@@ -142,10 +150,12 @@ export class LobbyDirectory {
 
     const slot = lobby.status === "playing" && existingOccupant?.slot === "player" ? "player" : request.slot;
     const placement = this.resolvePlacement(lobby, slot, existingOccupant);
+    const color = normalizePlayerColor(request.color, existingOccupant?.color ?? defaultPlayerColor);
     const occupant: LobbyOccupant = {
       discordUserId: request.discordUserId,
       playerId: existingOccupant?.playerId ?? request.discordUserId,
       alias,
+      color,
       slot,
       placement,
       connected: true,
@@ -165,6 +175,7 @@ export class LobbyDirectory {
         discordUserId: request.discordUserId,
         playerId: occupant.playerId,
         alias,
+        color,
         slot,
         sessionToken
       }
@@ -378,6 +389,7 @@ export class LobbyDirectory {
           discordUserId,
           playerId: occupant.playerId,
           alias: occupant.alias,
+          color: occupant.color,
           slot: occupant.slot,
           sessionToken
         }
@@ -469,6 +481,7 @@ export class LobbyDirectory {
       occupants: Array.from(lobby.occupants.values()).map((occupant) => ({ ...occupant })),
       canStart: lobby.status === "open" && !startBlockedReason,
       startBlockedReason,
+      maxFunctionLength: lobby.maxFunctionLength,
       mapId: lobby.mapId,
       mapName: lobby.mapName,
       createdAt: lobby.createdAt,

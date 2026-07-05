@@ -1,5 +1,38 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { CustomMapSummary, GuildSettings, LobbySlot, MatchModeId } from "@graphwar/shared";
+import {
+  defaultPlayerColor,
+  playerColorPalette,
+  type CustomMapSummary,
+  type GuildSettings,
+  type LobbySlot,
+  type MatchModeId,
+  type PlayerColor
+} from "@graphwar/shared";
+
+const fallbackPlayerColorPalette = [
+  "#4cc9f0",
+  "#f72585",
+  "#ffd166",
+  "#06d6a0",
+  "#f77f00",
+  "#b5179e",
+  "#90be6d",
+  "#577590",
+  "#f94144",
+  "#43aa8b"
+] as const satisfies readonly string[];
+
+export const lobbyPlayerColorPalette =
+  Array.isArray(playerColorPalette) && playerColorPalette.length === 10
+    ? playerColorPalette
+    : (fallbackPlayerColorPalette as readonly PlayerColor[]);
+
+export const lobbyDefaultPlayerColor =
+  defaultPlayerColor ?? (lobbyPlayerColorPalette[0] as PlayerColor);
+
+const MIN_FUNCTION_LENGTH = 20;
+const MAX_FUNCTION_LENGTH = 100;
+const DEFAULT_FUNCTION_LENGTH = 50;
 
 type CreateLobbyViewProps = {
   customMaps?: CustomMapSummary[];
@@ -10,6 +43,8 @@ type CreateLobbyViewProps = {
     alias: string;
     mode: MatchModeId;
     initialSlot: LobbySlot;
+    color: PlayerColor;
+    maxFunctionLength: number;
     mapId?: string;
   }) => Promise<void>;
   settings?: GuildSettings;
@@ -20,15 +55,26 @@ type CreateLobbyForm = {
   alias: string;
   mode: MatchModeId;
   initialSlot: LobbySlot;
+  color: PlayerColor;
+  maxFunctionLength: number;
   mapId?: string;
 };
+
+function boundedFunctionLength(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_FUNCTION_LENGTH;
+  }
+
+  return Math.min(MAX_FUNCTION_LENGTH, Math.max(MIN_FUNCTION_LENGTH, Math.round(value)));
+}
 
 export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLobbyForm } {
   return {
     form: {
       ...form,
       name: form.name.trim(),
-      alias: form.alias.trim()
+      alias: form.alias.trim(),
+      maxFunctionLength: boundedFunctionLength(form.maxFunctionLength)
     }
   };
 }
@@ -46,16 +92,20 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     name: "Graphwar Lobby",
     alias: defaultAlias,
     mode: settings?.defaultMode ?? "team-versus",
-    initialSlot: availableInitialSlots(settings)[0]
+    initialSlot: availableInitialSlots(settings)[0],
+    color: lobbyDefaultPlayerColor,
+    maxFunctionLength: DEFAULT_FUNCTION_LENGTH
   };
 }
 
 export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreate, settings }: CreateLobbyViewProps) {
   const initialForm = createLobbyInitialForm(defaultAlias, settings);
   const [alias, setAlias] = useState(initialForm.alias);
+  const [color, setColor] = useState<PlayerColor>(initialForm.color);
   const [formError, setFormError] = useState<string | undefined>();
   const [initialSlot, setInitialSlot] = useState<LobbySlot>(initialForm.initialSlot);
   const [mapId, setMapId] = useState("");
+  const [maxFunctionLength, setMaxFunctionLength] = useState(initialForm.maxFunctionLength);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +121,17 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
     setSubmitting(true);
     setFormError(undefined);
     try {
-      await onCreate(prepareCreateLobbyForm({ name, alias, mode, initialSlot, ...(mapId ? { mapId } : {}) }).form);
+      await onCreate(
+        prepareCreateLobbyForm({
+          name,
+          alias,
+          mode,
+          initialSlot,
+          color,
+          maxFunctionLength,
+          ...(mapId ? { mapId } : {})
+        }).form
+      );
     } catch (error) {
       setFormError(createLobbyErrorMessage(error));
     } finally {
@@ -80,7 +140,8 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   }
 
   return (
-    <section className="panel menu-panel" aria-labelledby="create-lobby-title">
+    <div className="menu-screen">
+      <section className="panel menu-panel" aria-labelledby="create-lobby-title">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">New lobby</p>
@@ -92,7 +153,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           {formError}
         </p>
       )}
-      <form className="menu-form" onSubmit={handleSubmit}>
+      <form className="menu-form create-lobby-form" onSubmit={handleSubmit}>
         <label>
           Lobby name
           <input
@@ -121,6 +182,37 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             <option value="team-versus">Team Versus</option>
             <option value="free-for-all">Free For All</option>
           </select>
+        </label>
+        <fieldset className="color-selector">
+          <legend>Color</legend>
+          <div className="color-options">
+            {lobbyPlayerColorPalette.map((option) => (
+              <label key={option} title={option}>
+                <input
+                  aria-label={`Choose color ${option}`}
+                  checked={color === option}
+                  name="player-color"
+                  onChange={() => setColor(option)}
+                  type="radio"
+                  value={option}
+                />
+                <span className="color-swatch" style={{ backgroundColor: option }} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <label>
+          Max function length
+          <input
+            max={MAX_FUNCTION_LENGTH}
+            min={MIN_FUNCTION_LENGTH}
+            type="number"
+            value={maxFunctionLength}
+            onChange={(event) => {
+              setMaxFunctionLength(Number(event.currentTarget.value));
+              setFormError(undefined);
+            }}
+          />
         </label>
         <label>
           Initial slot
@@ -152,6 +244,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           </button>
         </div>
       </form>
-    </section>
+      </section>
+    </div>
   );
 }

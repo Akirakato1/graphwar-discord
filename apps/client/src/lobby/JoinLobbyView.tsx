@@ -1,12 +1,19 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
-import type { GuildSettings, LobbySlot, LobbySummary } from "@graphwar/shared";
+import type { GuildSettings, LobbySlot, LobbySummary, PlayerColor } from "@graphwar/shared";
+import { lobbyDefaultPlayerColor, lobbyPlayerColorPalette } from "./CreateLobbyView";
 
 type JoinLobbyViewProps = {
   lobbies: LobbySummary[];
   onBack: () => void;
-  onJoin: (roomId: string, form: { alias: string; slot: LobbySlot }) => Promise<void>;
+  onJoin: (roomId: string, form: { alias: string; slot: LobbySlot; color: PlayerColor }) => Promise<void>;
   onLoad: () => Promise<void>;
   settings?: GuildSettings;
+};
+
+type JoinLobbyForm = {
+  alias: string;
+  slot: LobbySlot;
+  color: PlayerColor;
 };
 
 export function validateJoinAlias(alias: string): string | undefined {
@@ -35,6 +42,13 @@ export function availableJoinSlots(settings?: Pick<GuildSettings, "allowSpectato
   return settings?.allowSpectators === false ? ["player"] : ["player", "spectator"];
 }
 
+export function prepareJoinLobbyForm(form: JoinLobbyForm): JoinLobbyForm {
+  return {
+    ...form,
+    alias: form.alias.trim()
+  };
+}
+
 function messageFromError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -42,6 +56,7 @@ function messageFromError(error: unknown, fallback: string): string {
 export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: JoinLobbyViewProps) {
   const [alias, setAlias] = useState("");
   const [aliasTaken, setAliasTaken] = useState(false);
+  const [color, setColor] = useState<PlayerColor>(lobbyDefaultPlayerColor);
   const [formError, setFormError] = useState<string | undefined>();
   const [joiningRoomId, setJoiningRoomId] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | undefined>();
@@ -73,7 +88,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
 
     setJoiningRoomId(roomId);
     try {
-      await onJoin(roomId, { alias: alias.trim(), slot });
+      await onJoin(roomId, prepareJoinLobbyForm({ alias, slot, color }));
     } catch (error) {
       if (isAliasConflictError(error)) {
         setAliasTaken(true);
@@ -98,7 +113,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
         </button>
       </div>
 
-      <div className="menu-form">
+      <div className="menu-form join-lobby-form">
         <label>
           Alias
           <input
@@ -112,6 +127,24 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
             }}
           />
         </label>
+        <fieldset className="color-selector">
+          <legend>Color</legend>
+          <div className="color-options">
+            {lobbyPlayerColorPalette.map((option) => (
+              <label key={option} title={option}>
+                <input
+                  aria-label={`Choose color ${option}`}
+                  checked={color === option}
+                  name="join-player-color"
+                  onChange={() => setColor(option)}
+                  type="radio"
+                  value={option}
+                />
+                <span className="color-swatch" style={{ backgroundColor: option }} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
       {(loadError || formError) && (
         <p className="notice" role="alert">

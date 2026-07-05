@@ -3,6 +3,7 @@ export * from "./geometry/coordinates";
 export * from "./geometry/polygons";
 export * from "./geometry/types";
 export * from "./lobby/alias";
+export * from "./lobby/identity";
 export * from "./lobby/schemas";
 export * from "./lobby/types";
 export * from "./maps";

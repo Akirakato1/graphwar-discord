@@ -60,6 +60,24 @@ describe("ShotSimulator", () => {
     expect(result.damage).toEqual([{ playerId: "alice", amount: 35, hpAfter: 65 }]);
   });
 
+  it("limits shot sampling to the configured max function length", () => {
+    const players: PlayerState[] = [
+      shooter,
+      { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 3, y: 0 }, hp: 100, alive: true }
+    ];
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      maxFunctionLength: 1
+    });
+
+    expect(result.impact.reason).toBe("miss");
+    expect(result.damage).toEqual([]);
+    expect(lastPathPoint(result.path)?.x).toBeCloseTo(1);
+  });
+
   it("truncates player-hit paths through the impact point", () => {
     const players: PlayerState[] = [
       shooter,

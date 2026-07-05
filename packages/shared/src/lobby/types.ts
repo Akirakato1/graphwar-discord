@@ -1,5 +1,6 @@
 import type { PersistedCustomMap } from "../maps/types";
 import type { MatchModeId, PlayerId, RoomId } from "../state/types";
+import type { PlayerColor } from "./identity";
 
 export type GuildId = string;
 export type DiscordUserId = string;
@@ -39,6 +40,7 @@ export type LobbyOccupant = {
   discordUserId: DiscordUserId;
   playerId: PlayerId;
   alias: string;
+  color: PlayerColor;
   slot: LobbySlot;
   placement: LobbyPlacementId;
   connected: boolean;
@@ -55,6 +57,7 @@ export type LobbyRuntimeSnapshot = {
   occupants: LobbyOccupant[];
   canStart: boolean;
   startBlockedReason?: string;
+  maxFunctionLength: number;
   mapId?: string;
   mapName?: string;
   createdAt: string;
@@ -80,14 +83,17 @@ export type CreateLobbyRequest = {
   name: string;
   leaderDiscordUserId: DiscordUserId;
   alias: string;
+  color?: PlayerColor;
   mode: MatchModeId;
   initialSlot: LobbySlot;
+  maxFunctionLength?: number;
   mapId?: string;
 };
 
 export type JoinLobbyRequest = {
   discordUserId: DiscordUserId;
   alias: string;
+  color?: PlayerColor;
   slot: LobbySlot;
 };
 
@@ -99,6 +105,7 @@ export type LobbyJoinResult = {
     discordUserId: DiscordUserId;
     playerId: PlayerId;
     alias: string;
+    color: PlayerColor;
     slot: LobbySlot;
     sessionToken: string;
   };

@@ -198,6 +198,47 @@ describe("MatchController", () => {
     expect(snapshot.turn.order).toEqual(["alice-id", "bob-id"]);
   });
 
+  it("carries lobby player colors into lobby and playing snapshots", () => {
+    const controller = new MatchController("room-1");
+    const lobby = controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-a", color: "#4cc9f0" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-b", color: "#f72585" }
+    ]);
+
+    expect(lobby.players.find((player) => player.id === "alice-id")?.color).toBe("#4cc9f0");
+    expect(controller.startMatch("team-versus").players.find((player) => player.id === "bob-id")?.color).toBe(
+      "#f72585"
+    );
+  });
+
+  it("uses the configured max function length for submitted shots", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: -19, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } }
+        ]
+      },
+      { maxFunctionLength: 20 }
+    );
+
+    const [event] = controller.submitShot("alice-id", "normal", "0");
+
+    expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.impact.reason).toBe("miss");
+      expect(event.path.at(-1)?.x).toBeGreaterThan(0.9);
+      expect(event.path.at(-1)?.x).toBeLessThanOrEqual(1);
+    }
+  });
+
   it("keeps unbalanced explicit team placements on their spawn sides", () => {
     const controller = new MatchController("room-1");
     controller.setLobbyPlayers("team-versus", [

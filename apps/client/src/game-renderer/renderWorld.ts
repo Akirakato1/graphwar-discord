@@ -209,10 +209,11 @@ function drawPlayers(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: 
     const point = worldToCanvas(player.position, size);
     const radius = worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.8, size);
     const teamColor = colorForTeam(player.teamId);
+    const playerColor = player.color ?? teamColor;
 
     ctx.save();
     ctx.globalAlpha = player.alive ? 1 : 0.48;
-    ctx.fillStyle = teamColor;
+    ctx.fillStyle = playerColor;
     ctx.strokeStyle = player.id === snapshot.turn.activePlayerId ? "#fff8e7" : "#171716";
     ctx.lineWidth = player.id === snapshot.turn.activePlayerId ? 3 : 2;
     ctx.beginPath();
@@ -233,7 +234,7 @@ function drawPlayers(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: 
 
     ctx.globalAlpha = 1;
     ctx.font = "700 13px Inter, system-ui, sans-serif";
-    ctx.fillStyle = "#fff8e7";
+    ctx.fillStyle = playerColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(player.displayName, point.x, point.y - radius - 8);

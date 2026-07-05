@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 import { createLobbyApi } from "./lobbyApi";
 
 const customMap = {
@@ -48,6 +49,7 @@ function lobbyJoinResult() {
           discordUserId: "alice-id",
           playerId: "alice-id",
           alias: "Alice",
+          color: defaultPlayerColor,
           slot: "player",
           placement: "players",
           connected: true,
@@ -55,6 +57,7 @@ function lobbyJoinResult() {
         }
       ],
       canStart: false,
+      maxFunctionLength: 50,
       createdAt: "2026-07-05T00:00:00.000Z"
     },
     session: {
@@ -63,6 +66,7 @@ function lobbyJoinResult() {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
+      color: defaultPlayerColor,
       slot: "player",
       sessionToken: "session-token"
     }
@@ -86,13 +90,41 @@ describe("createLobbyApi", () => {
       leaderDiscordUserId: "alice-id",
       alias: "Alice",
       mode: "team-versus",
-      initialSlot: "player"
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50
     });
 
     expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:8787/guilds/local-guild/lobbies", expect.any(Object));
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({
       method: "POST",
       headers: { "content-type": "application/json" }
+    });
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      color: defaultPlayerColor,
+      maxFunctionLength: 50
+    });
+  });
+
+  it("posts join lobby requests with the selected color", async () => {
+    const fetch = vi.fn(async (_input: string | URL | Request, _init?: RequestInit): Promise<Response> =>
+      Response.json(lobbyJoinResult())
+    );
+    vi.stubGlobal("fetch", fetch);
+    const api = createLobbyApi("http://127.0.0.1:8787/");
+
+    await api.joinLobby("local-guild", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player",
+      color: playerColorPalette[2]
+    });
+
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player",
+      color: playerColorPalette[2]
     });
   });
 
@@ -104,7 +136,12 @@ describe("createLobbyApi", () => {
     const api = createLobbyApi("http://127.0.0.1:8787/");
 
     await expect(
-      api.joinLobby("local-guild", "room-1", { discordUserId: "bob-id", alias: "Alice", slot: "player" })
+      api.joinLobby("local-guild", "room-1", {
+        discordUserId: "bob-id",
+        alias: "Alice",
+        slot: "player",
+        color: defaultPlayerColor
+      })
     ).rejects.toThrow("Alias is already taken.");
   });
 
