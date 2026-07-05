@@ -1,5 +1,5 @@
 export function normalizeAlias(alias: string): string {
-  return alias.trim().toLocaleLowerCase();
+  return alias.trim().toLowerCase();
 }
 
 export function aliasesConflict(left: string, right: string): boolean {

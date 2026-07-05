@@ -11,4 +11,9 @@ describe("lobby alias helpers", () => {
   it("treats whitespace-only aliases as empty", () => {
     expect(normalizeAlias("   ")).toBe("");
   });
+
+  it("compares ASCII aliases deterministically", () => {
+    expect(normalizeAlias(" I ")).toBe("i");
+    expect(aliasesConflict("I", "i")).toBe(true);
+  });
 });
