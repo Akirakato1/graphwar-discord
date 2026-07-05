@@ -283,30 +283,35 @@ export class GameRoom {
   }
 
   private async handleSubmitShot(socket: WebSocket, command: SubmitShotCommand): Promise<void> {
-    const event = this.match.submitShot(
+    const events = this.match.submitShot(
       command.playerId,
       command.functionFamilyId,
       command.expression,
       command.aimDirection
     );
-    if (event.type === "shot-rejected") {
-      this.sendTo(socket, event);
+    const firstEvent = events[0];
+    if (firstEvent.type === "shot-rejected") {
+      this.sendTo(socket, firstEvent);
       return;
     }
 
-    this.broadcast(this.withResolvedLobbyContext(event));
-    if (event.type === "match-ended" && this.lobbyContext) {
-      await this.recordMatchResult(event.winnerIds, event.snapshot.players.map((player) => player.id));
+    this.broadcast(this.withResolvedLobbyContext(firstEvent));
+
+    const matchEnded = events[1];
+    if (matchEnded) {
+      this.broadcast(this.withResolvedLobbyContext(matchEnded));
+      if (this.lobbyContext) {
+        await this.recordMatchResult(matchEnded.winnerIds, matchEnded.snapshot.players.map((player) => player.id));
+      }
+      return;
     }
 
-    if (event.type === "shot-resolved") {
-      this.broadcast({
-        type: "turn-advanced",
-        roomId: this.roomId,
-        playerId: event.snapshot.turn.activePlayerId,
-        turnNumber: event.snapshot.turn.turnNumber
-      });
-    }
+    this.broadcast({
+      type: "turn-advanced",
+      roomId: this.roomId,
+      playerId: firstEvent.snapshot.turn.activePlayerId,
+      turnNumber: firstEvent.snapshot.turn.turnNumber
+    });
   }
 
   private withLobbyContext(event: ServerEvent): ServerEvent {

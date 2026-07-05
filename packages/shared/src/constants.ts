@@ -12,5 +12,5 @@ export const defaultMatchTuning = {
   circleCraterRadius: 1.25,
   terrainMinArea: 0.05,
   sampleStep: 0.05,
-  maxPathPoints: 2000
+  maxPathPoints: 1001
 } as const;

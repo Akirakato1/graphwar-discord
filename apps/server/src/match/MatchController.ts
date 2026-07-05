@@ -25,6 +25,15 @@ import type { MatchState } from "./MatchState";
 const lobbyPosition: WorldPoint = { x: 0, y: 0 };
 const emptyTerrain: TerrainState = { blobs: [] };
 
+type ShotRejectedEvent = Extract<ServerEvent, { type: "shot-rejected" }>;
+type ShotResolvedEvent = Extract<ServerEvent, { type: "shot-resolved" }>;
+type MatchEndedEvent = Extract<ServerEvent, { type: "match-ended" }>;
+
+export type ShotSubmissionEvents =
+  | [ShotRejectedEvent]
+  | [ShotResolvedEvent]
+  | [ShotResolvedEvent, MatchEndedEvent];
+
 function cloneSnapshot(snapshot: MatchState): MatchState {
   return structuredClone(snapshot);
 }
@@ -120,25 +129,25 @@ export class MatchController {
     functionFamilyId: FunctionFamilyId,
     expression: string,
     aimDirection: AimDirectionId = "east"
-  ): ServerEvent {
+  ): ShotSubmissionEvents {
     if (this.snapshot.phase !== "playing") {
-      return this.rejectShot(playerId, "Match is not playing");
+      return [this.rejectShot(playerId, "Match is not playing")];
     }
 
     if (this.snapshot.turn.activePlayerId !== playerId) {
-      return this.rejectShot(playerId, "Player is not active");
+      return [this.rejectShot(playerId, "Player is not active")];
     }
 
     const shooter = this.snapshot.players.find((player) => player.id === playerId);
     if (!shooter) {
-      return this.rejectShot(playerId, "Shooter is missing");
+      return [this.rejectShot(playerId, "Shooter is missing")];
     }
 
     let shot;
     try {
       shot = this.functionRegistry.create(functionFamilyId, expression);
     } catch (error) {
-      return this.rejectShot(playerId, error instanceof Error ? error.message : "Invalid function expression");
+      return [this.rejectShot(playerId, error instanceof Error ? error.message : "Invalid function expression")];
     }
 
     const result = this.shotSimulator.simulate({
@@ -157,14 +166,7 @@ export class MatchController {
       turn: nextTurn
     };
 
-    const mode = this.createMode(this.snapshot.mode);
-    const victory = mode.isVictory(this.toTurnPlayers(this.snapshot.players));
-    if (victory.ended) {
-      this.snapshot = { ...this.snapshot, phase: "ended" };
-      return { type: "match-ended", roomId: this.roomId, winnerIds: victory.winnerIds, snapshot: this.getSnapshot() };
-    }
-
-    return {
+    const shotResolved: ShotResolvedEvent = {
       type: "shot-resolved",
       roomId: this.roomId,
       shooterId: playerId,
@@ -178,6 +180,18 @@ export class MatchController {
       eliminations: result.eliminations,
       snapshot: this.getSnapshot()
     };
+
+    const mode = this.createMode(this.snapshot.mode);
+    const victory = mode.isVictory(this.toTurnPlayers(this.snapshot.players));
+    if (victory.ended) {
+      this.snapshot = { ...this.snapshot, phase: "ended" };
+      return [
+        shotResolved,
+        { type: "match-ended", roomId: this.roomId, winnerIds: victory.winnerIds, snapshot: this.getSnapshot() }
+      ];
+    }
+
+    return [shotResolved];
   }
 
   forcePlayerHpForTest(playerId: PlayerId, hp: number): void {
@@ -273,7 +287,7 @@ export class MatchController {
     };
   }
 
-  private rejectShot(playerId: PlayerId, reason: string): ServerEvent {
+  private rejectShot(playerId: PlayerId, reason: string): ShotRejectedEvent {
     return { type: "shot-rejected", roomId: this.roomId, playerId, reason };
   }
 

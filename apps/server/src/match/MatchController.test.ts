@@ -1,8 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { matchSnapshotSchema, serverEventSchema } from "@graphwar/shared";
-import { MatchController } from "./MatchController";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { matchSnapshotSchema, serverEventSchema, type ServerEvent } from "@graphwar/shared";
+import { MatchController, type ShotSubmissionEvents } from "./MatchController";
 
 describe("MatchController", () => {
+  it("exposes shot submissions as ordered non-empty event tuples", () => {
+    const controller = new MatchController("room-1");
+
+    expectTypeOf(controller.submitShot).returns.toEqualTypeOf<ShotSubmissionEvents>();
+    expectTypeOf<ShotSubmissionEvents>().toEqualTypeOf<
+      | [Extract<ServerEvent, { type: "shot-rejected" }>]
+      | [Extract<ServerEvent, { type: "shot-resolved" }>]
+      | [Extract<ServerEvent, { type: "shot-resolved" }>, Extract<ServerEvent, { type: "match-ended" }>]
+    >();
+  });
+
   it("starts a team match with terrain, players, and an active turn", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");
@@ -21,7 +32,9 @@ describe("MatchController", () => {
     controller.join("bob", "Bob");
     controller.startMatch("team-versus");
 
-    expect(controller.submitShot("bob", "normal", "x").type).toBe("shot-rejected");
+    const [event] = controller.submitShot("bob", "normal", "x");
+
+    expect(event.type).toBe("shot-rejected");
   });
 
   it("resolves a valid active-player shot and advances the turn", () => {
@@ -29,7 +42,7 @@ describe("MatchController", () => {
     controller.join("alice", "Alice");
     controller.join("bob", "Bob");
     controller.startMatch("team-versus");
-    const event = controller.submitShot("alice", "normal", "0", "west");
+    const [event] = controller.submitShot("alice", "normal", "0", "west");
 
     expect(event.type).toBe("shot-resolved");
     if (event.type === "shot-resolved") {
@@ -44,12 +57,24 @@ describe("MatchController", () => {
     controller.join("bob", "Bob");
     controller.startMatch("free-for-all");
     controller.forcePlayerHpForTest("bob", 0);
-    const event = controller.submitShot("alice", "normal", "0");
+    const events = controller.submitShot("alice", "normal", "0");
 
-    expect(event.type).toBe("match-ended");
-    if (event.type === "match-ended") {
-      expect(event.winnerIds).toEqual(["alice"]);
-      expect(event.snapshot.phase).toBe("ended");
+    expect(events.map((event) => event.type)).toEqual(["shot-resolved", "match-ended"]);
+    if (events.length !== 2) {
+      throw new Error(`Expected shot-resolved then match-ended, received ${events.map((event) => event.type).join(", ")}`);
+    }
+    const [resolved, ended] = events;
+    expect(resolved.type).toBe("shot-resolved");
+    if (resolved.type === "shot-resolved") {
+      expect(resolved.snapshot.phase).toBe("playing");
+      expect(resolved.path.length).toBeGreaterThan(0);
+      expect(resolved.terrain).toEqual(resolved.snapshot.terrain);
+      expect(resolved.damage).toEqual(expect.any(Array));
+    }
+    expect(ended.type).toBe("match-ended");
+    if (ended.type === "match-ended") {
+      expect(ended.winnerIds).toEqual(["alice"]);
+      expect(ended.snapshot.phase).toBe("ended");
     }
   });
 
@@ -74,7 +99,9 @@ describe("MatchController", () => {
     controller.join("bob", "Bob");
     controller.startMatch("team-versus");
 
-    expect(controller.submitShot("alice", "normal", "notAFunction(x)").type).toBe("shot-rejected");
+    const [event] = controller.submitShot("alice", "normal", "notAFunction(x)");
+
+    expect(event.type).toBe("shot-rejected");
   });
 
   it("throws instead of restarting a playing match", () => {
@@ -211,7 +238,7 @@ describe("MatchController", () => {
     controller.join("charlie", "Charlie");
     controller.startMatch("free-for-all");
     controller.forcePlayerHpForTest("bob", 0);
-    const event = controller.submitShot("alice", "normal", "100");
+    const [event] = controller.submitShot("alice", "normal", "100");
 
     expect(event.type).toBe("shot-resolved");
     if (event.type === "shot-resolved") {
@@ -244,13 +271,17 @@ describe("MatchController", () => {
     controller.join("bob", "Bob");
     const playing = controller.startMatch("free-for-all");
     controller.forcePlayerHpForTest("bob", 0);
-    const event = controller.submitShot("alice", "normal", "0");
+    const events = controller.submitShot("alice", "normal", "0");
 
     expect(matchSnapshotSchema.parse(joined)).toEqual(joined);
     expect(matchSnapshotSchema.parse(playing)).toEqual(playing);
-    expect(event.type).toBe("match-ended");
-    if (event.type === "match-ended") {
-      expect(matchSnapshotSchema.parse(event.snapshot)).toEqual(event.snapshot);
+    if (events.length !== 2) {
+      throw new Error(`Expected shot-resolved then match-ended, received ${events.map((event) => event.type).join(", ")}`);
+    }
+    const ended = events[1];
+    expect(ended.type).toBe("match-ended");
+    if (ended.type === "match-ended") {
+      expect(matchSnapshotSchema.parse(ended.snapshot)).toEqual(ended.snapshot);
     }
   });
 
@@ -259,24 +290,24 @@ describe("MatchController", () => {
     rejectedController.join("alice", "Alice");
     rejectedController.join("bob", "Bob");
     rejectedController.startMatch("team-versus");
-    const rejected = rejectedController.submitShot("bob", "normal", "0");
+    const [rejected] = rejectedController.submitShot("bob", "normal", "0");
 
     const resolvedController = new MatchController("room-resolved");
     resolvedController.join("alice", "Alice");
     resolvedController.join("bob", "Bob");
     resolvedController.join("charlie", "Charlie");
     resolvedController.startMatch("free-for-all");
-    const resolved = resolvedController.submitShot("alice", "normal", "100");
+    const [resolved] = resolvedController.submitShot("alice", "normal", "100");
 
     const endedController = new MatchController("room-ended");
     endedController.join("alice", "Alice");
     endedController.join("bob", "Bob");
     endedController.startMatch("free-for-all");
     endedController.forcePlayerHpForTest("bob", 0);
-    const ended = endedController.submitShot("alice", "normal", "0");
+    const endedEvents = endedController.submitShot("alice", "normal", "0");
 
     expect(serverEventSchema.parse(rejected)).toEqual(rejected);
     expect(serverEventSchema.parse(resolved)).toEqual(resolved);
-    expect(serverEventSchema.parse(ended)).toEqual(ended);
+    expect(endedEvents.map((event) => serverEventSchema.parse(event))).toEqual(endedEvents);
   });
 });

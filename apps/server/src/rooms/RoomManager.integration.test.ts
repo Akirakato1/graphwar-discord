@@ -621,6 +621,7 @@ describe("RoomManager WebSocket integration", () => {
       () => [...aliceEvents, ...bobEvents],
       (candidate) => candidate.type === "turn-advanced" && candidate.playerId === "alice-id" && candidate.turnNumber === 5
     );
+    const aliceEventCountBeforeFinalShot = aliceEvents.length;
     send(alice, {
       type: "submit-shot",
       guildId: "local-guild",
@@ -632,9 +633,18 @@ describe("RoomManager WebSocket integration", () => {
     });
 
     const ended = await waitForEvent(
-      () => [...aliceEvents, ...bobEvents],
+      () => aliceEvents.slice(aliceEventCountBeforeFinalShot),
       (candidate) => candidate.type === "match-ended" && candidate.winnerIds.includes("alice-id")
     );
+    const finalEvents = aliceEvents.slice(aliceEventCountBeforeFinalShot);
+    const shotResolvedIndex = finalEvents.findIndex((event) => event.type === "shot-resolved");
+    const matchEndedIndex = finalEvents.findIndex((event) => event.type === "match-ended");
+
+    expect(finalEvents.map((event) => event.type)).toContain("shot-resolved");
+    expect(shotResolvedIndex).toBeGreaterThanOrEqual(0);
+    expect(matchEndedIndex).toBeGreaterThanOrEqual(0);
+    expect(shotResolvedIndex).toBeLessThan(matchEndedIndex);
+    expect(finalEvents.slice(matchEndedIndex).some((event) => event.type === "turn-advanced")).toBe(false);
     expect(ended.type).toBe("match-ended");
     if (ended.type === "match-ended") {
       expect(ended.lobby?.status).toBe("ended");
