@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { LobbyDirectory, type LobbyDirectoryOptions } from "./LobbyDirectory";
 
+type Deferred = {
+  promise: Promise<void>;
+  resolve: () => void;
+};
+
 function createDirectory(options: LobbyDirectoryOptions = {}): LobbyDirectory {
   return new LobbyDirectory({
     now: () => new Date("2026-07-05T00:00:00.000Z"),
@@ -8,6 +13,14 @@ function createDirectory(options: LobbyDirectoryOptions = {}): LobbyDirectory {
     upsertStatsEntry: async () => undefined,
     ...options
   });
+}
+
+function createDeferred(): Deferred {
+  let resolve!: () => void;
+  const promise = new Promise<void>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
 
 describe("LobbyDirectory", () => {
@@ -107,6 +120,49 @@ describe("LobbyDirectory", () => {
         roomId: "room-2",
         leaderAlias: "alice"
       })
+    ]);
+  });
+
+  it("serializes concurrent joins before checking aliases", async () => {
+    const firstJoinStarted = createDeferred();
+    const releaseFirstJoin = createDeferred();
+    const directory = createDirectory({
+      upsertStatsEntry: async (_guildId, discordUserId) => {
+        if (discordUserId === "bob-id") {
+          firstJoinStarted.resolve();
+          await releaseFirstJoin.promise;
+        }
+      }
+    });
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    const bobJoin = directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    await firstJoinStarted.promise;
+    const charlieJoin = directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "charlie-id",
+      alias: "bob",
+      slot: "player"
+    });
+    releaseFirstJoin.resolve();
+
+    const results = await Promise.allSettled([bobJoin, charlieJoin]);
+
+    expect(results[0].status).toBe("fulfilled");
+    expect(results[1]).toEqual(expect.objectContaining({ status: "rejected" }));
+    await expect(charlieJoin).rejects.toThrow("Alias is already taken.");
+    expect(directory.getLobby("guild-1", "room-1").occupants).toEqual([
+      expect.objectContaining({ discordUserId: "alice-id", alias: "Alice" }),
+      expect.objectContaining({ discordUserId: "bob-id", alias: "Bob" })
     ]);
   });
 

@@ -618,6 +618,9 @@ describe("RoomManager WebSocket integration", () => {
       (candidate) => candidate.type === "match-ended" && candidate.winnerIds.includes("alice-id")
     );
     expect(ended.type).toBe("match-ended");
+    if (ended.type === "match-ended") {
+      expect(ended.lobby?.status).toBe("ended");
+    }
     await waitForNoEvent(
       () => aliceEvents,
       (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("persistence")

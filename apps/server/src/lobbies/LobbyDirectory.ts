@@ -36,6 +36,7 @@ type RuntimeLobby = {
 
 export class LobbyDirectory {
   private readonly lobbies = new Map<string, RuntimeLobby>();
+  private readonly mutationQueues = new Map<string, Promise<void>>();
   private readonly now: () => Date;
   private readonly createRoomId: () => string;
   private readonly upsertStatsEntry: (guildId: string, discordUserId: string, alias: string) => Promise<unknown>;
@@ -85,6 +86,10 @@ export class LobbyDirectory {
   }
 
   async joinLobby(guildId: string, roomId: string, request: JoinLobbyRequest): Promise<LobbyJoinResult> {
+    return this.enqueueLobbyMutation(guildId, roomId, () => this.joinLobbyUnlocked(guildId, roomId, request));
+  }
+
+  private async joinLobbyUnlocked(guildId: string, roomId: string, request: JoinLobbyRequest): Promise<LobbyJoinResult> {
     const lobby = this.requireLobby(guildId, roomId);
     const alias = request.alias.trim();
     const existingOccupant = lobby.occupants.get(request.discordUserId);
@@ -239,6 +244,14 @@ export class LobbyDirectory {
     return this.snapshot(lobby);
   }
 
+  markEnded(guildId: string, roomId: string): LobbyRuntimeSnapshot {
+    const lobby = this.requireLobby(guildId, roomId);
+
+    lobby.status = "ended";
+
+    return this.snapshot(lobby);
+  }
+
   playerOccupants(guildId: string, roomId: string): LobbyOccupant[] {
     return Array.from(this.requireLobby(guildId, roomId).occupants.values())
       .filter((occupant) => occupant.slot === "player")
@@ -247,6 +260,23 @@ export class LobbyDirectory {
 
   private lobbyKey(guildId: string, roomId: string): string {
     return `${guildId}:${roomId}`;
+  }
+
+  private enqueueLobbyMutation<T>(guildId: string, roomId: string, task: () => Promise<T>): Promise<T> {
+    const key = this.lobbyKey(guildId, roomId);
+    const previous = this.mutationQueues.get(key) ?? Promise.resolve();
+    const queued = previous.catch(() => undefined).then(task);
+    const stored = queued.then(
+      () => undefined,
+      () => undefined
+    );
+    this.mutationQueues.set(key, stored);
+    void stored.then(() => {
+      if (this.mutationQueues.get(key) === stored) {
+        this.mutationQueues.delete(key);
+      }
+    });
+    return queued;
   }
 
   private requireLobby(guildId: string, roomId: string): RuntimeLobby {

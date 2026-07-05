@@ -272,7 +272,7 @@ export class GameRoom {
       return;
     }
 
-    this.broadcast(this.withLobbyContext(event));
+    this.broadcast(this.withResolvedLobbyContext(event));
     if (event.type === "match-ended" && this.lobbyContext) {
       await this.recordMatchResult(event.winnerIds, event.snapshot.players.map((player) => player.id));
     }
@@ -306,6 +306,15 @@ export class GameRoom {
     }
 
     return event;
+  }
+
+  private withResolvedLobbyContext(event: ServerEvent): ServerEvent {
+    if (event.type === "match-ended" && this.lobbyContext) {
+      const lobby = this.lobbyContext.lobbies.markEnded(this.lobbyContext.guildId, this.roomId);
+      return { ...event, guildId: this.lobbyContext.guildId, lobby };
+    }
+
+    return this.withLobbyContext(event);
   }
 
   private async recordMatchResult(winnerIds: string[], participantIds: string[]): Promise<void> {
