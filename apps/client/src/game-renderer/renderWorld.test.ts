@@ -1,6 +1,6 @@
 import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { describe, expect, it } from "vitest";
-import { findLatestShotResolvedEvent, renderWorld, worldToCanvas } from "./renderWorld";
+import { findLatestShotResolvedEvent, isLatestShotFollowedByTurnEvent, renderWorld, worldToCanvas } from "./renderWorld";
 
 const snapshot: MatchSnapshot = {
   phase: "playing",
@@ -189,7 +189,7 @@ describe("findLatestShotResolvedEvent", () => {
     ).toBe(newerShot);
   });
 
-  it("clears the visible shot once a newer turn event starts", () => {
+  it("keeps the newest shot selectable after an immediate turn advance", () => {
     const shot: ServerEvent = {
       type: "shot-resolved",
       roomId: "local-test",
@@ -212,7 +212,45 @@ describe("findLatestShotResolvedEvent", () => {
         shot,
         { type: "turn-advanced", roomId: "local-test", playerId: "bob", turnNumber: 3 }
       ])
-    ).toBeUndefined();
+    ).toBe(shot);
+  });
+
+  it("reports when the latest shot has already been followed by a turn event", () => {
+    const shot: ServerEvent = {
+      type: "shot-resolved",
+      roomId: "local-test",
+      shooterId: "alice",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "x",
+      path: [
+        { x: 0, y: 0 },
+        { x: 8, y: 0 }
+      ],
+      impact: { reason: "miss" },
+      damage: [],
+      eliminations: [],
+      snapshot
+    };
+
+    expect(isLatestShotFollowedByTurnEvent([shot])).toBe(false);
+    expect(
+      isLatestShotFollowedByTurnEvent([
+        shot,
+        { type: "turn-advanced", roomId: "local-test", playerId: "bob", turnNumber: 3 }
+      ])
+    ).toBe(true);
+    expect(
+      isLatestShotFollowedByTurnEvent([
+        { type: "turn-started", roomId: "local-test", playerId: "alice", turnNumber: 2 },
+        shot
+      ])
+    ).toBe(false);
+    expect(
+      isLatestShotFollowedByTurnEvent([
+        { type: "turn-started", roomId: "local-test", playerId: "alice", turnNumber: 2 }
+      ])
+    ).toBe(false);
   });
 });
 

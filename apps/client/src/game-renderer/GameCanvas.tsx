@@ -1,6 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MatchSnapshot, ServerEvent, ShotResolvedEvent } from "@graphwar/shared";
-import { findLatestShotResolvedEvent, renderWorld, type CanvasSize } from "./renderWorld";
+import {
+  findLatestShotResolvedEvent,
+  isLatestShotFollowedByTurnEvent,
+  renderWorld,
+  type CanvasSize
+} from "./renderWorld";
 
 type GameCanvasProps = {
   events: ServerEvent[];
@@ -15,6 +20,9 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestShot = useMemo(() => findLatestShotResolvedEvent(events), [events]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
+  const latestShotHasTurnAfter = useMemo(() => isLatestShotFollowedByTurnEvent(events), [events]);
+  const [hiddenShotKey, setHiddenShotKey] = useState<string | undefined>();
+  const visibleShot = latestShotKey && hiddenShotKey === latestShotKey ? undefined : latestShot;
   const activeShotKeyRef = useRef<string | undefined>();
   const completedShotKeyRef = useRef<string | undefined>();
 
@@ -47,10 +55,10 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       const size = syncCanvasSize(canvas, ctx);
       renderWorld(ctx, size, {
         snapshot,
-        shot: latestShot
+        shot: visibleShot
           ? {
-              impact: latestShot.impact,
-              path: latestShot.path,
+              impact: visibleShot.impact,
+              path: visibleShot.path,
               progress
             }
           : undefined
@@ -58,13 +66,14 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
     }
 
     function drawAnimationFrame(timestamp: number): void {
-      if (!latestShot || !latestShotKey) {
+      if (!visibleShot || !latestShotKey) {
         draw(1);
         return;
       }
 
       if (completedShotKeyRef.current === latestShotKey) {
         draw(1);
+        hideCompletedShotAfterTurn();
         return;
       }
 
@@ -78,6 +87,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       }
 
       completedShotKeyRef.current = latestShotKey;
+      hideCompletedShotAfterTurn();
     }
 
     function restartDraw(): void {
@@ -86,14 +96,26 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
         animationFrame = undefined;
       }
 
-      if (!latestShot || completedShotKeyRef.current === latestShotKey) {
+      if (!visibleShot) {
         draw(1);
+        return;
+      }
+
+      if (completedShotKeyRef.current === latestShotKey) {
+        draw(1);
+        hideCompletedShotAfterTurn();
         return;
       }
 
       animationStartedAt = undefined;
       draw(0);
       animationFrame = requestFrame(drawAnimationFrame);
+    }
+
+    function hideCompletedShotAfterTurn(): void {
+      if (latestShotKey && latestShotHasTurnAfter && hiddenShotKey !== latestShotKey) {
+        setHiddenShotKey(latestShotKey);
+      }
     }
 
     restartDraw();
@@ -111,7 +133,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       window.removeEventListener("resize", restartDraw);
       resizeObserver?.disconnect();
     };
-  }, [latestShot, latestShotKey, snapshot]);
+  }, [hiddenShotKey, latestShotHasTurnAfter, latestShotKey, snapshot, visibleShot]);
 
   return (
     <section className="panel world-panel" aria-labelledby="world-title">
@@ -125,7 +147,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       <canvas
         aria-label="Graphwar battlefield"
         className="world-canvas"
-        data-path-points={latestShot?.path.length ?? 0}
+        data-path-points={visibleShot?.path.length ?? 0}
         data-rendered={snapshot ? "true" : "false"}
         data-testid="game-canvas"
         height={DEFAULT_CANVAS_SIZE.height}

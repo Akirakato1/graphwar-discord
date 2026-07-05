@@ -32,15 +32,29 @@ export function worldToCanvas(point: WorldPoint, size: CanvasSize) {
 export function findLatestShotResolvedEvent(events: ServerEvent[]): ShotResolvedEvent | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (event.type === "turn-advanced" || event.type === "turn-started") {
-      return undefined;
-    }
     if (event.type === "shot-resolved") {
       return event;
     }
   }
 
   return undefined;
+}
+
+export function isLatestShotFollowedByTurnEvent(events: ServerEvent[]): boolean {
+  let foundTurnAfterLatestShot = false;
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.type === "turn-advanced" || event.type === "turn-started") {
+      foundTurnAfterLatestShot = true;
+      continue;
+    }
+    if (event.type === "shot-resolved") {
+      return foundTurnAfterLatestShot;
+    }
+  }
+
+  return false;
 }
 
 export function renderWorld(ctx: CanvasRenderingContext2D, size: CanvasSize, options: RenderWorldOptions = {}): void {

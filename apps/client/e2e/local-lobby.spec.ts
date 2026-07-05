@@ -53,6 +53,11 @@ async function expectNoPageScroll(page: Page): Promise<void> {
   expect(Math.max(metrics.documentHeight, metrics.bodyHeight)).toBeLessThanOrEqual(metrics.viewportHeight + 1);
 }
 
+async function canvasPathPoints(page: Page): Promise<number> {
+  const rawValue = await page.getByTestId("game-canvas").getAttribute("data-path-points");
+  return Number(rawValue ?? 0);
+}
+
 test("two local players can start a match and advance turns with a function shot", async ({ browser }, testInfo) => {
   const roomId = roomIdFor(testInfo.title);
   const aliceContext = await browser.newContext();
@@ -75,16 +80,21 @@ test("two local players can start a match and advance turns with a function shot
     const waitingPage = activePage === alicePage ? bobPage : alicePage;
     const expectedNextPlayer = activePage === alicePage ? "Bob" : "Alice";
 
-    await activePage.getByLabel("Function Shot").fill("0");
+    await activePage.getByLabel("Aim west").click();
+    await activePage.getByLabel("Function Shot").fill("-1*abs(x)");
     await activePage.getByRole("button", { name: "Fire" }).click();
+
+    for (const page of [alicePage, bobPage]) {
+      const canvas = page.getByTestId("game-canvas");
+      await expect(canvas).toHaveAttribute("data-rendered", "true");
+      await expect.poll(() => canvasPathPoints(page)).toBeGreaterThan(0);
+    }
 
     await expect(activePage.getByTestId("active-turn")).toContainText(`${expectedNextPlayer}'s Turn`);
     await expect(waitingPage.getByTestId("active-turn")).toContainText("Your Turn");
 
     for (const page of [alicePage, bobPage]) {
-      const canvas = page.getByTestId("game-canvas");
-      await expect(canvas).toHaveAttribute("data-rendered", "true");
-      await expect(canvas).toHaveAttribute("data-path-points", "0");
+      await expect.poll(() => canvasPathPoints(page), { timeout: 5_000 }).toBe(0);
     }
   } finally {
     await aliceContext.close();

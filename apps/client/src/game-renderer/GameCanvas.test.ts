@@ -48,7 +48,7 @@ describe("GameCanvas", () => {
     expect(html).toContain('data-path-points="2"');
   });
 
-  it("reports no visible shot metadata after a newer turn event", () => {
+  it("keeps latest shot metadata after an immediate turn event", () => {
     const shotResolved: ServerEvent = {
       type: "shot-resolved",
       roomId: "local-test",
@@ -72,7 +72,7 @@ describe("GameCanvas", () => {
       })
     );
 
-    expect(html).toContain('data-path-points="0"');
+    expect(html).toContain('data-path-points="2"');
   });
 
   it("treats identical shot payloads from different turns as distinct animations", () => {
