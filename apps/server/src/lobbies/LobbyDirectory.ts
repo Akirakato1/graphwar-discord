@@ -223,6 +223,16 @@ export class LobbyDirectory {
 
   markPlaying(guildId: string, roomId: string): LobbyRuntimeSnapshot {
     const lobby = this.requireLobby(guildId, roomId);
+
+    if (lobby.status !== "open") {
+      throw new Error("Match has already started.");
+    }
+
+    const blockedReason = this.startBlockedReason(lobby);
+    if (blockedReason) {
+      throw new Error(blockedReason);
+    }
+
     lobby.status = "playing";
     lobby.startedAt = this.now().toISOString();
 
