@@ -320,7 +320,9 @@ dd {
 }
 
 .menu-screen,
-.lobby-setup-screen {
+.lobby-setup-screen,
+.settings-screen,
+.leaderboard-screen {
   display: flex;
   flex-direction: column;
   width: min(1280px, 100%);
@@ -331,6 +333,21 @@ dd {
 .menu-screen {
   justify-content: center;
   gap: 18px;
+}
+
+.settings-screen,
+.leaderboard-screen {
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-screen .menu-panel,
+.leaderboard-screen .menu-panel {
+  width: min(560px, 100%);
+}
+
+.leaderboard-screen .menu-panel {
+  width: min(760px, 100%);
 }
 
 .menu-screen h1,
@@ -689,7 +706,9 @@ dd {
   }
 
   .menu-screen,
-  .lobby-setup-screen {
+  .lobby-setup-screen,
+  .settings-screen,
+  .leaderboard-screen {
     padding: 10px;
   }
 

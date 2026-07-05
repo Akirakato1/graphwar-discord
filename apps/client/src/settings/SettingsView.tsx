@@ -54,43 +54,45 @@ export function SettingsView({ onBack, onLoad, onSave, settings }: SettingsViewP
   }
 
   return (
-    <section className="panel menu-panel" aria-labelledby="settings-title">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">Guild defaults</p>
-          <h2 id="settings-title">Settings</h2>
+    <div className="settings-screen">
+      <section className="panel menu-panel" aria-labelledby="settings-title">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Guild defaults</p>
+            <h2 id="settings-title">Settings</h2>
+          </div>
         </div>
-      </div>
-      {(loadError || saveError) && (
-        <p className="notice" role="alert">
-          {saveError ?? loadError}
-        </p>
-      )}
-      <form className="menu-form" onSubmit={handleSubmit}>
-        <label>
-          Default mode
-          <select value={defaultMode} onChange={(event) => setDefaultMode(event.currentTarget.value as MatchModeId)}>
-            <option value="team-versus">Team Versus</option>
-            <option value="free-for-all">Free For All</option>
-          </select>
-        </label>
-        <label className="checkbox-row">
-          <input
-            checked={allowSpectators}
-            onChange={(event) => setAllowSpectators(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          Allow spectators
-        </label>
-        <div className="form-actions">
-          <button className="secondary-action" onClick={onBack} type="button">
-            Back
-          </button>
-          <button className="primary-action" disabled={!settings || saving} type="submit">
-            {saving ? "Saving" : "Save"}
-          </button>
-        </div>
-      </form>
-    </section>
+        {(loadError || saveError) && (
+          <p className="notice" role="alert">
+            {saveError ?? loadError}
+          </p>
+        )}
+        <form className="menu-form" onSubmit={handleSubmit}>
+          <label>
+            Default mode
+            <select value={defaultMode} onChange={(event) => setDefaultMode(event.currentTarget.value as MatchModeId)}>
+              <option value="team-versus">Team Versus</option>
+              <option value="free-for-all">Free For All</option>
+            </select>
+          </label>
+          <label className="checkbox-row">
+            <input
+              checked={allowSpectators}
+              onChange={(event) => setAllowSpectators(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            Allow spectators
+          </label>
+          <div className="form-actions">
+            <button className="secondary-action" onClick={onBack} type="button">
+              Back
+            </button>
+            <button className="primary-action" disabled={!settings || saving} type="submit">
+              {saving ? "Saving" : "Save"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
