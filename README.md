@@ -149,3 +149,4 @@ Every major implementation task should:
 - Added the client Custom Maps menu flow, map file import validation, owner-only delete UI, guild map API client methods, store map actions, and a create-lobby map selector while preserving the Discord 16:9 no-scroll layout.
 - Added a local Electron map maker with shared validation, terrain shape tools, pen polygon creation, draggable and scalable terrain, spawn placement, team spawn subsets, native `.graphwar-map.json` export, and build scripts.
 - Added a Playwright custom-map smoke test covering import through the main menu, custom map selection during lobby creation, second-client join, and match start with the selected map.
+- Fixed the map maker production build to emit relative renderer asset paths so Electron `loadFile` can load the bundled UI instead of opening a blank window.
