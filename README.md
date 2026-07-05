@@ -9,6 +9,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/specs/2026-07-05-lobby-menu-flow-design.md`
   - `docs/superpowers/specs/2026-07-05-gameplay-ui-fixes-design.md`
   - `docs/superpowers/specs/2026-07-06-custom-maps-and-map-maker-design.md`
+  - `docs/superpowers/specs/2026-07-06-lobby-identity-settings-design.md`
 - Implementation plans:
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
@@ -150,3 +151,4 @@ Every major implementation task should:
 - Added a local Electron map maker with shared validation, terrain shape tools, pen polygon creation, draggable and scalable terrain, spawn placement, team spawn subsets, native `.graphwar-map.json` export, and build scripts.
 - Added a Playwright custom-map smoke test covering import through the main menu, custom map selection during lobby creation, second-client join, and match start with the selected map.
 - Fixed the map maker production build to emit relative renderer asset paths so Electron `loadFile` can load the bundled UI instead of opening a blank window.
+- Added an approved lobby identity/settings design covering player colors, leader crown markers, group-header join buttons, centered lobby creation, and per-lobby maximum function length.
