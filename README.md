@@ -7,6 +7,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Design specs:
   - `docs/superpowers/specs/2026-07-04-graphwar-discord-activity-design.md`
   - `docs/superpowers/specs/2026-07-05-lobby-menu-flow-design.md`
+  - `docs/superpowers/specs/2026-07-05-gameplay-ui-fixes-design.md`
 - Implementation plans:
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
@@ -117,3 +118,4 @@ Every major implementation task should:
 - Current: added the client-side local session boundary, future Discord session placeholder, schema-validated WebSocket client, Zustand store actions for room commands/events, a usable multi-tab lobby/match control surface, Canvas 2D world rendering with staged shot path/impact playback, a normal-function shot input palette, implicit multiplication for normal-function parsing, 8-way rotated local aim directions, minimal in-turn HUD, 95%-to-20% shot path opacity attenuation, terrain/player damage staging through immediate turn advancement, Discord 16:9 no-scroll viewport fitting, and Playwright smoke tests for `alice`/`bob` local testing.
 - Added guild-scoped main menu, create/join lobby flow, leader-controlled setup, spectator support, persisted settings, persisted leaderboard entries, and Playwright coverage for mock clients using the same flow as Discord users.
 - Hardened lobby lifecycle and authority: ended lobbies are hidden from join listings, spectator-disabled guild settings are enforced by server and client, guild WebSocket upgrades check the origin allowlist, and lobby WebSocket commands are bound to the HTTP-issued session token.
+- Added a focused gameplay/UI fixes design covering the halved shot travel limit, final-shot animation ordering, match-end winner popup, and centered main menu checkpoint.
