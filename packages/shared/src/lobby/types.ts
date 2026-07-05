@@ -1,3 +1,4 @@
+import type { PersistedCustomMap } from "../maps/types";
 import type { MatchModeId, PlayerId, RoomId } from "../state/types";
 
 export type GuildId = string;
@@ -29,6 +30,7 @@ export type PersistedServerState = {
     {
       settings: GuildSettings;
       leaderboard: Record<DiscordUserId, PlayerStatsEntry>;
+      customMaps?: Record<string, PersistedCustomMap>;
     }
   >;
 };
@@ -53,6 +55,8 @@ export type LobbyRuntimeSnapshot = {
   occupants: LobbyOccupant[];
   canStart: boolean;
   startBlockedReason?: string;
+  mapId?: string;
+  mapName?: string;
   createdAt: string;
   startedAt?: string;
 };
@@ -67,6 +71,8 @@ export type LobbySummary = {
   leaderDiscordUserId: DiscordUserId;
   playerCount: number;
   spectatorCount: number;
+  mapId?: string;
+  mapName?: string;
   createdAt: string;
 };
 
@@ -76,6 +82,7 @@ export type CreateLobbyRequest = {
   alias: string;
   mode: MatchModeId;
   initialSlot: LobbySlot;
+  mapId?: string;
 };
 
 export type JoinLobbyRequest = {
@@ -109,5 +116,12 @@ export type AutoAssignTeamsRequest = {
 
 export type LobbyHttpError = {
   error: string;
-  code: "alias-empty" | "alias-taken" | "forbidden" | "not-found" | "invalid-lobby" | "invalid-settings";
+  code:
+    | "alias-empty"
+    | "alias-taken"
+    | "forbidden"
+    | "not-found"
+    | "invalid-lobby"
+    | "invalid-map"
+    | "invalid-settings";
 };

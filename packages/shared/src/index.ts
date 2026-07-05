@@ -5,6 +5,7 @@ export * from "./geometry/types";
 export * from "./lobby/alias";
 export * from "./lobby/schemas";
 export * from "./lobby/types";
+export * from "./maps";
 export * from "./protocol/commands";
 export * from "./protocol/events";
 export * from "./protocol/schemas";

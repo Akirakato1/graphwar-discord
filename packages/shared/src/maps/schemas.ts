@@ -1,0 +1,94 @@
+import { z } from "zod";
+import { pointSchema } from "../protocol/schemas";
+
+const mapNameSchema = z.string().trim().min(1).max(80);
+const spawnPointIdSchema = z.string().trim().min(1).max(80);
+
+export const customMapWorldBoundsSchema = z
+  .object({
+    minX: z.number().finite(),
+    maxX: z.number().finite(),
+    minY: z.number().finite(),
+    maxY: z.number().finite()
+  })
+  .refine((bounds) => bounds.minX < bounds.maxX, "minX must be less than maxX")
+  .refine((bounds) => bounds.minY < bounds.maxY, "minY must be less than maxY");
+
+export const customMapSpawnPointSchema = z.object({
+  id: spawnPointIdSchema,
+  position: pointSchema
+});
+
+export const customMapTerrainRingSchema = z.array(pointSchema).min(3);
+
+export const customMapTerrainBlobSchema = z.object({
+  id: z.string().trim().min(1),
+  outer: customMapTerrainRingSchema,
+  holes: z.array(customMapTerrainRingSchema)
+});
+
+export const customMapTerrainStateSchema = z.object({
+  blobs: z.array(customMapTerrainBlobSchema)
+});
+
+export const customMapTeamSpawnPointIdsSchema = z.object({
+  "team-a": z.array(spawnPointIdSchema),
+  "team-b": z.array(spawnPointIdSchema)
+});
+
+export const customMapImportSchema = z.object({
+  format: z.literal("graphwar-map"),
+  version: z.literal(1),
+  name: mapNameSchema,
+  worldBounds: customMapWorldBoundsSchema.optional(),
+  terrain: customMapTerrainStateSchema,
+  spawnPoints: z.array(customMapSpawnPointSchema),
+  teamSpawnPointIds: customMapTeamSpawnPointIdsSchema
+});
+
+export const persistedCustomMapSchema = customMapImportSchema.extend({
+  id: z.string().min(1),
+  guildId: z.string().min(1),
+  ownerDiscordUserId: z.string().min(1),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+});
+
+export const customMapSummarySchema = z.object({
+  id: z.string().min(1),
+  guildId: z.string().min(1),
+  ownerDiscordUserId: z.string().min(1),
+  name: z.string().min(1),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+});
+
+export const saveCustomMapRequestSchema = z.object({
+  ownerDiscordUserId: z.string().trim().min(1),
+  map: customMapImportSchema
+});
+
+export function validateCustomMapImportForSave(input: unknown) {
+  const map = customMapImportSchema.parse(input);
+  if (map.spawnPoints.length < 10) {
+    throw new Error("Custom maps must contain at least 10 spawn points.");
+  }
+
+  const spawnIds = new Set<string>();
+  for (const spawnPoint of map.spawnPoints) {
+    if (spawnIds.has(spawnPoint.id)) {
+      throw new Error("Spawn point ids must be unique.");
+    }
+    spawnIds.add(spawnPoint.id);
+  }
+
+  for (const teamId of ["team-a", "team-b"] as const) {
+    for (const spawnPointId of map.teamSpawnPointIds[teamId]) {
+      if (!spawnIds.has(spawnPointId)) {
+        throw new Error(`Unknown team spawn point id: ${spawnPointId}`);
+      }
+    }
+  }
+
+  return map;
+}

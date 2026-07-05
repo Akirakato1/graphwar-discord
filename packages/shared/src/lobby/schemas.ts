@@ -27,7 +27,8 @@ export const createLobbyRequestSchema = z.object({
   leaderDiscordUserId: z.string().trim().min(1),
   alias: z.string().trim().min(1).max(24),
   mode: matchModeSchema,
-  initialSlot: lobbySlotSchema
+  initialSlot: lobbySlotSchema,
+  mapId: z.string().trim().min(1).optional()
 });
 
 export const joinLobbyRequestSchema = z.object({
@@ -66,6 +67,8 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   occupants: z.array(lobbyOccupantSchema),
   canStart: z.boolean(),
   startBlockedReason: z.string().optional(),
+  mapId: z.string().min(1).optional(),
+  mapName: z.string().min(1).optional(),
   createdAt: z.string().datetime(),
   startedAt: z.string().datetime().optional()
 });
@@ -80,6 +83,8 @@ export const lobbySummarySchema = z.object({
   leaderDiscordUserId: z.string().min(1),
   playerCount: z.number().int().nonnegative(),
   spectatorCount: z.number().int().nonnegative(),
+  mapId: z.string().min(1).optional(),
+  mapName: z.string().min(1).optional(),
   createdAt: z.string().datetime()
 });
 
