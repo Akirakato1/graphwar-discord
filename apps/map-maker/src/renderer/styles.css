@@ -1,0 +1,209 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: #12151b;
+  color: #f5f7fb;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  background: #232a35;
+  border: 1px solid #384252;
+  border-radius: 6px;
+  color: #f5f7fb;
+  cursor: pointer;
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+}
+
+button:hover {
+  border-color: #d6a957;
+}
+
+button.active,
+.primary-action {
+  background: #d6a957;
+  border-color: #e7c77d;
+  color: #141820;
+}
+
+.map-maker-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-width: 0;
+}
+
+.map-maker-toolbar {
+  align-items: center;
+  background: #171b23;
+  border-bottom: 1px solid #2f3744;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+}
+
+.map-name-input {
+  background: #0f1218;
+  border: 1px solid #384252;
+  border-radius: 6px;
+  color: #f5f7fb;
+  min-height: 34px;
+  min-width: 180px;
+  padding: 0.35rem 0.6rem;
+}
+
+.tool-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.map-maker-body {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.map-maker-sidebar {
+  background: #151922;
+  border-right: 1px solid #2f3744;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+  padding: 0.75rem;
+}
+
+.map-stat {
+  align-items: center;
+  background: #202631;
+  border: 1px solid #323c4b;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+}
+
+.map-stat span,
+.compact-help,
+.status-message {
+  color: #aeb8c8;
+  font-size: 0.78rem;
+}
+
+.map-stat strong {
+  color: #f5f7fb;
+}
+
+.compact-help,
+.status-message {
+  line-height: 1.35;
+  margin: 0;
+}
+
+.status-message {
+  color: #e7c77d;
+  overflow-wrap: anywhere;
+}
+
+.map-maker-canvas {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.map-maker-canvas svg {
+  display: block;
+  height: 100%;
+  touch-action: none;
+  width: 100%;
+}
+
+.world-bg {
+  fill: #10141b;
+}
+
+.grid-lines line {
+  stroke: #252c38;
+  stroke-width: 0.05;
+}
+
+.axis-line {
+  stroke: #3b4657;
+  stroke-width: 0.08;
+}
+
+.terrain-shape {
+  fill: #596579;
+  fill-opacity: 0.82;
+  stroke: #dce4f2;
+  stroke-width: 0.1;
+}
+
+.terrain-shape.selected {
+  fill: #737f95;
+  stroke: #e7c77d;
+  stroke-width: 0.16;
+}
+
+.pen-line {
+  stroke: #e7c77d;
+  stroke-width: 0.14;
+}
+
+.pen-node {
+  fill: #e7c77d;
+  stroke: #10141b;
+  stroke-width: 0.08;
+}
+
+.spawn {
+  fill: #f5f7fb;
+  stroke: #10141b;
+  stroke-width: 0.1;
+}
+
+.spawn.team-a {
+  fill: #6fa7ff;
+}
+
+.spawn.team-b {
+  fill: #ff8989;
+}
+
+.spawn.selected {
+  fill: #e7c77d;
+}
+
+.transform-box rect {
+  fill: none;
+  stroke: #e7c77d;
+  stroke-dasharray: 0.4 0.25;
+  stroke-width: 0.1;
+}
+
+.transform-box circle {
+  fill: #e7c77d;
+  stroke: #10141b;
+  stroke-width: 0.08;
+}

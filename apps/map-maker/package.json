@@ -1,0 +1,22 @@
+{
+  "name": "@graphwar/map-maker",
+  "private": true,
+  "type": "module",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "dev": "npm run build && electron .",
+    "build": "npm run clean && tsc -b && tsc -p tsconfig.electron.json && vite build",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@graphwar/shared": "file:../../packages/shared",
+    "electron": "^31.7.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
+  }
+}

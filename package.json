@@ -10,6 +10,8 @@
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "npm --workspace apps/server run dev",
     "dev:client": "npm --workspace apps/client run dev",
+    "dev:map-maker": "npm --workspace apps/map-maker run dev",
+    "build:map-maker": "npm --workspace apps/map-maker run build",
     "test": "vitest run",
     "check": "tsc -b",
     "test:e2e": "playwright test"
