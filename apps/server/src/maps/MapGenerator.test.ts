@@ -48,6 +48,20 @@ describe("map generators", () => {
     });
   });
 
+  it("creates explicit team-versus spawns by team membership", () => {
+    const map = new TeamVersusMapGenerator().generateForTeams("seed", [
+      { id: "team-a", playerIds: ["bob"] },
+      { id: "team-b", playerIds: ["alice", "charlie"] }
+    ]);
+
+    expect(map.spawns).toEqual([
+      { playerId: "bob", position: { x: -18, y: -6 } },
+      { playerId: "alice", position: { x: 18, y: -6 } },
+      { playerId: "charlie", position: { x: 18, y: -2 } }
+    ]);
+    expect(map.terrain.blobs.length).toBeGreaterThan(0);
+  });
+
   it("creates free-for-all spawns around the field", () => {
     const map = new FreeForAllMapGenerator().generate("seed", ["alice", "bob", "charlie"]);
     expect(map.spawns).toHaveLength(3);

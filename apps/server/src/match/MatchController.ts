@@ -13,7 +13,7 @@ import {
 } from "@graphwar/shared";
 import { FunctionRegistry } from "../functions/FunctionRegistry";
 import { FreeForAllMapGenerator } from "../maps/FreeForAllMapGenerator";
-import type { MapGenerator } from "../maps/MapGenerator";
+import type { GeneratedMap, MapGenerator } from "../maps/MapGenerator";
 import { TeamVersusMapGenerator } from "../maps/TeamVersusMapGenerator";
 import { FreeForAllMode } from "../modes/FreeForAllMode";
 import type { GameMode, LobbyPlayer, TurnPlayer } from "../modes/GameMode";
@@ -84,12 +84,10 @@ export class MatchController {
     }
 
     const mode = this.createMode(modeId);
-    const generator = this.createMapGenerator(modeId);
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
-    const mapPlayerIds = this.createMapPlayerIds(modeId, teams, playerIds);
-    const map = generator.generate(this.mapSeed(playerIds), mapPlayerIds);
+    const map = this.createMap(modeId, teams, playerIds);
     const spawnsByPlayerId = new Map(map.spawns.map((spawn) => [spawn.playerId, spawn.position]));
     const players = lobbyPlayers.map((player) => ({
       id: player.id,
@@ -295,6 +293,22 @@ export class MatchController {
       }
     }
     return teamIds;
+  }
+
+  private createMap(modeId: MatchModeId, teams: TeamState[], playerIds: PlayerId[]): GeneratedMap {
+    const seed = this.mapSeed(playerIds);
+    if (modeId === "team-versus" && this.hasTeamVersusTeams(teams)) {
+      return new TeamVersusMapGenerator().generateForTeams(seed, teams);
+    }
+
+    const generator = this.createMapGenerator(modeId);
+    const mapPlayerIds = this.createMapPlayerIds(modeId, teams, playerIds);
+    return generator.generate(seed, mapPlayerIds);
+  }
+
+  private hasTeamVersusTeams(teams: TeamState[]): boolean {
+    const teamIds = new Set(teams.map((team) => team.id));
+    return teamVersusTeamIds.every((teamId) => teamIds.has(teamId));
   }
 
   private createMapPlayerIds(modeId: MatchModeId, teams: TeamState[], fallbackPlayerIds: PlayerId[]): PlayerId[] {

@@ -141,6 +141,22 @@ describe("MatchController", () => {
     expect(snapshot.turn.order).toEqual(["alice-id", "bob-id"]);
   });
 
+  it("keeps unbalanced explicit team placements on their spawn sides", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-b" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-a" },
+      { id: "charlie-id", displayName: "Charlie", teamId: "team-b" }
+    ]);
+
+    const snapshot = controller.startMatch("team-versus");
+
+    expect(snapshot.players.find((player) => player.id === "bob-id")?.position.x).toBeLessThan(0);
+    expect(snapshot.players.find((player) => player.id === "alice-id")?.position.x).toBeGreaterThan(0);
+    expect(snapshot.players.find((player) => player.id === "charlie-id")?.position.x).toBeGreaterThan(0);
+    expect(snapshot.turn.order).toEqual(["alice-id", "bob-id", "charlie-id"]);
+  });
+
   it("rebuilds lobby snapshots from non-spectator lobby players only", () => {
     const controller = new MatchController("room-1");
     const snapshot = controller.setLobbyPlayers("free-for-all", [
