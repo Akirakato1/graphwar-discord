@@ -30,7 +30,7 @@ export type PersistedServerState = {
     {
       settings: GuildSettings;
       leaderboard: Record<DiscordUserId, PlayerStatsEntry>;
-      customMaps?: Record<string, PersistedCustomMap>;
+      customMaps: Record<string, PersistedCustomMap>;
     }
   >;
 };

@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { CustomMapImport, PersistedCustomMap } from "@graphwar/shared";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type BuildServerOptions, isMainModule } from "./index";
 import { LocalStateStore } from "./persistence/LocalStateStore";
@@ -18,6 +19,23 @@ async function createTestServer(options: BuildServerOptions = {}): Promise<{ app
   const app = await buildServer({ ...options, stateStore });
   servers.push(app);
   return { app, stateStore };
+}
+
+function customMap(name = "Test Arena"): CustomMapImport {
+  return {
+    format: "graphwar-map",
+    version: 1,
+    name,
+    terrain: { blobs: [] },
+    spawnPoints: Array.from({ length: 10 }, (_, index) => ({
+      id: `spawn-${index}`,
+      position: { x: index, y: 0 }
+    })),
+    teamSpawnPointIds: {
+      "team-a": ["spawn-0", "spawn-1", "spawn-2", "spawn-3", "spawn-4"],
+      "team-b": ["spawn-5", "spawn-6", "spawn-7", "spawn-8", "spawn-9"]
+    }
+  };
 }
 
 afterEach(async () => {
@@ -58,6 +76,7 @@ describe("guild HTTP routes", () => {
       expect(response.statusCode).toBe(204);
       expect(response.headers["access-control-allow-origin"]).toBe(origin);
       expect(response.headers["access-control-allow-methods"]).toContain("POST");
+      expect(response.headers["access-control-allow-methods"]).toContain("DELETE");
       expect(response.headers["access-control-allow-headers"]).toContain("content-type");
     }
   });
@@ -325,6 +344,111 @@ describe("guild HTTP routes", () => {
         wins: 0
       })
     ]);
+  });
+
+  it("lists custom maps scoped to the requested guild", async () => {
+    const { app, stateStore } = await createTestServer();
+    await stateStore.saveCustomMap("map-guild", "alice-id", customMap("Guild Arena"));
+    await stateStore.saveCustomMap("other-guild", "alice-id", customMap("Other Arena"));
+
+    const response = await app.inject({ method: "GET", url: "/guilds/map-guild/maps" });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual([
+      expect.objectContaining({
+        guildId: "map-guild",
+        ownerDiscordUserId: "alice-id",
+        name: "Guild Arena"
+      })
+    ]);
+  });
+
+  it("saves valid custom maps through the guild API", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/guilds/map-guild/maps",
+      payload: { ownerDiscordUserId: "alice-id", map: customMap("Imported Arena") }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(JSON.parse(response.body)).toMatchObject({
+      guildId: "map-guild",
+      ownerDiscordUserId: "alice-id",
+      name: "Imported Arena"
+    });
+  });
+
+  it("rejects invalid custom maps through the guild API", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/guilds/map-guild/maps",
+      payload: {
+        ownerDiscordUserId: "alice-id",
+        map: { ...customMap(), spawnPoints: customMap().spawnPoints.slice(0, 9) }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body)).toMatchObject({ code: "invalid-map" });
+  });
+
+  it("deletes custom maps for their owner", async () => {
+    const { app, stateStore } = await createTestServer();
+    const saved = await stateStore.saveCustomMap("map-guild", "alice-id", customMap());
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/guilds/map-guild/maps/${saved.id}?actorDiscordUserId=alice-id`
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(await stateStore.getCustomMap("map-guild", saved.id)).toBeUndefined();
+  });
+
+  it("rejects custom map deletes from non-owners", async () => {
+    const { app, stateStore } = await createTestServer();
+    const saved = await stateStore.saveCustomMap("map-guild", "alice-id", customMap());
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/guilds/map-guild/maps/${saved.id}?actorDiscordUserId=bob-id`
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(JSON.parse(response.body)).toMatchObject({ code: "forbidden" });
+    expect((await stateStore.getCustomMap("map-guild", saved.id)) as PersistedCustomMap).toMatchObject({
+      id: saved.id,
+      ownerDiscordUserId: "alice-id"
+    });
+  });
+
+  it("returns not found when deleting a missing custom map", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/guilds/map-guild/maps/missing-map?actorDiscordUserId=alice-id"
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(JSON.parse(response.body)).toMatchObject({ code: "not-found" });
+  });
+
+  it("rejects custom map deletes without an actor", async () => {
+    const { app, stateStore } = await createTestServer();
+    const saved = await stateStore.saveCustomMap("map-guild", "alice-id", customMap());
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/guilds/map-guild/maps/${saved.id}`
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body)).toMatchObject({ code: "invalid-map" });
   });
 
   it("returns not found when joining a missing lobby", async () => {

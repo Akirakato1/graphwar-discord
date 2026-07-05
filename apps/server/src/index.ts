@@ -1,7 +1,12 @@
 import { resolve } from "node:path";
 import type { Duplex } from "node:stream";
 import { pathToFileURL } from "node:url";
-import { createLobbyRequestSchema, guildSettingsSchema, joinLobbyRequestSchema } from "@graphwar/shared";
+import {
+  createLobbyRequestSchema,
+  guildSettingsSchema,
+  joinLobbyRequestSchema,
+  saveCustomMapRequestSchema
+} from "@graphwar/shared";
 import Fastify from "fastify";
 import { WebSocketServer } from "ws";
 import { LobbyDirectory } from "./lobbies/LobbyDirectory";
@@ -100,7 +105,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
     const origin = request.headers.origin;
     if (origin && corsAllowedOrigins.has(origin)) {
       reply.header("access-control-allow-origin", origin);
-      reply.header("access-control-allow-methods", "GET, POST, PUT, OPTIONS");
+      reply.header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS");
       reply.header(
         "access-control-allow-headers",
         headerValue(request.headers["access-control-request-headers"], "content-type")
@@ -184,6 +189,54 @@ export async function buildServer(options: BuildServerOptions = {}) {
   app.get("/guilds/:guildId/leaderboard", async (request) => {
     const { guildId } = request.params as { guildId: string };
     return stateStore.getLeaderboard(guildId);
+  });
+
+  app.get("/guilds/:guildId/maps", async (request) => {
+    const { guildId } = request.params as { guildId: string };
+    return stateStore.listCustomMaps(guildId);
+  });
+
+  app.post("/guilds/:guildId/maps", async (request, reply) => {
+    const { guildId } = request.params as { guildId: string };
+    const parsed = saveCustomMapRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ code: "invalid-map", error: parsed.error.message });
+    }
+
+    try {
+      return reply
+        .code(201)
+        .send(await stateStore.saveCustomMap(guildId, parsed.data.ownerDiscordUserId, parsed.data.map));
+    } catch (error) {
+      return reply.code(400).send({
+        code: "invalid-map",
+        error: error instanceof Error ? error.message : "Custom map could not be saved."
+      });
+    }
+  });
+
+  app.delete("/guilds/:guildId/maps/:mapId", async (request, reply) => {
+    const { guildId, mapId } = request.params as { guildId: string; mapId: string };
+    const { actorDiscordUserId } = request.query as { actorDiscordUserId?: string };
+    const actor = actorDiscordUserId?.trim();
+    if (!mapId.trim() || !actor) {
+      return reply.code(400).send({ code: "invalid-map", error: "A map id and actorDiscordUserId are required." });
+    }
+
+    try {
+      await stateStore.deleteCustomMap(guildId, mapId, actor);
+      return reply.code(204).send();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Custom map could not be deleted.";
+      const normalizedMessage = message.toLowerCase();
+      const status = normalizedMessage.includes("not found")
+        ? 404
+        : normalizedMessage.includes("owner")
+          ? 403
+          : 400;
+      const code = status === 404 ? "not-found" : status === 403 ? "forbidden" : "invalid-map";
+      return reply.code(status).send({ code, error: message });
+    }
   });
 
   app.server.on("upgrade", (request, socket, head) => {
