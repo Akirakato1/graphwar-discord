@@ -10,6 +10,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Implementation plans:
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
+  - `docs/superpowers/plans/2026-07-05-lobby-menu-flow.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
@@ -110,4 +111,5 @@ Every major implementation task should:
 - `3c28af9`: Defined shared game constants, domain types, validation settings, and protocol schemas.
 - Added shared coordinate and polygon helpers with validated circle polygon inputs and targeted geometry coverage.
 - Added lobby/menu flow design covering guild-scoped lobby browsing, create/join flow, alias uniqueness, leader controls, spectators, settings, and leaderboard persistence.
+- Added lobby/menu flow implementation plan covering shared contracts, server persistence, guild-scoped lobby runtime, client menu/setup views, spectator gating, E2E conversion, and checkpoint commits.
 - Current: added the client-side local session boundary, future Discord session placeholder, schema-validated WebSocket client, Zustand store actions for room commands/events, a usable multi-tab lobby/match control surface, Canvas 2D world rendering with staged shot path/impact playback, a normal-function shot input palette, implicit multiplication for normal-function parsing, 8-way rotated local aim directions, minimal in-turn HUD, 95%-to-20% shot path opacity attenuation, terrain/player damage staging through immediate turn advancement, Discord 16:9 no-scroll viewport fitting, and Playwright smoke tests for `alice`/`bob` local testing.
