@@ -108,6 +108,20 @@ async function expectMenuCreateJoinNoScroll(page: Page, player: Player, guildId:
   await expect(page.getByRole("heading", { name: "Graphwar" })).toBeVisible();
 }
 
+async function joinPopulatedLobbyWithoutScroll(page: Page, lobbyName: string, alias: string): Promise<void> {
+  await page.getByRole("button", { name: "Join Lobby" }).click();
+  await expect(page.getByRole("heading", { name: "Join Lobby" })).toBeVisible();
+  await expect(page.getByRole("button", { name: lobbyName })).toBeVisible();
+  await expectNoPageScroll(page);
+  await page.getByRole("button", { name: lobbyName }).click();
+  await expect(page.getByRole("button", { name: "Join As Player" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Spectate" })).toBeVisible();
+  await expectNoPageScroll(page);
+  await page.getByLabel("Alias").fill(alias);
+  await page.getByRole("button", { name: "Join As Player" }).click();
+  await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
+}
+
 test("two local players can start a match and advance turns with a function shot", async ({ browser }, testInfo) => {
   const guildId = idFor(testInfo.title, "guild");
   const lobbyName = idFor(testInfo.title, "lobby");
@@ -231,7 +245,7 @@ test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling
       await expectMenuCreateJoinNoScroll(alicePage, alice, guildId);
       await createLobby(alicePage, lobbyName, "Alice");
       await openLocalMenu(bobPage, bob, guildId);
-      await joinLobby(bobPage, lobbyName, "Bob");
+      await joinPopulatedLobbyWithoutScroll(bobPage, lobbyName, "Bob");
       await expectSetupShowsPlayers([alicePage, bobPage]);
 
       await expectNoPageScroll(alicePage);

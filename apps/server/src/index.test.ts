@@ -23,6 +23,7 @@ async function createTestServer(options: BuildServerOptions = {}): Promise<{ app
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((app) => app.close()));
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  delete process.env.GRAPHWAR_CORS_ORIGINS;
 });
 
 describe("isMainModule", () => {
@@ -93,6 +94,35 @@ describe("guild HTTP routes", () => {
 
     expect(response.statusCode).toBe(204);
     expect(response.headers["access-control-allow-origin"]).toBe("https://activity.example");
+  });
+
+  it("uses environment-configured CORS origins instead of local dev defaults", async () => {
+    process.env.GRAPHWAR_CORS_ORIGINS = "https://activity.example";
+    const { app } = await createTestServer();
+
+    const configuredOriginResponse = await app.inject({
+      method: "OPTIONS",
+      url: "/guilds/local-guild/lobbies",
+      headers: {
+        origin: "https://activity.example",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+    const localDefaultResponse = await app.inject({
+      method: "OPTIONS",
+      url: "/guilds/local-guild/lobbies",
+      headers: {
+        origin: "http://127.0.0.1:5173",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    expect(configuredOriginResponse.statusCode).toBe(204);
+    expect(configuredOriginResponse.headers["access-control-allow-origin"]).toBe("https://activity.example");
+    expect(localDefaultResponse.statusCode).toBe(403);
+    expect(localDefaultResponse.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("does not attach CORS headers to guild API requests from unlisted origins", async () => {

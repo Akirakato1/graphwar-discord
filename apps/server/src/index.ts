@@ -24,12 +24,16 @@ function headerValue(value: string | string[] | undefined, fallback: string): st
 const defaultCorsAllowedOrigins = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 function readConfiguredCorsOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
-  const configuredOrigins = (env.GRAPHWAR_CORS_ORIGINS ?? "")
-    .split(",")
+  const configuredOrigins = env.GRAPHWAR_CORS_ORIGINS
+    ?.split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  return Array.from(new Set([...defaultCorsAllowedOrigins, ...configuredOrigins]));
+  if (configuredOrigins && configuredOrigins.length > 0) {
+    return Array.from(new Set(configuredOrigins));
+  }
+
+  return defaultCorsAllowedOrigins;
 }
 
 function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomId: string } | undefined {
