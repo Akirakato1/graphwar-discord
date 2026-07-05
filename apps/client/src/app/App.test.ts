@@ -5,6 +5,8 @@ import { App, GameSessionPill, resolveLocalLobbyIdentity } from "./App";
 import { LobbySetupView } from "../lobby/LobbySetupView";
 
 describe("App", () => {
+  const AppWithViewOverride = App as React.ComponentType<{ viewOverride?: "custom-maps" }>;
+
   it("renders the main menu before any websocket game UI", () => {
     const html = renderToStaticMarkup(React.createElement(App));
 
@@ -12,7 +14,16 @@ describe("App", () => {
     expect(html).toContain("Join Lobby");
     expect(html).toContain("Settings");
     expect(html).toContain("Leaderboard");
+    expect(html).toContain("Custom Maps");
     expect(html).not.toContain("Battlefield");
+    expect(html).not.toContain("Function Shot");
+  });
+
+  it("routes the custom maps view without rendering gameplay HUD", () => {
+    const html = renderToStaticMarkup(React.createElement(AppWithViewOverride, { viewOverride: "custom-maps" }));
+
+    expect(html).toContain("Custom Maps");
+    expect(html).toContain("Load Custom Map");
     expect(html).not.toContain("Function Shot");
   });
 

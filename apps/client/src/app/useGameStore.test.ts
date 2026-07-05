@@ -121,7 +121,17 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
     }),
     getSettings: async (guildId) => ({ guildId, defaultMode: "team-versus", allowSpectators: true }),
     saveSettings: async (settings) => settings,
-    getLeaderboard: async () => []
+    getLeaderboard: async () => [],
+    listCustomMaps: async () => [],
+    saveCustomMap: async (guildId, request) => ({
+      id: "map-1",
+      guildId,
+      ownerDiscordUserId: request.ownerDiscordUserId,
+      name: request.map.name,
+      createdAt: "2026-07-05T00:00:00.000Z",
+      updatedAt: "2026-07-05T00:00:00.000Z"
+    }),
+    deleteCustomMap: async () => {}
   };
 }
 
@@ -205,7 +215,14 @@ describe("createGameStore", () => {
         },
         getSettings: async () => ({ guildId: "local-guild", defaultMode: "team-versus", allowSpectators: true }),
         saveSettings: async (settings) => settings,
-        getLeaderboard: async () => []
+        getLeaderboard: async () => [],
+        listCustomMaps: async () => [],
+        saveCustomMap: async () => {
+          throw new Error("not used");
+        },
+        deleteCustomMap: async () => {
+          throw new Error("not used");
+        }
       },
       clientFactory: (options) => {
         connectOptions = options;
@@ -257,6 +274,90 @@ describe("createGameStore", () => {
         sessionToken: "alice-session"
       }
     ]);
+  });
+
+  it("passes the selected custom map id when creating a lobby", async () => {
+    const createLobbyCalls: Array<Parameters<LobbyApi["createLobby"]>> = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor("room-map"),
+        createLobby: async (guildId, request) => {
+          createLobbyCalls.push([guildId, request]);
+          return lobbyApiFor("room-map").createLobby(guildId, request);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().createLobby({
+      name: "Custom Map Lobby",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      mapId: "map-1"
+    });
+
+    expect(createLobbyCalls[0]?.[1]).toMatchObject({ mapId: "map-1" });
+  });
+
+  it("loads, saves, and deletes custom maps for the current session user", async () => {
+    const calls: string[] = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor(),
+        listCustomMaps: async (guildId) => {
+          calls.push(`list:${guildId}`);
+          return [
+            {
+              id: "map-1",
+              guildId,
+              ownerDiscordUserId: "alice",
+              name: "Imported Arena",
+              createdAt: "2026-07-05T00:00:00.000Z",
+              updatedAt: "2026-07-05T00:00:00.000Z"
+            }
+          ];
+        },
+        saveCustomMap: async (guildId, request) => {
+          calls.push(`save:${guildId}:${request.ownerDiscordUserId}:${request.map.name}`);
+          return {
+            id: "map-2",
+            guildId,
+            ownerDiscordUserId: request.ownerDiscordUserId,
+            name: request.map.name,
+            createdAt: "2026-07-05T00:00:00.000Z",
+            updatedAt: "2026-07-05T00:00:00.000Z"
+          };
+        },
+        deleteCustomMap: async (guildId, mapId, actorDiscordUserId) => {
+          calls.push(`delete:${guildId}:${mapId}:${actorDiscordUserId}`);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().loadCustomMaps();
+    await store.getState().saveCustomMap({
+      format: "graphwar-map",
+      version: 1,
+      name: "Saved Arena",
+      terrain: { blobs: [] },
+      spawnPoints: Array.from({ length: 10 }, (_, index) => ({ id: `spawn-${index}`, position: { x: index, y: 0 } })),
+      teamSpawnPointIds: {
+        "team-a": ["spawn-0", "spawn-1", "spawn-2", "spawn-3", "spawn-4"],
+        "team-b": ["spawn-5", "spawn-6", "spawn-7", "spawn-8", "spawn-9"]
+      }
+    });
+    await store.getState().deleteCustomMap("map-1");
+
+    expect(calls).toEqual([
+      "list:local-guild",
+      "save:local-guild:alice:Saved Arena",
+      "delete:local-guild:map-1:alice"
+    ]);
+    expect(store.getState().customMaps.map((map) => map.name)).toEqual(["Saved Arena"]);
   });
 
   it("reconnects to a newly selected lobby when already connected", async () => {

@@ -20,6 +20,9 @@ export function MainMenu({ guildId, onNavigate }: MainMenuProps) {
           <button className="secondary-action" onClick={() => onNavigate("join-lobby")} type="button">
             Join Lobby
           </button>
+          <button className="secondary-action" onClick={() => onNavigate("custom-maps")} type="button">
+            Custom Maps
+          </button>
           <button className="secondary-action" onClick={() => onNavigate("settings")} type="button">
             Settings
           </button>

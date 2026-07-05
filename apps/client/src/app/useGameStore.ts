@@ -1,6 +1,8 @@
 import type {
   AimDirectionId,
   ClientCommand,
+  CustomMapImport,
+  CustomMapSummary,
   GuildSettings,
   LobbyPlacementId,
   LobbyRuntimeSnapshot,
@@ -22,6 +24,7 @@ export type ConnectionStatus = "idle" | "connecting" | "open" | "closed" | "reco
 export type AppView =
   | "main-menu"
   | "create-lobby"
+  | "custom-maps"
   | "join-lobby"
   | "settings"
   | "leaderboard"
@@ -56,8 +59,16 @@ export type GameStoreState = {
   clearLog(): void;
   connect(): void;
   connectionStatus: ConnectionStatus;
-  createLobby(form: { name: string; alias: string; mode: MatchModeId; initialSlot: LobbySlot }): Promise<void>;
+  createLobby(form: {
+    name: string;
+    alias: string;
+    mode: MatchModeId;
+    initialSlot: LobbySlot;
+    mapId?: string;
+  }): Promise<void>;
+  customMaps: CustomMapSummary[];
   currentLobby?: LobbyRuntimeSnapshot;
+  deleteCustomMap(mapId: string): Promise<void>;
   disconnect(): void;
   joinRoom(): void;
   joinLobby(roomId: string, form: { alias: string; slot: LobbySlot }): Promise<void>;
@@ -66,6 +77,7 @@ export type GameStoreState = {
   leaderboard: PlayerStatsEntry[];
   loadLeaderboard(): Promise<void>;
   loadLobbies(): Promise<void>;
+  loadCustomMaps(): Promise<void>;
   loadSettings(): Promise<void>;
   log: GameLogEntry[];
   lobbies: LobbySummary[];
@@ -75,6 +87,7 @@ export type GameStoreState = {
   selectedLobbySession?: SelectedLobbySession;
   session: ClientSession;
   settings?: GuildSettings;
+  saveCustomMap(map: CustomMapImport): Promise<void>;
   saveSettings(settings: GuildSettings): Promise<void>;
   setTeam(targetPlayerId: string, placement: LobbyPlacementId): void;
   setView(view: AppView): void;
@@ -335,7 +348,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             leaderDiscordUserId: session.discordUserId,
             alias: form.alias,
             mode: form.mode,
-            initialSlot: form.initialSlot
+            initialSlot: form.initialSlot,
+            ...(form.mapId ? { mapId: form.mapId } : {})
           });
           closeClientForLobbySwitch();
           set({
@@ -352,7 +366,22 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           throw error;
         }
       },
+      customMaps: [],
       currentLobby: undefined,
+      async deleteCustomMap(mapId) {
+        try {
+          await lobbyApi.deleteCustomMap(session.guildId, mapId, session.discordUserId);
+          set((state) => ({
+            customMaps: state.customMaps.filter((map) => map.id !== mapId),
+            lastError: undefined,
+            lastRejection: undefined
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not delete custom map.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
       disconnect() {
         connectionId += 1;
         const currentClient = client;
@@ -422,6 +451,16 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           throw error;
         }
       },
+      async loadCustomMaps() {
+        try {
+          const customMaps = await lobbyApi.listCustomMaps(session.guildId);
+          set({ customMaps, lastError: undefined, lastRejection: undefined });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not load custom maps.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
       async loadSettings() {
         try {
           const settings = await lobbyApi.getSettings(session.guildId);
@@ -469,6 +508,23 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       selectedLobbySession: undefined,
       session,
       settings: undefined,
+      async saveCustomMap(map) {
+        try {
+          const savedMap = await lobbyApi.saveCustomMap(session.guildId, {
+            ownerDiscordUserId: session.discordUserId,
+            map
+          });
+          set((state) => ({
+            customMaps: [...state.customMaps.filter((existing) => existing.id !== savedMap.id), savedMap],
+            lastError: undefined,
+            lastRejection: undefined
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not save custom map.";
+          set({ lastError: message, lastRejection: undefined });
+          throw error;
+        }
+      },
       async saveSettings(settings) {
         try {
           const savedSettings = await lobbyApi.saveSettings(settings);

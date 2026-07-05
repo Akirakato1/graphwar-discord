@@ -16,7 +16,8 @@ body,
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -312,7 +313,8 @@ dd {
 .menu-screen,
 .lobby-setup-screen,
 .settings-screen,
-.leaderboard-screen {
+.leaderboard-screen,
+.map-library-screen {
   box-sizing: border-box;
   min-height: 100dvh;
   max-height: 100dvh;
@@ -322,7 +324,8 @@ dd {
 .menu-screen,
 .lobby-setup-screen,
 .settings-screen,
-.leaderboard-screen {
+.leaderboard-screen,
+.map-library-screen {
   display: flex;
   flex-direction: column;
   width: min(1280px, 100%);
@@ -350,7 +353,8 @@ dd {
 }
 
 .settings-screen,
-.leaderboard-screen {
+.leaderboard-screen,
+.map-library-screen {
   align-items: center;
   justify-content: center;
 }
@@ -388,6 +392,79 @@ dd {
 .menu-actions .primary-action,
 .menu-actions .secondary-action {
   width: 100%;
+}
+
+.map-select {
+  min-width: 0;
+}
+
+.map-library-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - 36px);
+}
+
+.map-library-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-library-import input {
+  min-width: 0;
+  border: 1px solid #3d4b43;
+  border-radius: 8px;
+  background: #151513;
+  color: #fff8e7;
+  padding: 7px 10px;
+}
+
+.map-library-empty {
+  border: 1px solid #34342f;
+  border-radius: 8px;
+  color: #b0a997;
+  margin: 10px 0 0;
+  padding: 12px;
+}
+
+.map-library-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-library-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #34342f;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.map-library-list strong,
+.map-library-list span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-library-list strong {
+  color: #fff8e7;
+}
+
+.map-library-list span {
+  color: #b0a997;
+  font-size: 12px;
 }
 
 .setup-actions {

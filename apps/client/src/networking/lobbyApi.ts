@@ -1,16 +1,20 @@
 import {
   createLobbyRequestSchema,
+  customMapSummarySchema,
   guildSettingsSchema,
   joinLobbyRequestSchema,
   lobbyJoinResultSchema,
   lobbySummarySchema,
   playerStatsEntrySchema,
+  saveCustomMapRequestSchema,
   type CreateLobbyRequest,
+  type CustomMapSummary,
   type GuildSettings,
   type JoinLobbyRequest,
   type LobbyJoinResult,
   type LobbySummary,
-  type PlayerStatsEntry
+  type PlayerStatsEntry,
+  type SaveCustomMapRequest
 } from "@graphwar/shared";
 
 export type LobbyApi = ReturnType<typeof createLobbyApi>;
@@ -55,6 +59,20 @@ async function readJson<T>(response: Response, parse: (value: unknown) => T): Pr
   return parse(payload);
 }
 
+async function readEmpty(response: Response): Promise<void> {
+  if (!response.ok) {
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = undefined;
+    }
+    const error = new Error(errorMessageFromPayload(payload));
+    (error as Error & { status?: number }).status = response.status;
+    throw error;
+  }
+}
+
 export function createLobbyApi(serverUrl?: string, locationHref?: string) {
   const base = httpBase(serverUrl, locationHref);
   return {
@@ -96,6 +114,25 @@ export function createLobbyApi(serverUrl?: string, locationHref?: string) {
     async getLeaderboard(guildId: string): Promise<PlayerStatsEntry[]> {
       const response = await fetch(`${base}/guilds/${encodeURIComponent(guildId)}/leaderboard`);
       return readJson(response, (value) => playerStatsEntrySchema.array().parse(value));
+    },
+    async listCustomMaps(guildId: string): Promise<CustomMapSummary[]> {
+      const response = await fetch(`${base}/guilds/${encodeURIComponent(guildId)}/maps`);
+      return readJson(response, (value) => customMapSummarySchema.array().parse(value));
+    },
+    async saveCustomMap(guildId: string, request: SaveCustomMapRequest): Promise<CustomMapSummary> {
+      const response = await fetch(`${base}/guilds/${encodeURIComponent(guildId)}/maps`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(saveCustomMapRequestSchema.parse(request))
+      });
+      return readJson(response, (value) => customMapSummarySchema.parse(value));
+    },
+    async deleteCustomMap(guildId: string, mapId: string, actorDiscordUserId: string): Promise<void> {
+      const response = await fetch(
+        `${base}/guilds/${encodeURIComponent(guildId)}/maps/${encodeURIComponent(mapId)}?actorDiscordUserId=${encodeURIComponent(actorDiscordUserId)}`,
+        { method: "DELETE" }
+      );
+      await readEmpty(response);
     }
   };
 }

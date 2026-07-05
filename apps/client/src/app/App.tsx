@@ -6,10 +6,12 @@ import { LeaderboardView } from "../leaderboard/LeaderboardView";
 import { CreateLobbyView } from "../lobby/CreateLobbyView";
 import { JoinLobbyView } from "../lobby/JoinLobbyView";
 import { LobbySetupView } from "../lobby/LobbySetupView";
+import { MapLibraryView } from "../maps/MapLibraryView";
+import { parseCustomMapFileText } from "../maps/mapFile";
 import { MatchEndModal } from "../match-end/MatchEndModal";
 import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
-import { useGameStore, type SelectedLobbySession } from "./useGameStore";
+import { useGameStore, type AppView, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
 import type { LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
 
@@ -53,19 +55,28 @@ export function resolveLocalLobbyIdentity({
   };
 }
 
-export function App() {
+type AppProps = {
+  viewOverride?: AppView;
+};
+
+export function App(props?: AppProps): JSX.Element;
+export function App({ viewOverride }: AppProps = {}) {
   const autoAssignTeams = useGameStore((state) => state.autoAssignTeams);
   const createLobby = useGameStore((state) => state.createLobby);
   const currentLobby = useGameStore((state) => state.currentLobby);
+  const customMaps = useGameStore((state) => state.customMaps);
+  const deleteCustomMap = useGameStore((state) => state.deleteCustomMap);
   const leaderboard = useGameStore((state) => state.leaderboard);
   const lobbies = useGameStore((state) => state.lobbies);
+  const loadCustomMaps = useGameStore((state) => state.loadCustomMaps);
   const loadLeaderboard = useGameStore((state) => state.loadLeaderboard);
   const loadLobbies = useGameStore((state) => state.loadLobbies);
   const loadSettings = useGameStore((state) => state.loadSettings);
   const saveSettings = useGameStore((state) => state.saveSettings);
+  const saveCustomMap = useGameStore((state) => state.saveCustomMap);
   const settings = useGameStore((state) => state.settings);
   const setView = useGameStore((state) => state.setView);
-  const view = useGameStore((state) => state.view);
+  const storeView = useGameStore((state) => state.view);
   const disconnect = useGameStore((state) => state.disconnect);
   const joinLobby = useGameStore((state) => state.joinLobby);
   const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
@@ -73,12 +84,19 @@ export function App() {
   const setTeam = useGameStore((state) => state.setTeam);
   const startMatch = useGameStore((state) => state.startMatch);
   const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
+  const view = viewOverride ?? storeView;
 
   useEffect(() => {
     if ((view === "create-lobby" || view === "join-lobby" || view === "settings") && !settings) {
       void loadSettings();
     }
   }, [loadSettings, settings, view]);
+
+  useEffect(() => {
+    if (view === "create-lobby" || view === "custom-maps") {
+      void loadCustomMaps();
+    }
+  }, [loadCustomMaps, view]);
 
   if (view === "main-menu") {
     return <MainMenu guildId={session.guildId} onNavigate={setView} />;
@@ -88,9 +106,22 @@ export function App() {
     return (
       <CreateLobbyView
         defaultAlias={session.defaultAlias}
+        customMaps={customMaps}
         onBack={() => setView("main-menu")}
         onCreate={createLobby}
         settings={settings}
+      />
+    );
+  }
+
+  if (view === "custom-maps") {
+    return (
+      <MapLibraryView
+        currentDiscordUserId={session.discordUserId}
+        customMaps={customMaps}
+        onBack={() => setView("main-menu")}
+        onDelete={deleteCustomMap}
+        onImportText={(text) => saveCustomMap(parseCustomMapFileText(text))}
       />
     );
   }

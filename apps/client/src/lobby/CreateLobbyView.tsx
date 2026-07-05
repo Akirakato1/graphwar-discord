@@ -1,10 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { GuildSettings, LobbySlot, MatchModeId } from "@graphwar/shared";
+import type { CustomMapSummary, GuildSettings, LobbySlot, MatchModeId } from "@graphwar/shared";
 
 type CreateLobbyViewProps = {
+  customMaps?: CustomMapSummary[];
   defaultAlias: string;
   onBack: () => void;
-  onCreate: (form: { name: string; alias: string; mode: MatchModeId; initialSlot: LobbySlot }) => Promise<void>;
+  onCreate: (form: {
+    name: string;
+    alias: string;
+    mode: MatchModeId;
+    initialSlot: LobbySlot;
+    mapId?: string;
+  }) => Promise<void>;
   settings?: GuildSettings;
 };
 
@@ -13,6 +20,7 @@ type CreateLobbyForm = {
   alias: string;
   mode: MatchModeId;
   initialSlot: LobbySlot;
+  mapId?: string;
 };
 
 export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLobbyForm } {
@@ -42,11 +50,12 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
   };
 }
 
-export function CreateLobbyView({ defaultAlias, onBack, onCreate, settings }: CreateLobbyViewProps) {
+export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreate, settings }: CreateLobbyViewProps) {
   const initialForm = createLobbyInitialForm(defaultAlias, settings);
   const [alias, setAlias] = useState(initialForm.alias);
   const [formError, setFormError] = useState<string | undefined>();
   const [initialSlot, setInitialSlot] = useState<LobbySlot>(initialForm.initialSlot);
+  const [mapId, setMapId] = useState("");
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +71,7 @@ export function CreateLobbyView({ defaultAlias, onBack, onCreate, settings }: Cr
     setSubmitting(true);
     setFormError(undefined);
     try {
-      await onCreate(prepareCreateLobbyForm({ name, alias, mode, initialSlot }).form);
+      await onCreate(prepareCreateLobbyForm({ name, alias, mode, initialSlot, ...(mapId ? { mapId } : {}) }).form);
     } catch (error) {
       setFormError(createLobbyErrorMessage(error));
     } finally {
@@ -119,6 +128,17 @@ export function CreateLobbyView({ defaultAlias, onBack, onCreate, settings }: Cr
             {slots.map((slot) => (
               <option key={slot} value={slot}>
                 {slot === "player" ? "Player" : "Spectator"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Map
+          <select className="map-select" value={mapId} onChange={(event) => setMapId(event.currentTarget.value)}>
+            <option value="">Default Map</option>
+            {customMaps.map((map) => (
+              <option key={map.id} value={map.id}>
+                {map.name}
               </option>
             ))}
           </select>
