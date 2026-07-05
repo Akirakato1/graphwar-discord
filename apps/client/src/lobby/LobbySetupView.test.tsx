@@ -53,4 +53,44 @@ describe("LobbySetupView", () => {
     expect(html).toContain("Auto Assign");
     expect(html).toContain("Team B needs at least one player.");
   });
+
+  it("uses the current occupant leader state and labels move targets contextually", () => {
+    const html = renderToStaticMarkup(
+      <LobbySetupView
+        currentPlayerId="alice-player"
+        lobby={{
+          ...lobby,
+          leaderDiscordUserId: "alice-discord",
+          occupants: [
+            {
+              discordUserId: "alice-discord",
+              playerId: "alice-player",
+              alias: "Alice",
+              slot: "player" as const,
+              placement: "team-a" as const,
+              connected: true,
+              isLeader: true
+            },
+            {
+              discordUserId: "bob-discord",
+              playerId: "bob-player",
+              alias: "Bob",
+              slot: "player" as const,
+              placement: "team-b" as const,
+              connected: true,
+              isLeader: false
+            }
+          ]
+        }}
+        onAutoAssign={() => undefined}
+        onBack={() => undefined}
+        onMove={() => undefined}
+        onStart={() => undefined}
+      />
+    );
+
+    expect(html).toContain("Auto Assign");
+    expect(html).toContain('aria-label="Move Alice to Team B"');
+    expect(html).toContain('aria-label="Move Bob to Team A"');
+  });
 });

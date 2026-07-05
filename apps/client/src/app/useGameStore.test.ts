@@ -358,6 +358,39 @@ describe("createGameStore", () => {
     ]);
   });
 
+  it("sends team placement and auto-assign commands for the selected lobby", async () => {
+    const commands: ClientCommand[] = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: () => ({
+        send: (command) => commands.push(command),
+        close: () => {}
+      })
+    });
+
+    await selectLobby(store);
+    store.getState().setTeam("bob", "spectator");
+    store.getState().autoAssignTeams();
+
+    expect(commands).toEqual([
+      {
+        type: "set-team",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        targetPlayerId: "bob",
+        placement: "spectator"
+      },
+      {
+        type: "auto-assign-teams",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice"
+      }
+    ]);
+  });
+
   it("does not leave an old reconnect timer alive when manually connecting during the reconnect delay", async () => {
     vi.useFakeTimers();
     const store = createGameStore({

@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { App, GameSessionPill } from "./App";
+import { App, GameSessionPill, resolveLocalLobbyIdentity } from "./App";
 import { LobbySetupView } from "../lobby/LobbySetupView";
 
 describe("App", () => {
@@ -69,5 +69,52 @@ describe("App", () => {
     expect(html).toContain("Alice");
     expect(html).toContain("room-1");
     expect(html).not.toContain("stale-room");
+  });
+
+  it("uses the latest lobby occupant to resolve spectator state when selected session slot is stale", () => {
+    const identity = resolveLocalLobbyIdentity({
+      currentLobby: {
+        guildId: "local-guild",
+        roomId: "room-1",
+        name: "Friday Graphwar",
+        mode: "team-versus",
+        status: "playing",
+        leaderDiscordUserId: "alice-discord",
+        occupants: [
+          {
+            discordUserId: "alice-discord",
+            playerId: "alice-player",
+            alias: "Alice",
+            slot: "spectator",
+            placement: "spectator",
+            connected: true,
+            isLeader: true
+          }
+        ],
+        canStart: false,
+        createdAt: "2026-07-05T00:00:00.000Z"
+      },
+      selectedLobbySession: {
+        guildId: "local-guild",
+        roomId: "room-1",
+        discordUserId: "alice-discord",
+        playerId: "alice-player",
+        alias: "Alice",
+        slot: "player"
+      },
+      session: {
+        guildId: "local-guild",
+        discordUserId: "alice-discord",
+        playerId: "alice-player",
+        defaultAlias: "Alice",
+        displayName: "Alice",
+        roomId: "room-1",
+        source: "local"
+      }
+    });
+
+    expect(identity.spectator).toBe(true);
+    expect(identity.effectiveSession.playerId).toBe("alice-player");
+    expect(identity.effectiveSession.displayName).toBe("Alice");
   });
 });

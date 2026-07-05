@@ -1,6 +1,7 @@
 import type { LobbyPlacementId, LobbyRuntimeSnapshot } from "@graphwar/shared";
 
 type LobbySetupViewProps = {
+  currentDiscordUserId?: string;
   currentPlayerId: string;
   lobby: LobbyRuntimeSnapshot;
   onAutoAssign: () => void;
@@ -13,9 +14,21 @@ function occupantsFor(lobby: LobbyRuntimeSnapshot, placement: LobbyPlacementId) 
   return lobby.occupants.filter((occupant) => occupant.placement === placement);
 }
 
-export function LobbySetupView({ currentPlayerId, lobby, onAutoAssign, onBack, onMove, onStart }: LobbySetupViewProps) {
-  const isLeader = lobby.leaderDiscordUserId === currentPlayerId;
-  const canMove = (targetPlayerId: string) => isLeader || targetPlayerId === currentPlayerId;
+export function LobbySetupView({
+  currentDiscordUserId,
+  currentPlayerId,
+  lobby,
+  onAutoAssign,
+  onBack,
+  onMove,
+  onStart
+}: LobbySetupViewProps) {
+  const currentOccupant = lobby.occupants.find(
+    (occupant) => occupant.playerId === currentPlayerId || occupant.discordUserId === currentDiscordUserId
+  );
+  const isLeader = currentOccupant?.isLeader ?? lobby.leaderDiscordUserId === currentDiscordUserId;
+  const currentOccupantPlayerId = currentOccupant?.playerId ?? currentPlayerId;
+  const canMove = (targetPlayerId: string) => isLeader || targetPlayerId === currentOccupantPlayerId;
   const boxes: Array<{ placement: LobbyPlacementId; title: string }> =
     lobby.mode === "team-versus"
       ? [
@@ -66,6 +79,7 @@ export function LobbySetupView({ currentPlayerId, lobby, onAutoAssign, onBack, o
                       .filter((target) => target.placement !== box.placement)
                       .map((target) => (
                         <button
+                          aria-label={`Move ${occupant.alias} to ${target.title}`}
                           disabled={!canMove(occupant.playerId)}
                           key={target.placement}
                           onClick={() => onMove(occupant.playerId, target.placement)}

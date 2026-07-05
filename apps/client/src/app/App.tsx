@@ -10,6 +10,47 @@ import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
 import { useGameStore, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
+import type { LobbyOccupant, LobbyRuntimeSnapshot } from "@graphwar/shared";
+
+type LocalLobbyIdentityInput = {
+  currentLobby?: LobbyRuntimeSnapshot;
+  selectedLobbySession?: SelectedLobbySession;
+  session: ClientSession;
+};
+
+type LocalLobbyIdentity = {
+  effectiveSession: ClientSession;
+  localOccupant?: LobbyOccupant;
+  spectator: boolean;
+};
+
+export function resolveLocalLobbyIdentity({
+  currentLobby,
+  selectedLobbySession,
+  session
+}: LocalLobbyIdentityInput): LocalLobbyIdentity {
+  const selectedPlayerId = selectedLobbySession?.playerId ?? session.playerId;
+  const selectedDiscordUserId = selectedLobbySession?.discordUserId ?? session.discordUserId;
+  const localOccupant =
+    currentLobby?.occupants.find((occupant) => occupant.playerId === selectedPlayerId) ??
+    currentLobby?.occupants.find((occupant) => occupant.discordUserId === selectedDiscordUserId);
+  const alias = localOccupant?.alias ?? selectedLobbySession?.alias ?? session.displayName;
+  const effectiveSession: ClientSession = {
+    ...session,
+    guildId: selectedLobbySession?.guildId ?? session.guildId,
+    roomId: selectedLobbySession?.roomId ?? session.roomId,
+    discordUserId: localOccupant?.discordUserId ?? selectedDiscordUserId,
+    playerId: localOccupant?.playerId ?? selectedPlayerId,
+    defaultAlias: alias,
+    displayName: alias
+  };
+
+  return {
+    effectiveSession,
+    localOccupant,
+    spectator: localOccupant ? localOccupant.slot === "spectator" : selectedLobbySession?.slot === "spectator"
+  };
+}
 
 export function App() {
   const autoAssignTeams = useGameStore((state) => state.autoAssignTeams);
@@ -30,6 +71,7 @@ export function App() {
   const session = useGameStore((state) => state.session);
   const setTeam = useGameStore((state) => state.setTeam);
   const startMatch = useGameStore((state) => state.startMatch);
+  const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
 
   if (view === "main-menu") {
     return <MainMenu guildId={session.guildId} onNavigate={setView} />;
@@ -72,7 +114,8 @@ export function App() {
 
     return (
       <LobbySetupView
-        currentPlayerId={selectedLobbySession?.playerId ?? session.playerId}
+        currentDiscordUserId={lobbyIdentity.effectiveSession.discordUserId}
+        currentPlayerId={lobbyIdentity.effectiveSession.playerId}
         lobby={currentLobby}
         onAutoAssign={autoAssignTeams}
         onBack={() => {
@@ -93,6 +136,7 @@ function GameActivity() {
   const lastError = useGameStore((state) => state.lastError);
   const lastRejection = useGameStore((state) => state.lastRejection);
   const recentEvents = useGameStore((state) => state.recentEvents);
+  const currentLobby = useGameStore((state) => state.currentLobby);
   const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
@@ -104,7 +148,7 @@ function GameActivity() {
   const [playbackShotKey, setPlaybackShotKey] = useState<string | undefined>();
   const playbackInProgress = Boolean(latestShotKey && playbackShotKey === latestShotKey);
   const displaySnapshot = playbackInProgress && snapshotBeforeLatestShot ? snapshotBeforeLatestShot : snapshot;
-  const spectator = selectedLobbySession?.slot === "spectator";
+  const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
 
   useEffect(() => {
     if (!latestShotKey || !snapshotBeforeLatestShot) {
@@ -139,9 +183,9 @@ function GameActivity() {
           lastRejection={lastRejection}
           onSubmitShot={submitShot}
           playbackInProgress={playbackInProgress}
-          session={session}
+          session={lobbyIdentity.effectiveSession}
           snapshot={snapshot}
-          spectator={spectator}
+          spectator={lobbyIdentity.spectator}
         />
       </div>
     </main>
