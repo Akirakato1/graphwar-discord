@@ -6,11 +6,12 @@ import { LeaderboardView } from "../leaderboard/LeaderboardView";
 import { CreateLobbyView } from "../lobby/CreateLobbyView";
 import { JoinLobbyView } from "../lobby/JoinLobbyView";
 import { LobbySetupView } from "../lobby/LobbySetupView";
+import { MatchEndModal } from "../match-end/MatchEndModal";
 import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
 import { useGameStore, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
-import type { LobbyOccupant, LobbyRuntimeSnapshot } from "@graphwar/shared";
+import type { LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
 
 type LocalLobbyIdentityInput = {
   currentLobby?: LobbyRuntimeSnapshot;
@@ -157,6 +158,7 @@ function GameActivity() {
   const lastError = useGameStore((state) => state.lastError);
   const lastRejection = useGameStore((state) => state.lastRejection);
   const recentEvents = useGameStore((state) => state.recentEvents);
+  const returnToMenu = useGameStore((state) => state.returnToMenu);
   const currentLobby = useGameStore((state) => state.currentLobby);
   const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
@@ -165,21 +167,29 @@ function GameActivity() {
 
   const latestShot = useMemo(() => findLatestShotResolvedEvent(recentEvents), [recentEvents]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
+  const latestMatchEnded = useMemo(() => findLatestMatchEndedEvent(recentEvents), [recentEvents]);
   const snapshotBeforeLatestShot = useMemo(() => findSnapshotBeforeLatestShot(recentEvents), [recentEvents]);
-  const [playbackShotKey, setPlaybackShotKey] = useState<string | undefined>();
-  const playbackInProgress = Boolean(latestShotKey && playbackShotKey === latestShotKey);
+  const [completedPlaybackShotKey, setCompletedPlaybackShotKey] = useState<string | undefined>();
+  const playbackInProgress = Boolean(
+    latestShotKey && snapshotBeforeLatestShot && completedPlaybackShotKey !== latestShotKey
+  );
   const displaySnapshot = playbackInProgress && snapshotBeforeLatestShot ? snapshotBeforeLatestShot : snapshot;
+  const showMatchEndModal = Boolean(latestMatchEnded && !playbackInProgress);
+  const canvasEvents = useMemo(
+    () => (showMatchEndModal ? recentEvents.filter((event) => event.type !== "shot-resolved") : recentEvents),
+    [recentEvents, showMatchEndModal]
+  );
   const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
 
   useEffect(() => {
     if (!latestShotKey || !snapshotBeforeLatestShot) {
-      setPlaybackShotKey(undefined);
+      setCompletedPlaybackShotKey(undefined);
       return undefined;
     }
 
-    setPlaybackShotKey(latestShotKey);
+    setCompletedPlaybackShotKey((current) => (current === latestShotKey ? current : undefined));
     const timeout = window.setTimeout(() => {
-      setPlaybackShotKey((current) => (current === latestShotKey ? undefined : current));
+      setCompletedPlaybackShotKey(latestShotKey);
     }, SHOT_ANIMATION_MS);
 
     return () => window.clearTimeout(timeout);
@@ -196,7 +206,7 @@ function GameActivity() {
       </header>
 
       <div className="app-grid playing-grid">
-        <GameCanvas events={recentEvents} snapshot={snapshot} />
+        <GameCanvas events={canvasEvents} snapshot={displaySnapshot} />
         <MatchHud
           connectionStatus={connectionStatus}
           displaySnapshot={displaySnapshot}
@@ -209,8 +219,22 @@ function GameActivity() {
           spectator={lobbyIdentity.spectator}
         />
       </div>
+      {showMatchEndModal && latestMatchEnded ? (
+        <MatchEndModal event={latestMatchEnded} onReturnToMenu={returnToMenu} />
+      ) : null}
     </main>
   );
+}
+
+function findLatestMatchEndedEvent(events: ServerEvent[]) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.type === "match-ended") {
+      return event;
+    }
+  }
+
+  return undefined;
 }
 
 export function GameSessionPill({

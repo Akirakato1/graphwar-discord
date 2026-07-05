@@ -556,4 +556,84 @@ describe("createGameStore", () => {
     expect(store.getState().recentEvents).toEqual([]);
     expect(store.getState().log).toEqual([]);
   });
+
+  it("returns to the main menu and clears active lobby state", async () => {
+    let closed = false;
+    let onEvent: ((event: ServerEvent) => void) | undefined;
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor(),
+        listLobbies: async () => [
+          {
+            guildId: "local-guild",
+            roomId: "listed-room",
+            name: "Listed Lobby",
+            mode: "team-versus",
+            status: "open",
+            leaderAlias: "Alice",
+            leaderDiscordUserId: "alice",
+            playerCount: 1,
+            spectatorCount: 0,
+            createdAt: "2026-07-05T00:00:00.000Z"
+          }
+        ],
+        getLeaderboard: async () => [
+          {
+            guildId: "local-guild",
+            discordUserId: "alice",
+            lastAlias: "Alice",
+            gamesPlayed: 4,
+            wins: 3,
+            eliminations: 2,
+            damageDealt: 120,
+            updatedAt: "2026-07-05T00:00:00.000Z"
+          }
+        ]
+      },
+      clientFactory: (options) => {
+        onEvent = options.onEvent;
+        return {
+          send: () => {},
+          close: () => {
+            closed = true;
+            options.onClose?.();
+          }
+        };
+      }
+    });
+
+    await store.getState().loadSettings();
+    await store.getState().loadLobbies();
+    await store.getState().loadLeaderboard();
+    const preserved = {
+      settings: store.getState().settings,
+      lobbies: store.getState().lobbies,
+      leaderboard: store.getState().leaderboard,
+      session: store.getState().session
+    };
+
+    await selectLobby(store);
+    onEvent?.({ type: "room-snapshot", roomId: "local-test", snapshot });
+    onEvent?.({ type: "shot-rejected", roomId: "local-test", playerId: "alice", reason: "Player is not active" });
+    store.getState().submitShot(" ", "east");
+
+    store.getState().returnToMenu();
+
+    expect(closed).toBe(true);
+    expect(store.getState()).toMatchObject({
+      view: "main-menu",
+      connectionStatus: "closed",
+      currentLobby: undefined,
+      selectedLobbySession: undefined,
+      snapshot: undefined,
+      recentEvents: [],
+      lastError: undefined,
+      lastRejection: undefined,
+      settings: preserved.settings,
+      lobbies: preserved.lobbies,
+      leaderboard: preserved.leaderboard,
+      session: preserved.session
+    });
+  });
 });

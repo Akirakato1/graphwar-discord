@@ -70,6 +70,7 @@ export type GameStoreState = {
   log: GameLogEntry[];
   lobbies: LobbySummary[];
   recentEvents: ServerEvent[];
+  returnToMenu(): void;
   selectMode(mode: MatchModeId): void;
   selectedLobbySession?: SelectedLobbySession;
   session: ClientSession;
@@ -434,6 +435,22 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       log: [],
       lobbies: [],
       recentEvents: [],
+      returnToMenu() {
+        connectionId += 1;
+        const currentClient = client;
+        client = undefined;
+        currentClient?.close();
+        set({
+          connectionStatus: "closed",
+          currentLobby: undefined,
+          lastError: undefined,
+          lastRejection: undefined,
+          recentEvents: [],
+          selectedLobbySession: undefined,
+          snapshot: undefined,
+          view: "main-menu"
+        });
+      },
       selectMode(mode) {
         const selected = selectedRoom();
         if (!selected) {

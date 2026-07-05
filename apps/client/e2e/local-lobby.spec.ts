@@ -16,6 +16,8 @@ function idFor(testTitle: string, label: string): string {
 async function openLocalMenu(page: Page, player: Player, guildId: string): Promise<void> {
   await page.goto(`/?guild=${guildId}&user=${player.id}`);
   await expect(page.getByRole("heading", { name: "Graphwar" })).toBeVisible();
+  await expect(page.locator(".main-menu-cardless")).toBeVisible();
+  await expect(page.locator(".main-menu-heading")).toContainText("Graphwar");
   await expect(page.getByRole("button", { name: "Create Lobby" })).toBeVisible();
 }
 
@@ -82,6 +84,14 @@ async function expectNoPageScroll(page: Page): Promise<void> {
 async function canvasPathPoints(page: Page): Promise<number> {
   const rawValue = await page.getByTestId("game-canvas").getAttribute("data-path-points");
   return Number(rawValue ?? 0);
+}
+
+async function fireMiss(page: Page): Promise<void> {
+  await page.getByLabel("Aim east").click();
+  await page.getByLabel("Function Shot").fill("-x");
+  await page.getByRole("button", { name: "Fire" }).click();
+  await expect.poll(() => canvasPathPoints(page)).toBeGreaterThan(0);
+  await expect.poll(() => canvasPathPoints(page), { timeout: 5_000 }).toBe(0);
 }
 
 async function expectShotControlsAbsent(page: Page): Promise<void> {
@@ -221,6 +231,51 @@ test("player damage appears after the shot playback reaches impact", async ({ br
 
     await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
     await expect(bobPage.getByTestId("own-hp")).toContainText("65 HP");
+  } finally {
+    await aliceContext.close();
+    await bobContext.close();
+  }
+});
+
+test("final killing shot plays before the winner dialog returns to menu", async ({ browser }, testInfo) => {
+  const guildId = idFor(testInfo.title, "guild");
+  const lobbyName = idFor(testInfo.title, "lobby");
+  const aliceContext = await browser.newContext();
+  const bobContext = await browser.newContext();
+  const alicePage = await aliceContext.newPage();
+  const bobPage = await bobContext.newPage();
+
+  try {
+    await openLocalMenu(alicePage, alice, guildId);
+    await createLobby(alicePage, lobbyName, "Alice");
+    await openLocalMenu(bobPage, bob, guildId);
+    await joinLobby(bobPage, lobbyName, "Bob");
+    await expectSetupShowsPlayers([alicePage, bobPage]);
+
+    await alicePage.getByRole("button", { name: "Start Match" }).click();
+    await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+
+    for (const hpAfter of ["65 HP", "30 HP"]) {
+      await alicePage.getByLabel("Function Shot").fill("0.05x(36-x)");
+      await alicePage.getByRole("button", { name: "Fire" }).click();
+      await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
+      await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
+      await expect(bobPage.getByTestId("own-hp")).toContainText(hpAfter);
+      await fireMiss(bobPage);
+    }
+
+    await alicePage.getByLabel("Function Shot").fill("0.05x(36-x)");
+    await alicePage.getByRole("button", { name: "Fire" }).click();
+
+    await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
+    await expect(alicePage.getByRole("dialog")).toHaveCount(0);
+    await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
+    await expect(alicePage.getByRole("dialog")).toContainText("Team A wins");
+
+    await alicePage.getByRole("button", { name: "Return to Menu" }).click();
+    await expect(alicePage.getByRole("heading", { name: "Graphwar" })).toBeVisible();
+    await expect(alicePage.getByRole("button", { name: "Create Lobby" })).toBeVisible();
   } finally {
     await aliceContext.close();
     await bobContext.close();
