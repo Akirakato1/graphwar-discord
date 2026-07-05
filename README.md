@@ -14,6 +14,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
   - `docs/superpowers/plans/2026-07-05-lobby-menu-flow.md`
   - `docs/superpowers/plans/2026-07-05-gameplay-ui-fixes.md`
+  - `docs/superpowers/plans/2026-07-06-custom-maps-and-map-maker.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
@@ -125,3 +126,4 @@ Every major implementation task should:
 - Added a gameplay/UI fixes implementation plan for server shot sequencing, client match-end modal flow, E2E coverage, centered menu styling, and verification.
 - Halved normal shot travel to `50.0` units before field-boundary clipping, sequenced match-ending shots as `shot-resolved` before `match-ended`, added a focus-managed winner popup with only `Return to Menu`, centered the main menu, and expanded Playwright coverage for final-shot playback before match end.
 - Added an approved custom maps and local Electron map-maker design covering guild-scoped persisted map storage, a Custom Maps menu flow, create-lobby map selection, custom-map spawn assignment for team-versus/free-for-all, and a desktop editor that exports `.graphwar-map.json`.
+- Added a custom maps and local map-maker implementation plan covering shared schemas, server persistence/API, lobby map selection, custom-map match start, client import/manage UI, Electron editor/export, and E2E verification checkpoints.
