@@ -57,6 +57,14 @@ const allowedSymbols = new Set([
   "trunc"
 ]);
 
+const nonFunctionSymbols = new Set(["x", "E", "PI"]);
+const functionSymbols = new Set(Array.from(allowedSymbols).filter((symbol) => !nonFunctionSymbols.has(symbol)));
+
+type ExpressionToken = {
+  kind: "closeParen" | "identifier" | "number" | "openParen" | "other" | "space";
+  text: string;
+};
+
 function evaluateNumber(evaluateY: (x: number) => unknown, x: number): number {
   const value = evaluateY(x);
   if (typeof value !== "number") {
@@ -73,6 +81,143 @@ function evaluateFiniteNumber(evaluateY: (x: number) => unknown, x: number): num
   return value;
 }
 
+function normalizeImplicitMultiplication(expressionText: string): string {
+  const tokens = tokenizeExpression(expressionText);
+  let normalized = "";
+  let previousSignificant: ExpressionToken | undefined;
+
+  for (const token of tokens) {
+    if (token.kind === "space") {
+      normalized += token.text;
+      continue;
+    }
+
+    if (previousSignificant && shouldInsertMultiply(previousSignificant, token)) {
+      normalized += "*";
+    }
+
+    normalized += token.text;
+    previousSignificant = token;
+  }
+
+  return normalized;
+}
+
+function tokenizeExpression(expressionText: string): ExpressionToken[] {
+  const tokens: ExpressionToken[] = [];
+  let index = 0;
+
+  while (index < expressionText.length) {
+    const char = expressionText[index];
+
+    if (/\s/.test(char)) {
+      const start = index;
+      while (index < expressionText.length && /\s/.test(expressionText[index])) {
+        index += 1;
+      }
+      tokens.push({ kind: "space", text: expressionText.slice(start, index) });
+      continue;
+    }
+
+    if (char === "(") {
+      tokens.push({ kind: "openParen", text: char });
+      index += 1;
+      continue;
+    }
+
+    if (char === ")") {
+      tokens.push({ kind: "closeParen", text: char });
+      index += 1;
+      continue;
+    }
+
+    if (isNumberStart(expressionText, index)) {
+      const result = readNumber(expressionText, index);
+      tokens.push({ kind: "number", text: result.text });
+      index = result.nextIndex;
+      continue;
+    }
+
+    if (/[A-Za-z_]/.test(char)) {
+      const start = index;
+      while (index < expressionText.length && /[A-Za-z0-9_]/.test(expressionText[index])) {
+        index += 1;
+      }
+      tokens.push({ kind: "identifier", text: expressionText.slice(start, index) });
+      continue;
+    }
+
+    tokens.push({ kind: "other", text: char });
+    index += 1;
+  }
+
+  return tokens;
+}
+
+function isNumberStart(expressionText: string, index: number): boolean {
+  const char = expressionText[index];
+  const next = expressionText[index + 1];
+  return /\d/.test(char) || (char === "." && typeof next === "string" && /\d/.test(next));
+}
+
+function readNumber(expressionText: string, start: number): { nextIndex: number; text: string } {
+  let index = start;
+
+  while (index < expressionText.length && /\d/.test(expressionText[index])) {
+    index += 1;
+  }
+
+  if (expressionText[index] === ".") {
+    index += 1;
+    while (index < expressionText.length && /\d/.test(expressionText[index])) {
+      index += 1;
+    }
+  }
+
+  if (expressionText[index] === "e" || expressionText[index] === "E") {
+    const exponentStart = index;
+    index += 1;
+    if (expressionText[index] === "+" || expressionText[index] === "-") {
+      index += 1;
+    }
+
+    const digitStart = index;
+    while (index < expressionText.length && /\d/.test(expressionText[index])) {
+      index += 1;
+    }
+
+    if (digitStart === index) {
+      index = exponentStart;
+    }
+  }
+
+  return { nextIndex: index, text: expressionText.slice(start, index) };
+}
+
+function shouldInsertMultiply(previous: ExpressionToken, next: ExpressionToken): boolean {
+  if (!canEndFactor(previous) || !canStartFactor(next)) {
+    return false;
+  }
+
+  if (previous.kind === "identifier" && functionSymbols.has(previous.text)) {
+    return false;
+  }
+
+  if (previous.kind === "identifier" && next.kind === "openParen" && !nonFunctionSymbols.has(previous.text)) {
+    return false;
+  }
+
+  return true;
+}
+
+function canEndFactor(token: ExpressionToken): boolean {
+  return token.kind === "closeParen" || token.kind === "identifier" || token.kind === "number";
+}
+
+function canStartFactor(token: ExpressionToken): boolean {
+  return token.kind === "identifier" || token.kind === "number" || token.kind === "openParen";
+}
+
 export class NormalFunction extends ShotFunction {
   readonly familyId = "normal" as const;
 
@@ -85,7 +230,8 @@ export class NormalFunction extends ShotFunction {
   }
 
   static parse(expressionText: string): NormalFunction {
-    const expression = parser.parse(expressionText.replace(/^y\s*=\s*/i, ""));
+    const normalizedExpressionText = normalizeImplicitMultiplication(expressionText.replace(/^y\s*=\s*/i, ""));
+    const expression = parser.parse(normalizedExpressionText);
     const invalidSymbol = expression.symbols().find((name) => !allowedSymbols.has(name));
     if (invalidSymbol) {
       throw new Error(`Unsupported symbol "${invalidSymbol}"`);
