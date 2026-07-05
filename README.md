@@ -12,6 +12,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
   - `docs/superpowers/plans/2026-07-05-lobby-menu-flow.md`
+  - `docs/superpowers/plans/2026-07-05-gameplay-ui-fixes.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
@@ -119,3 +120,4 @@ Every major implementation task should:
 - Added guild-scoped main menu, create/join lobby flow, leader-controlled setup, spectator support, persisted settings, persisted leaderboard entries, and Playwright coverage for mock clients using the same flow as Discord users.
 - Hardened lobby lifecycle and authority: ended lobbies are hidden from join listings, spectator-disabled guild settings are enforced by server and client, guild WebSocket upgrades check the origin allowlist, and lobby WebSocket commands are bound to the HTTP-issued session token.
 - Added a focused gameplay/UI fixes design covering the halved shot travel limit, final-shot animation ordering, match-end winner popup, and centered main menu checkpoint.
+- Added a gameplay/UI fixes implementation plan for server shot sequencing, client match-end modal flow, E2E coverage, centered menu styling, and verification.
