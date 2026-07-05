@@ -1,4 +1,4 @@
-import type { ClientCommand, MatchModeId, MatchSnapshot, ServerEvent } from "@graphwar/shared";
+import type { AimDirectionId, ClientCommand, MatchModeId, MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { create } from "zustand";
 import { createStore, type StateCreator, type StoreApi } from "zustand/vanilla";
 import { connectGameClient, type ConnectGameClientOptions, type GameClient } from "../networking/gameClient";
@@ -33,7 +33,7 @@ export type GameStoreState = {
   session: ClientSession;
   snapshot?: MatchSnapshot;
   startMatch(): void;
-  submitShot(expression: string): void;
+  submitShot(expression: string, aimDirection: AimDirectionId): void;
 };
 
 export type CreateGameStoreOptions = {
@@ -253,7 +253,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       startMatch() {
         sendCommand({ type: "start-match", roomId: session.roomId, playerId: session.playerId });
       },
-      submitShot(expression) {
+      submitShot(expression, aimDirection) {
         const trimmedExpression = expression.trim();
         if (!trimmedExpression) {
           const message = "Enter a function before submitting a shot.";
@@ -267,6 +267,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           roomId: session.roomId,
           playerId: session.playerId,
           functionFamilyId: "normal",
+          aimDirection,
           expression: trimmedExpression
         });
       }

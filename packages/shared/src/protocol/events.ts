@@ -1,5 +1,5 @@
 import type { TerrainState, WorldPoint } from "../geometry/types";
-import type { FunctionFamilyId, MatchSnapshot, PlayerId, RoomId } from "../state/types";
+import type { AimDirectionId, FunctionFamilyId, MatchSnapshot, PlayerId, RoomId } from "../state/types";
 
 export type ImpactReason =
   | "terrain-hit"
@@ -18,6 +18,7 @@ export type ShotResolvedEvent = {
   roomId: RoomId;
   shooterId: PlayerId;
   functionFamilyId: FunctionFamilyId;
+  aimDirection: AimDirectionId;
   expression: string;
   path: WorldPoint[];
   impact: ImpactEvent;

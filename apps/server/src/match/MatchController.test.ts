@@ -29,10 +29,11 @@ describe("MatchController", () => {
     controller.join("alice", "Alice");
     controller.join("bob", "Bob");
     controller.startMatch("team-versus");
-    const event = controller.submitShot("alice", "normal", "0");
+    const event = controller.submitShot("alice", "normal", "0", "west");
 
     expect(event.type).toBe("shot-resolved");
     if (event.type === "shot-resolved") {
+      expect(event.aimDirection).toBe("west");
       expect(event.snapshot.turn.activePlayerId).toBe("bob");
     }
   });

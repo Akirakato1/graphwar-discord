@@ -150,7 +150,7 @@ describe("createGameStore", () => {
     onEvent?.({ type: "room-snapshot", roomId: "local-test", snapshot });
     store.getState().selectMode("free-for-all");
     store.getState().startMatch();
-    store.getState().submitShot("sin(x)");
+    store.getState().submitShot("sin(x)", "west");
     onEvent?.({ type: "shot-rejected", roomId: "local-test", playerId: "alice", reason: "Player is not active" });
 
     expect(store.getState().snapshot).toEqual(snapshot);
@@ -159,7 +159,14 @@ describe("createGameStore", () => {
     expect(commands).toEqual([
       { type: "select-mode", roomId: "local-test", playerId: "alice", mode: "free-for-all" },
       { type: "start-match", roomId: "local-test", playerId: "alice" },
-      { type: "submit-shot", roomId: "local-test", playerId: "alice", functionFamilyId: "normal", expression: "sin(x)" }
+      {
+        type: "submit-shot",
+        roomId: "local-test",
+        playerId: "alice",
+        functionFamilyId: "normal",
+        aimDirection: "west",
+        expression: "sin(x)"
+      }
     ]);
   });
 
@@ -198,7 +205,7 @@ describe("createGameStore", () => {
 
     store.getState().connect();
     onEvent?.({ type: "shot-rejected", roomId: "local-test", playerId: "alice", reason: "Player is not active" });
-    store.getState().submitShot(" ");
+    store.getState().submitShot(" ", "east");
 
     expect(store.getState().lastRejection).toBeUndefined();
     expect(store.getState().lastError).toBe("Enter a function before submitting a shot.");

@@ -1,4 +1,4 @@
-import type { FunctionFamilyId, MatchModeId, PlayerId, RoomId, TeamId } from "../state/types";
+import type { AimDirectionId, FunctionFamilyId, MatchModeId, PlayerId, RoomId, TeamId } from "../state/types";
 
 export type JoinRoomCommand = { type: "join-room"; roomId: RoomId; playerId: PlayerId; displayName: string };
 export type SelectModeCommand = { type: "select-mode"; roomId: RoomId; playerId: PlayerId; mode: MatchModeId };
@@ -9,6 +9,7 @@ export type SubmitShotCommand = {
   roomId: RoomId;
   playerId: PlayerId;
   functionFamilyId: FunctionFamilyId;
+  aimDirection: AimDirectionId;
   expression: string;
 };
 export type SendChatCommand = { type: "send-chat"; roomId: RoomId; playerId: PlayerId; message: string };

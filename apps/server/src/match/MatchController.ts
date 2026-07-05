@@ -1,5 +1,6 @@
 import {
   defaultMatchTuning,
+  type AimDirectionId,
   type FunctionFamilyId,
   type MatchModeId,
   type PlayerId,
@@ -100,7 +101,12 @@ export class MatchController {
     return this.getSnapshot();
   }
 
-  submitShot(playerId: PlayerId, functionFamilyId: FunctionFamilyId, expression: string): ServerEvent {
+  submitShot(
+    playerId: PlayerId,
+    functionFamilyId: FunctionFamilyId,
+    expression: string,
+    aimDirection: AimDirectionId = "east"
+  ): ServerEvent {
     if (this.snapshot.phase !== "playing") {
       return this.rejectShot(playerId, "Match is not playing");
     }
@@ -125,7 +131,8 @@ export class MatchController {
       shooter,
       players: this.snapshot.players,
       terrain: this.snapshot.terrain,
-      shot
+      shot,
+      aimDirection
     });
 
     const nextTurn = this.nextTurn(result.players);
@@ -148,6 +155,7 @@ export class MatchController {
       roomId: this.roomId,
       shooterId: playerId,
       functionFamilyId,
+      aimDirection,
       expression,
       path: result.path,
       impact: result.impact,

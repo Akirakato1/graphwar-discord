@@ -1,8 +1,10 @@
 import {
   defaultMatchTuning,
+  directionVector,
   fieldBounds,
   isPointInBounds,
   localToWorld,
+  type AimDirectionId,
   type DamageEvent,
   type ImpactEvent,
   type ImpactReason,
@@ -21,6 +23,7 @@ export type ShotSimulationInput = {
   players: PlayerState[];
   terrain: TerrainState;
   shot: ShotFunction;
+  aimDirection?: AimDirectionId;
 };
 
 export type ShotSimulationResult = {
@@ -65,20 +68,24 @@ export class ShotSimulator {
   ) {}
 
   simulate(input: ShotSimulationInput): ShotSimulationResult {
+    const aimDirection = input.aimDirection ?? "east";
     const sample = input.shot.sample({
       minX: 0,
-      maxX: fieldBounds.maxX - input.shooter.position.x,
+      maxX: Math.min(
+        defaultMatchTuning.sampleStep * Math.max(0, defaultMatchTuning.maxPathPoints - 1),
+        this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection)
+      ),
       step: defaultMatchTuning.sampleStep,
       maxPathPoints: defaultMatchTuning.maxPathPoints
     });
-    const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position));
+    const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position, aimDirection));
     const boundaryHit = this.findFirstBoundaryExit(worldPath);
     const terrainHit = this.collisionSystem.findFirstTerrainHit(worldPath, input.terrain);
     const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, input.players, input.shooter.id);
     const invalidHit =
       !sample.ok && sample.lastFinitePoint
         ? {
-            ...this.lastFiniteHit(sample.lastFinitePoint, sample.points, input.shooter.position),
+            ...this.lastFiniteHit(sample.lastFinitePoint, sample.points, input.shooter.position, aimDirection),
             kind: "invalid-shot" as const,
             reason: sample.reason
           }
@@ -205,13 +212,14 @@ export class ShotSimulator {
   private lastFiniteHit(
     lastFinitePoint: WorldPoint,
     localPath: WorldPoint[],
-    shooterPosition: WorldPoint
+    shooterPosition: WorldPoint,
+    aimDirection: AimDirectionId
   ): CollisionHit {
     const foundIndex = localPath.findIndex((point) => samePoint(point, lastFinitePoint));
     const index = foundIndex >= 0 ? foundIndex : Math.max(0, localPath.length - 1);
 
     return {
-      point: localToWorld(lastFinitePoint, shooterPosition),
+      point: localToWorld(lastFinitePoint, shooterPosition, aimDirection),
       index,
       t: 0
     };
@@ -267,5 +275,24 @@ export class ShotSimulator {
       x: Math.min(fieldBounds.maxX, Math.max(fieldBounds.minX, point.x)),
       y: Math.min(fieldBounds.maxY, Math.max(fieldBounds.minY, point.y))
     };
+  }
+
+  private forwardFieldBoundaryDistance(shooterPosition: WorldPoint, aimDirection: AimDirectionId): number {
+    const forward = directionVector(aimDirection);
+    const distances: number[] = [];
+
+    if (forward.x > POINT_EPSILON) {
+      distances.push((fieldBounds.maxX - shooterPosition.x) / forward.x);
+    } else if (forward.x < -POINT_EPSILON) {
+      distances.push((fieldBounds.minX - shooterPosition.x) / forward.x);
+    }
+
+    if (forward.y > POINT_EPSILON) {
+      distances.push((fieldBounds.maxY - shooterPosition.y) / forward.y);
+    } else if (forward.y < -POINT_EPSILON) {
+      distances.push((fieldBounds.minY - shooterPosition.y) / forward.y);
+    }
+
+    return Math.max(0, Math.min(...distances.filter((distanceValue) => distanceValue >= 0)));
   }
 }

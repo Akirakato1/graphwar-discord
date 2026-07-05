@@ -1,5 +1,7 @@
-import type { MatchSnapshot } from "@graphwar/shared";
+import { useState } from "react";
+import type { AimDirectionId, MatchSnapshot } from "@graphwar/shared";
 import type { ConnectionStatus, CommandRejection } from "../app/useGameStore";
+import { DirectionDial } from "../input/DirectionDial";
 import { FunctionInput } from "../input/FunctionInput";
 import type { ClientSession } from "../sessions/localSession";
 
@@ -7,7 +9,7 @@ type MatchHudProps = {
   connectionStatus: ConnectionStatus;
   lastError?: string;
   lastRejection?: CommandRejection;
-  onSubmitShot: (expression: string) => void;
+  onSubmitShot: (expression: string, aimDirection: AimDirectionId) => void;
   session: ClientSession;
   snapshot?: MatchSnapshot;
 };
@@ -29,11 +31,49 @@ function phaseLabel(snapshot: MatchSnapshot | undefined): string {
 }
 
 export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitShot, session, snapshot }: MatchHudProps) {
+  const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
   const activePlayer = snapshot?.players.find((player) => player.id === snapshot.turn.activePlayerId);
+  const localPlayer = snapshot?.players.find((player) => player.id === session.playerId);
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
   const canSubmitShot = connectionStatus === "open" && isMyTurn;
   const notice = lastError ?? lastRejection?.reason;
+
+  if (isPlaying) {
+    return (
+      <section className="panel match-hud compact-match-hud" aria-labelledby="match-title">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Turn {snapshot.turn.turnNumber}</p>
+            <h2 id="match-title">{activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}</h2>
+          </div>
+          <span className={isMyTurn ? "turn-badge active-turn" : "turn-badge"} data-testid="active-turn">
+            {isMyTurn ? "Your Turn" : activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}
+          </span>
+        </div>
+
+        <div className="play-control-strip">
+          <div className="own-hp" data-testid="own-hp">
+            <span>HP</span>
+            <strong>{localPlayer ? `${localPlayer.hp} HP` : "-- HP"}</strong>
+          </div>
+          <DirectionDial disabled={!isMyTurn} onChange={setAimDirection} value={aimDirection} />
+        </div>
+
+        <FunctionInput
+          canSubmit={canSubmitShot}
+          disabled={!isMyTurn}
+          onSubmitShot={(expression) => onSubmitShot(expression, aimDirection)}
+        />
+
+        {notice && (
+          <div className="notice" role="status">
+            {notice}
+          </div>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="panel match-hud" aria-labelledby="match-title">
@@ -62,11 +102,7 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
         </div>
       </dl>
 
-      {isPlaying ? (
-        <FunctionInput canSubmit={canSubmitShot} disabled={!isMyTurn} onSubmitShot={onSubmitShot} />
-      ) : (
-        <p className="muted">Shot input appears once the match is playing.</p>
-      )}
+      <p className="muted">Shot input appears once the match is playing.</p>
 
       {notice && (
         <div className="notice" role="status">

@@ -19,10 +19,12 @@ describe("protocol schemas", () => {
       roomId: "local-test",
       playerId: "alice",
       functionFamilyId: "normal",
+      aimDirection: "west",
       expression: "sin(x)"
     });
 
     expect(parsed.type).toBe("submit-shot");
+    expect(parsed).toMatchObject({ aimDirection: "west" });
   });
 
   it("rejects a submit-shot command without expression", () => {
@@ -31,7 +33,20 @@ describe("protocol schemas", () => {
         type: "submit-shot",
         roomId: "local-test",
         playerId: "alice",
-        functionFamilyId: "normal"
+        functionFamilyId: "normal",
+        aimDirection: "west"
+      })
+    ).toThrow();
+  });
+
+  it("rejects a submit-shot command without aim direction", () => {
+    expect(() =>
+      clientCommandSchema.parse({
+        type: "submit-shot",
+        roomId: "local-test",
+        playerId: "alice",
+        functionFamilyId: "normal",
+        expression: "sin(x)"
       })
     ).toThrow();
   });
@@ -42,6 +57,7 @@ describe("protocol schemas", () => {
       roomId: "local-test",
       shooterId: "alice",
       functionFamilyId: "normal",
+      aimDirection: "west",
       expression: "x",
       path: [
         { x: 0, y: 0 },
@@ -61,6 +77,31 @@ describe("protocol schemas", () => {
     });
 
     expect(parsed.type).toBe("shot-resolved");
+    expect(parsed).toMatchObject({ aimDirection: "west" });
+  });
+
+  it("rejects a shot-resolved event without aim direction", () => {
+    expect(() =>
+      serverEventSchema.parse({
+        type: "shot-resolved",
+        roomId: "local-test",
+        shooterId: "alice",
+        functionFamilyId: "normal",
+        expression: "x",
+        path: [{ x: 0, y: 0 }],
+        impact: { reason: "miss" },
+        damage: [],
+        eliminations: [],
+        snapshot: {
+          phase: "playing",
+          mode: "team-versus",
+          players: [],
+          teams: [],
+          terrain: { blobs: [] },
+          turn: { activePlayerId: "alice", order: ["alice"], turnNumber: 1 }
+        }
+      })
+    ).toThrow();
   });
 
   it("rejects non-finite point data", () => {
@@ -70,6 +111,7 @@ describe("protocol schemas", () => {
         roomId: "local-test",
         shooterId: "alice",
         functionFamilyId: "normal",
+        aimDirection: "east",
         expression: "x",
         path: [{ x: Number.POSITIVE_INFINITY, y: 0 }],
         impact: { reason: "miss" },
@@ -94,6 +136,7 @@ describe("protocol schemas", () => {
         roomId: "local-test",
         shooterId: "alice",
         functionFamilyId: "normal",
+        aimDirection: "east",
         expression: "x",
         path: [{ x: 0, y: 0 }],
         impact: { reason: "near-miss" },
@@ -118,6 +161,7 @@ describe("protocol schemas", () => {
         roomId: "local-test",
         playerId: "alice",
         functionFamilyId: "parametric",
+        aimDirection: "west",
         expression: "sin(x)"
       })
     ).toThrow();

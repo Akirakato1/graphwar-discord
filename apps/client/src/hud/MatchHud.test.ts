@@ -53,8 +53,12 @@ describe("MatchHud", () => {
     );
 
     expect(html).toContain("Function Shot");
+    expect(html).toContain("100 HP");
+    expect(html).toContain("aria-label=\"Aim west\"");
     expect(html).toContain("aria-label=\"Insert sine function\"");
     expect(html).toContain(">Fire</button>");
+    expect(html).not.toContain("status-grid");
+    expect(html).not.toContain("<dt>Phase</dt>");
   });
 
   it("keeps the fire button disabled when the active player is disconnected", () => {
@@ -85,6 +89,7 @@ describe("MatchHud", () => {
 
     expect(html).toContain("Bob&#x27;s Turn");
     expect(html).toContain("id=\"shot-expression\"");
+    expect(html).toMatch(/aria-label="Aim west"[^>]*disabled=""/);
     expect(html).toMatch(/aria-label="Insert sine function"[^>]*disabled=""/);
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
   });

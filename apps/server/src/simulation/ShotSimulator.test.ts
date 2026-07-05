@@ -34,6 +34,32 @@ describe("ShotSimulator", () => {
     expect(result.damage).toEqual([{ playerId: "bob", amount: 35, hpAfter: 65 }]);
   });
 
+  it("rotates shooter-local functions toward the selected aim direction", () => {
+    const bobShooter: PlayerState = {
+      id: "bob",
+      displayName: "Bob",
+      teamId: "team-b",
+      position: { x: 10, y: 0 },
+      hp: 100,
+      alive: true
+    };
+    const players: PlayerState[] = [
+      { id: "alice", displayName: "Alice", teamId: "team-a", position: { x: 7, y: 0 }, hp: 100, alive: true },
+      bobShooter
+    ];
+    const result = new ShotSimulator().simulate({
+      shooter: bobShooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      aimDirection: "west"
+    });
+
+    expect(result.impact.reason).toBe("player-hit");
+    expect(result.impact.targetPlayerId).toBe("alice");
+    expect(result.damage).toEqual([{ playerId: "alice", amount: 35, hpAfter: 65 }]);
+  });
+
   it("truncates player-hit paths through the impact point", () => {
     const players: PlayerState[] = [
       shooter,

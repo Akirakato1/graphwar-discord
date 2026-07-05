@@ -148,12 +148,16 @@ describe("RoomManager WebSocket integration", () => {
       roomId: "local-test",
       playerId: "alice",
       functionFamilyId: "normal",
+      aimDirection: "west",
       expression: "0"
     });
 
     const event = await waitForEvent(() => [...aliceEvents, ...bobEvents], (candidate) => candidate.type === "shot-resolved");
 
     expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.aimDirection).toBe("west");
+    }
 
     await closeSocket(alice);
     await closeSocket(bob);
@@ -305,6 +309,7 @@ describe("RoomManager WebSocket integration", () => {
       roomId: "shot-rejection-test",
       playerId: "bob",
       functionFamilyId: "normal",
+      aimDirection: "west",
       expression: "0"
     });
 

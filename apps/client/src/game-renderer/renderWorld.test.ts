@@ -54,13 +54,30 @@ const snapshot: MatchSnapshot = {
 class RecordingCanvasContext {
   public readonly calls: Array<{ name: string; args: unknown[] }> = [];
 
-  public fillStyle = "";
   public font = "";
   public globalAlpha = 1;
   public lineWidth = 1;
-  public strokeStyle = "";
   public textAlign = "";
   public textBaseline = "";
+  private currentFillStyle = "";
+  private currentStrokeStyle = "";
+
+  public get fillStyle() {
+    return this.currentFillStyle;
+  }
+
+  public set fillStyle(value: string) {
+    this.currentFillStyle = value;
+  }
+
+  public get strokeStyle() {
+    return this.currentStrokeStyle;
+  }
+
+  public set strokeStyle(value: string) {
+    this.currentStrokeStyle = value;
+    this.record("setStrokeStyle", [value]);
+  }
 
   public arc(...args: unknown[]) {
     this.record("arc", args);
@@ -144,6 +161,7 @@ describe("findLatestShotResolvedEvent", () => {
       roomId: "local-test",
       shooterId: "alice",
       functionFamilyId: "normal",
+      aimDirection: "east",
       expression: "x",
       path: [{ x: 0, y: 0 }],
       impact: { reason: "miss" },
@@ -153,6 +171,7 @@ describe("findLatestShotResolvedEvent", () => {
     };
     const newerShot: ServerEvent = {
       ...olderShot,
+      aimDirection: "north",
       expression: "sin(x)",
       path: [
         { x: 0, y: 0 },
@@ -168,6 +187,32 @@ describe("findLatestShotResolvedEvent", () => {
         newerShot
       ])
     ).toBe(newerShot);
+  });
+
+  it("clears the visible shot once a newer turn event starts", () => {
+    const shot: ServerEvent = {
+      type: "shot-resolved",
+      roomId: "local-test",
+      shooterId: "alice",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "x",
+      path: [
+        { x: 0, y: 0 },
+        { x: 8, y: 0 }
+      ],
+      impact: { reason: "miss" },
+      damage: [],
+      eliminations: [],
+      snapshot
+    };
+
+    expect(
+      findLatestShotResolvedEvent([
+        shot,
+        { type: "turn-advanced", roomId: "local-test", playerId: "bob", turnNumber: 3 }
+      ])
+    ).toBeUndefined();
   });
 });
 
@@ -231,5 +276,33 @@ describe("renderWorld", () => {
     expect(context.calls.some((call) => call.name === "lineTo" && call.args[0] === 700 && call.args[1] === 300)).toBe(
       false
     );
+  });
+
+  it("attenuates shot path color as the path consumes its length budget", () => {
+    const context = new RecordingCanvasContext();
+
+    renderWorld(context as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      snapshot,
+      shot: {
+        path: [
+          { x: -10, y: 0 },
+          { x: -5, y: 0 },
+          { x: 0, y: 0 },
+          { x: 5, y: 0 }
+        ],
+        impact: { reason: "miss" },
+        progress: 1
+      }
+    });
+
+    const pathStrokeAlphas = context.calls
+      .filter((call) => call.name === "setStrokeStyle")
+      .map((call) => String(call.args[0]))
+      .map((value) => value.match(/^rgba\(249, 242, 199, ([\d.]+)\)$/)?.[1])
+      .filter((alpha): alpha is string => Boolean(alpha))
+      .map(Number);
+
+    expect(pathStrokeAlphas.length).toBeGreaterThan(1);
+    expect(pathStrokeAlphas[0]).toBeGreaterThan(pathStrokeAlphas[pathStrokeAlphas.length - 1]);
   });
 });

@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { aimDirections } from "../state/types";
 
 export const finiteNumberSchema = z.number().finite();
 export const nonNegativeFiniteNumberSchema = finiteNumberSchema.nonnegative();
 export const positiveIntegerSchema = z.number().finite().int().positive();
+export const aimDirectionSchema = z.enum(aimDirections);
 
 export const pointSchema = z.object({ x: finiteNumberSchema, y: finiteNumberSchema });
 
@@ -47,6 +49,7 @@ export const clientCommandSchema = z.discriminatedUnion("type", [
     roomId: z.string(),
     playerId: z.string(),
     functionFamilyId: z.literal("normal"),
+    aimDirection: aimDirectionSchema,
     expression: z.string().min(1)
   }),
   z.object({
@@ -71,6 +74,7 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     roomId: z.string(),
     shooterId: z.string(),
     functionFamilyId: z.literal("normal"),
+    aimDirection: aimDirectionSchema,
     expression: z.string(),
     path: z.array(pointSchema),
     impact: z.object({

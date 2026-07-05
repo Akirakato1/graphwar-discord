@@ -29,6 +29,7 @@ describe("GameCanvas", () => {
       roomId: "local-test",
       shooterId: "alice",
       functionFamilyId: "normal",
+      aimDirection: "east",
       expression: "x",
       path: [
         { x: 0, y: 0 },
@@ -47,12 +48,40 @@ describe("GameCanvas", () => {
     expect(html).toContain('data-path-points="2"');
   });
 
+  it("reports no visible shot metadata after a newer turn event", () => {
+    const shotResolved: ServerEvent = {
+      type: "shot-resolved",
+      roomId: "local-test",
+      shooterId: "alice",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "x",
+      path: [
+        { x: 0, y: 0 },
+        { x: 3, y: 2 }
+      ],
+      impact: { reason: "miss" },
+      damage: [],
+      eliminations: [],
+      snapshot
+    };
+    const html = renderToStaticMarkup(
+      React.createElement(GameCanvas, {
+        events: [shotResolved, { type: "turn-advanced", roomId: "local-test", playerId: "alice", turnNumber: 2 }],
+        snapshot
+      })
+    );
+
+    expect(html).toContain('data-path-points="0"');
+  });
+
   it("treats identical shot payloads from different turns as distinct animations", () => {
     const baseShot = {
       type: "shot-resolved" as const,
       roomId: "local-test",
       shooterId: "alice",
       functionFamilyId: "normal" as const,
+      aimDirection: "east" as const,
       expression: "x",
       path: [
         { x: 0, y: 0 },

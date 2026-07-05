@@ -32,6 +32,9 @@ export function worldToCanvas(point: WorldPoint, size: CanvasSize) {
 export function findLatestShotResolvedEvent(events: ServerEvent[]): ShotResolvedEvent | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
+    if (event.type === "turn-advanced" || event.type === "turn-started") {
+      return undefined;
+    }
     if (event.type === "shot-resolved") {
       return event;
     }
@@ -118,18 +121,16 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
   if (visiblePath.length > 0) {
     ctx.save();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "#f9f2c7";
     ctx.setLineDash([10, 7]);
-    ctx.beginPath();
-    const start = worldToCanvas(visiblePath[0], size);
-    ctx.moveTo(start.x, start.y);
-
-    for (const point of visiblePath.slice(1)) {
-      const canvasPoint = worldToCanvas(point, size);
-      ctx.lineTo(canvasPoint.x, canvasPoint.y);
+    for (let index = 1; index < visiblePath.length; index += 1) {
+      const start = worldToCanvas(visiblePath[index - 1], size);
+      const end = worldToCanvas(visiblePath[index], size);
+      ctx.strokeStyle = shotPathColor(index - 1);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
     }
-
-    ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
   }
@@ -146,6 +147,13 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
     ctx.stroke();
     ctx.restore();
   }
+}
+
+function shotPathColor(segmentIndex: number): string {
+  const budgetIndex = Math.max(1, defaultMatchTuning.maxPathPoints - 1);
+  const remainingRatio = 1 - Math.min(1, segmentIndex / budgetIndex);
+  const alpha = 0.3 + remainingRatio * 0.65;
+  return `rgba(249, 242, 199, ${Number(alpha.toFixed(3))})`;
 }
 
 function drawPlayers(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: MatchSnapshot): void {

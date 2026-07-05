@@ -61,9 +61,7 @@ test("two local players can start a match and advance turns with a function shot
     for (const page of [alicePage, bobPage]) {
       const canvas = page.getByTestId("game-canvas");
       await expect(canvas).toHaveAttribute("data-rendered", "true");
-      await expect
-        .poll(async () => Number((await canvas.getAttribute("data-path-points")) ?? "0"))
-        .toBeGreaterThan(0);
+      await expect(canvas).toHaveAttribute("data-path-points", "0");
     }
   } finally {
     await aliceContext.close();

@@ -4,6 +4,17 @@ export type PlayerId = string;
 export type TeamId = string;
 export type RoomId = string;
 export type FunctionFamilyId = "normal";
+export const aimDirections = [
+  "east",
+  "north-east",
+  "north",
+  "north-west",
+  "west",
+  "south-west",
+  "south",
+  "south-east"
+] as const;
+export type AimDirectionId = (typeof aimDirections)[number];
 export type MatchModeId = "team-versus" | "free-for-all";
 export type MatchPhase = "lobby" | "playing" | "ended";
 

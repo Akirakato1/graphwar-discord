@@ -75,6 +75,7 @@ export function App() {
 
   const connected = connectionStatus === "open";
   const connecting = connectionStatus === "connecting" || connectionStatus === "reconnecting";
+  const isPlaying = snapshot?.phase === "playing";
 
   return (
     <main className="app-shell">
@@ -89,54 +90,58 @@ export function App() {
         </div>
       </header>
 
-      <div className="app-grid">
+      <div className={isPlaying ? "app-grid playing-grid" : "app-grid"}>
         <GameCanvas events={recentEvents} snapshot={snapshot} />
 
-        <section className="panel connection-panel" aria-labelledby="connection-title">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Connection</p>
-              <h2 id="connection-title">{statusText(connectionStatus)}</h2>
+        {!isPlaying && (
+          <section className="panel connection-panel" aria-labelledby="connection-title">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">Connection</p>
+                <h2 id="connection-title">{statusText(connectionStatus)}</h2>
+              </div>
+              <span className={`connection-light ${connectionStatus}`} aria-hidden="true" />
             </div>
-            <span className={`connection-light ${connectionStatus}`} aria-hidden="true" />
-          </div>
 
-          <dl className="connection-details">
-            <div>
-              <dt>Room</dt>
-              <dd>{session.roomId}</dd>
-            </div>
-            <div>
-              <dt>Player</dt>
-              <dd>{session.playerId}</dd>
-            </div>
-            <div>
-              <dt>Server</dt>
-              <dd>{session.serverUrl ?? "current host:8787"}</dd>
-            </div>
-          </dl>
+            <dl className="connection-details">
+              <div>
+                <dt>Room</dt>
+                <dd>{session.roomId}</dd>
+              </div>
+              <div>
+                <dt>Player</dt>
+                <dd>{session.playerId}</dd>
+              </div>
+              <div>
+                <dt>Server</dt>
+                <dd>{session.serverUrl ?? "current host:8787"}</dd>
+              </div>
+            </dl>
 
-          <div className="connection-actions">
-            <button
-              className={connected ? "secondary-action" : "primary-action"}
-              disabled={connecting}
-              onClick={connected ? disconnect : connect}
-              type="button"
-            >
-              {connected ? "Disconnect" : connecting ? "Connecting" : "Connect"}
-            </button>
-            <button className="secondary-action" disabled={!connected} onClick={joinRoom} type="button">
-              Join Room
-            </button>
-          </div>
-        </section>
+            <div className="connection-actions">
+              <button
+                className={connected ? "secondary-action" : "primary-action"}
+                disabled={connecting}
+                onClick={connected ? disconnect : connect}
+                type="button"
+              >
+                {connected ? "Disconnect" : connecting ? "Connecting" : "Connect"}
+              </button>
+              <button className="secondary-action" disabled={!connected} onClick={joinRoom} type="button">
+                Join Room
+              </button>
+            </div>
+          </section>
+        )}
 
-        <LobbyPanel
-          connectionStatus={connectionStatus}
-          onSelectMode={selectMode}
-          onStartMatch={startMatch}
-          snapshot={snapshot}
-        />
+        {!isPlaying && (
+          <LobbyPanel
+            connectionStatus={connectionStatus}
+            onSelectMode={selectMode}
+            onStartMatch={startMatch}
+            snapshot={snapshot}
+          />
+        )}
 
         <MatchHud
           connectionStatus={connectionStatus}
@@ -147,7 +152,7 @@ export function App() {
           snapshot={snapshot}
         />
 
-        <EventLog entries={log} onClear={clearLog} />
+        {!isPlaying && <EventLog entries={log} onClear={clearLog} />}
       </div>
     </main>
   );

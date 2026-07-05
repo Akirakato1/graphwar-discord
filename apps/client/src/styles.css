@@ -126,6 +126,24 @@ button:disabled {
   grid-row: 1 / span 3;
 }
 
+.playing-grid {
+  grid-template-columns: minmax(560px, 1.7fr) minmax(260px, 0.62fr);
+}
+
+.playing-grid .world-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.playing-grid .match-hud {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.compact-match-hud {
+  align-self: start;
+}
+
 .world-phase {
   border: 1px solid #3d4b43;
   border-radius: 999px;
@@ -336,6 +354,109 @@ dd {
   font-weight: 800;
 }
 
+.play-control-strip {
+  display: grid;
+  grid-template-columns: minmax(82px, auto) minmax(144px, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.own-hp {
+  display: grid;
+  gap: 2px;
+  min-height: 58px;
+  align-content: center;
+  border: 1px solid #3d4b43;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.own-hp span {
+  color: #b0a997;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.own-hp strong {
+  color: #f3d58f;
+  font-size: 18px;
+}
+
+.direction-dial {
+  display: grid;
+  grid-template-areas:
+    "north-west north north-east"
+    "west center east"
+    "south-west south south-east";
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 38px);
+  gap: 5px;
+  justify-content: end;
+}
+
+.direction-dial::before {
+  content: "";
+  grid-area: center;
+  width: 14px;
+  height: 14px;
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  background: #65c18c;
+  box-shadow: 0 0 0 4px rgba(101, 193, 140, 0.16);
+}
+
+.direction-button {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #3d4b43;
+  border-radius: 8px;
+  background: #2a2b25;
+  color: #efe4c8;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0;
+}
+
+.direction-button[data-direction="east"] {
+  grid-area: east;
+}
+
+.direction-button[data-direction="north-east"] {
+  grid-area: north-east;
+}
+
+.direction-button[data-direction="north"] {
+  grid-area: north;
+}
+
+.direction-button[data-direction="north-west"] {
+  grid-area: north-west;
+}
+
+.direction-button[data-direction="west"] {
+  grid-area: west;
+}
+
+.direction-button[data-direction="south-west"] {
+  grid-area: south-west;
+}
+
+.direction-button[data-direction="south"] {
+  grid-area: south;
+}
+
+.direction-button[data-direction="south-east"] {
+  grid-area: south-east;
+}
+
+.direction-button.selected {
+  background: #65c18c;
+  border-color: #65c18c;
+  color: #102016;
+}
+
 .shot-form {
   margin-top: 16px;
 }
@@ -437,5 +558,13 @@ dd {
   .primary-action,
   .secondary-action {
     width: 100%;
+  }
+
+  .play-control-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .direction-dial {
+    justify-content: start;
   }
 }
