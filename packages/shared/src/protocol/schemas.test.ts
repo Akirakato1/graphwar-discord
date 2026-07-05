@@ -1,8 +1,14 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { z } from "zod";
-import type { ClientCommand } from "./commands";
-import type { ServerEvent } from "./events";
-import { clientCommandSchema, serverEventSchema } from "./schemas";
+import {
+  clientCommandSchema,
+  createLobbyRequestSchema,
+  joinLobbyRequestSchema,
+  lobbyRuntimeSnapshotSchema,
+  serverEventSchema,
+  type ClientCommand,
+  type ServerEvent
+} from "@graphwar/shared";
 
 describe("protocol schemas", () => {
   it("keeps client command schema output aligned with ClientCommand", () => {
@@ -165,5 +171,81 @@ describe("protocol schemas", () => {
         expression: "sin(x)"
       })
     ).toThrow();
+  });
+
+  it("validates create and join lobby HTTP payloads", () => {
+    expect(
+      createLobbyRequestSchema.parse({
+        name: "Friday Graphwar",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      })
+    ).toMatchObject({ name: "Friday Graphwar", alias: "Alice" });
+
+    expect(
+      joinLobbyRequestSchema.parse({
+        discordUserId: "bob-id",
+        alias: "Bob",
+        slot: "spectator"
+      })
+    ).toMatchObject({ discordUserId: "bob-id", slot: "spectator" });
+  });
+
+  it("validates guild-scoped lobby command and snapshot events", () => {
+    const joinCommand: ClientCommand = {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: "room-1",
+      playerId: "alice-id",
+      discordUserId: "alice-id",
+      alias: "Alice",
+      displayName: "Alice",
+      slot: "player"
+    };
+
+    expect(clientCommandSchema.parse(joinCommand)).toEqual(joinCommand);
+
+    const snapshot = {
+      phase: "lobby" as const,
+      mode: "team-versus" as const,
+      players: [],
+      teams: [],
+      terrain: { blobs: [] },
+      turn: { activePlayerId: "alice-id", order: ["alice-id"], turnNumber: 1 }
+    };
+
+    const event: ServerEvent = {
+      type: "room-snapshot",
+      guildId: "local-guild",
+      roomId: "room-1",
+      lobby: {
+        guildId: "local-guild",
+        roomId: "room-1",
+        name: "Friday Graphwar",
+        mode: "team-versus",
+        status: "open",
+        leaderDiscordUserId: "alice-id",
+        occupants: [
+          {
+            discordUserId: "alice-id",
+            playerId: "alice-id",
+            alias: "Alice",
+            slot: "player",
+            placement: "team-a",
+            connected: true,
+            isLeader: true
+          }
+        ],
+        canStart: false,
+        startBlockedReason: "Team B needs at least one player.",
+        createdAt: "2026-07-05T00:00:00.000Z"
+      },
+      snapshot
+    };
+
+    expect(serverEventSchema.parse(event)).toEqual(event);
+    expect(lobbyRuntimeSnapshotSchema.parse(event.lobby)).toEqual(event.lobby);
   });
 });

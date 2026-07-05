@@ -1,4 +1,5 @@
 import type { TerrainState, WorldPoint } from "../geometry/types";
+import type { GuildId, LobbyRuntimeSnapshot } from "../lobby/types";
 import type { AimDirectionId, FunctionFamilyId, MatchSnapshot, PlayerId, RoomId } from "../state/types";
 
 export type ImpactReason =
@@ -11,10 +12,25 @@ export type ImpactReason =
 
 export type ImpactEvent = { reason: ImpactReason; point?: WorldPoint; targetPlayerId?: PlayerId };
 export type DamageEvent = { playerId: PlayerId; amount: number; hpAfter: number };
-export type RoomSnapshotEvent = { type: "room-snapshot"; roomId: RoomId; snapshot: MatchSnapshot };
+export type RoomSnapshotEvent = {
+  type: "room-snapshot";
+  guildId?: GuildId;
+  roomId: RoomId;
+  snapshot: MatchSnapshot;
+  lobby?: LobbyRuntimeSnapshot;
+};
+
+export type MatchStartedEvent = {
+  type: "match-started";
+  guildId?: GuildId;
+  roomId: RoomId;
+  snapshot: MatchSnapshot;
+  lobby?: LobbyRuntimeSnapshot;
+};
 
 export type ShotResolvedEvent = {
   type: "shot-resolved";
+  guildId?: GuildId;
   roomId: RoomId;
   shooterId: PlayerId;
   functionFamilyId: FunctionFamilyId;
@@ -26,13 +42,23 @@ export type ShotResolvedEvent = {
   damage: DamageEvent[];
   eliminations: PlayerId[];
   snapshot: MatchSnapshot;
+  lobby?: LobbyRuntimeSnapshot;
+};
+
+export type MatchEndedEvent = {
+  type: "match-ended";
+  guildId?: GuildId;
+  roomId: RoomId;
+  winnerIds: PlayerId[];
+  snapshot: MatchSnapshot;
+  lobby?: LobbyRuntimeSnapshot;
 };
 
 export type ServerEvent =
   | RoomSnapshotEvent
   | { type: "player-joined"; roomId: RoomId; playerId: PlayerId }
   | { type: "player-left"; roomId: RoomId; playerId: PlayerId }
-  | { type: "match-started"; roomId: RoomId; snapshot: MatchSnapshot }
+  | MatchStartedEvent
   | { type: "turn-started"; roomId: RoomId; playerId: PlayerId; turnNumber: number }
   | { type: "shot-accepted"; roomId: RoomId; playerId: PlayerId }
   | { type: "shot-rejected"; roomId: RoomId; playerId: PlayerId; reason: string }
@@ -41,4 +67,4 @@ export type ServerEvent =
   | { type: "player-damaged"; roomId: RoomId; damage: DamageEvent }
   | { type: "player-eliminated"; roomId: RoomId; playerId: PlayerId }
   | { type: "turn-advanced"; roomId: RoomId; playerId: PlayerId; turnNumber: number }
-  | { type: "match-ended"; roomId: RoomId; winnerIds: PlayerId[]; snapshot: MatchSnapshot };
+  | MatchEndedEvent;
