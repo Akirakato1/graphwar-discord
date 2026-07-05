@@ -14,7 +14,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
-- Current checkpoint: client local-session parsing, Discord-ready session placeholder, schema-validating WebSocket client, Zustand room store, a practical local multi-tab lobby/match control surface, normal-function shot input palette and implicit multiplication parser, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with linearly attenuated authoritative shot paths, shot playback that stages terrain/player damage until visual impact and clears after animation, Discord 16:9 no-scroll viewport fitting, and Playwright local lobby/gameplay smoke tests.
+- Current checkpoint: guild-scoped main menu, create/join lobby flow, leader-controlled setup, spectator support, configurable settings, persisted leaderboard entries, CORS allowlist defaults and environment override, schema-validating WebSocket client, Zustand room store, normal-function shot input palette and implicit multiplication parser, 8-way rotated local aim axes, a compact in-turn HUD with own HP and direction dial, Canvas 2D battlefield rendering with linearly attenuated authoritative shot paths, shot playback that stages terrain/player damage until visual impact and clears after animation, Discord 16:9 no-scroll viewport fitting, and Playwright coverage for the visible create/join/spectator flow.
 - Execution mode: subagent-driven development with review after each task
 
 ## Planned Stack
@@ -32,8 +32,8 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
 
 The workspace now contains:
 
-- `apps/client`: Vite + React browser activity prototype with local query-parameter sessions, a Discord session factory placeholder, validated WebSocket room client, Zustand game store, Canvas 2D battlefield rendering, authoritative shot path/impact playback that remains visible through immediate turn advancement, staged terrain/player HP display during shot travel, compact lobby controls, compact playing HUD, hidden nonessential/debug panels during gameplay, 8-way direction dial with mouse-wheel stepping, normal-function shot input with snippet buttons for common functions, constants, operators, and templates, and Playwright coverage for two local mock clients joining, starting, firing west-facing `-1*abs(x)`, delaying player-hit HP updates until impact playback, advancing turns, clearing completed shot playback, and fitting lobby/gameplay inside 16:9 Discord-style viewports without page scrolling.
-- `apps/server`: Fastify server with a `/health` route on port `8787`, `/rooms/:roomId` WebSocket upgrades, normal-function parsing/sampling helpers with implicit multiplication for shot trajectories, authoritative rotated-axis shot simulation and collision resolution, server-side destructible terrain crater logic, match mode rules, deterministic map generators, a match controller for lobby joins, match starts, shot submissions, turn advancement, and victory resolution, and a local room manager for command routing.
+- `apps/client`: Vite + React browser activity prototype with local query-parameter sessions, a Discord session factory placeholder, guild-scoped main menu, create/join lobby browser, leader setup controls, match settings and leaderboard views, visible alias entry for create/join forms, spectator gating for active matches, validated WebSocket room client, Zustand game store, Canvas 2D battlefield rendering, authoritative shot path/impact playback that remains visible through immediate turn advancement, staged terrain/player HP display during shot travel, compact playing HUD, 8-way direction dial with mouse-wheel stepping, normal-function shot input with snippet buttons for common functions, constants, operators, and templates, and Playwright coverage for the visible create/join/spectator flow, gameplay playback, and 16:9 Discord-style viewport fit without page scrolling.
+- `apps/server`: Fastify server with a `/health` route on port `8787`, `/guilds/:guildId/...` HTTP APIs, guild-scoped WebSocket upgrades at `/guilds/:guildId/rooms/:roomId`, normal-function parsing/sampling helpers with implicit multiplication for shot trajectories, authoritative rotated-axis shot simulation and collision resolution, server-side destructible terrain crater logic, match mode rules, deterministic map generators, a match controller for lobby joins, match starts, shot submissions, turn advancement, and victory resolution, persisted settings and leaderboard storage, a guild lobby directory, a CORS allowlist, and a local room manager for command routing.
 - `packages/shared`: shared constants, geometry/state types, 8-way aim direction and coordinate helpers, polygon helpers, function validation settings, client command types, server event types, and Zod schemas for runtime protocol validation with compile-time protocol alignment checks.
 - Root TypeScript project references, Vitest config, and Playwright config.
 
@@ -59,7 +59,7 @@ npm --workspace apps/client run build
 npm --workspace apps/server run build
 ```
 
-The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, match controller orchestration, WebSocket room integration, client local-session/network/store/UI/renderer behavior, function input palette insertion behavior, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, exercise two-client local lobby/gameplay and 16:9 no-scroll viewport smoke tests with Playwright, and verify the client and server build outputs.
+The current checks compile the project references, validate normal-function parsing/sampling, authoritative shot simulation and collision resolution, terrain crater removal, match mode rules, deterministic map generators, match controller orchestration, WebSocket room integration, client local-session/network/store/UI/renderer behavior, function input palette insertion behavior, shared protocol schemas, and geometry helpers with Vitest, run the full Vitest suite, exercise visible create/join/spectator local lobby and gameplay flows plus 16:9 no-scroll viewport smoke tests with Playwright, and verify the client and server build outputs.
 
 ## Discord Viewport Constraint
 
@@ -74,15 +74,17 @@ npm install
 npm run dev
 ```
 
-Open separate browser tabs with different mock players:
+Open separate browser tabs with different mock Discord users:
 
 ```txt
-http://localhost:5173/?room=local-test&mockPlayer=alice&displayName=Alice
-http://localhost:5173/?room=local-test&mockPlayer=bob&displayName=Bob
-http://localhost:5173/?room=local-test&mockPlayer=charlie&displayName=Charlie
+http://localhost:5173/?guild=local-guild&user=alice
+http://localhost:5173/?guild=local-guild&user=bob
+http://localhost:5173/?guild=local-guild&user=charlie
 ```
 
-By default the client connects to `ws://<current hostname>:8787/rooms/:roomId`. Add `server=ws://host:port` to the query string to override the WebSocket base during local testing.
+Local clients now start on the main menu. Alice can create a lobby, Bob can join it from the guild-scoped lobby browser after entering a unique alias, and Charlie can join an active match as a spectator. The local query parameters identify the mock Discord guild and user; the visible alias is entered in the create/join form.
+
+By default the client opens guild-scoped WebSockets through the local server after lobby selection, using routes like `ws://<current hostname>:8787/guilds/:guildId/rooms/:roomId`. Add `server=ws://host:port` to the query string to override the WebSocket base during local testing.
 
 During a match, the active player chooses one of 8 facing directions before firing. The function is evaluated in shooter-local coordinates, so local `+x` points in the selected facing direction and local `+y` rotates with it. Use the direction dial buttons or scroll the mouse wheel over the dial to rotate aim. The server simulates the rotated path authoritatively, then clients render the returned path with opacity linearly fading from 95% to a still-visible 20% over the returned path. If the server advances the turn immediately after resolving the shot, the client still plays the shot animation first, keeps terrain/player HP in the pre-shot visual state while the function travels, applies impact/damage visuals at contact, and clears the visible function path after playback completes.
 
@@ -113,3 +115,4 @@ Every major implementation task should:
 - Added lobby/menu flow design covering guild-scoped lobby browsing, create/join flow, alias uniqueness, leader controls, spectators, settings, and leaderboard persistence.
 - Added lobby/menu flow implementation plan covering shared contracts, server persistence, guild-scoped lobby runtime, client menu/setup views, spectator gating, E2E conversion, and checkpoint commits.
 - Current: added the client-side local session boundary, future Discord session placeholder, schema-validated WebSocket client, Zustand store actions for room commands/events, a usable multi-tab lobby/match control surface, Canvas 2D world rendering with staged shot path/impact playback, a normal-function shot input palette, implicit multiplication for normal-function parsing, 8-way rotated local aim directions, minimal in-turn HUD, 95%-to-20% shot path opacity attenuation, terrain/player damage staging through immediate turn advancement, Discord 16:9 no-scroll viewport fitting, and Playwright smoke tests for `alice`/`bob` local testing.
+- Added guild-scoped main menu, create/join lobby flow, leader-controlled setup, spectator support, persisted settings, persisted leaderboard entries, and Playwright coverage for mock clients using the same flow as Discord users.
