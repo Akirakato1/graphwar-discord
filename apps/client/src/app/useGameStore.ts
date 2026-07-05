@@ -127,6 +127,7 @@ function describeEvent(event: ServerEvent): string {
 
 export function createGameState(options: CreateGameStoreOptions = {}): StateCreator<GameStoreState> {
   const session = options.session ?? readLocalSession();
+  const roomId = session.roomId ?? "local-test";
   const clientFactory = options.clientFactory ?? connectGameClient;
   const logLimit = options.logLimit ?? 30;
   let client: GameClient | undefined;
@@ -183,7 +184,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
 
           set({ connectionStatus: "connecting", lastError: undefined, lastRejection: undefined });
           client = clientFactory({
-            roomId: session.roomId,
+            guildId: session.guildId,
+            roomId,
             serverUrl: session.serverUrl,
             onClose: () => {
               if (nextConnectionId !== connectionId) {
@@ -239,7 +241,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       joinRoom() {
         sendCommand({
           type: "join-room",
-          roomId: session.roomId,
+          roomId,
           playerId: session.playerId,
           displayName: session.displayName
         });
@@ -247,11 +249,11 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       log: [],
       recentEvents: [],
       selectMode(mode) {
-        sendCommand({ type: "select-mode", roomId: session.roomId, playerId: session.playerId, mode });
+        sendCommand({ type: "select-mode", roomId, playerId: session.playerId, mode });
       },
       session,
       startMatch() {
-        sendCommand({ type: "start-match", roomId: session.roomId, playerId: session.playerId });
+        sendCommand({ type: "start-match", roomId, playerId: session.playerId });
       },
       submitShot(expression, aimDirection) {
         const trimmedExpression = expression.trim();
@@ -264,7 +266,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
 
         sendCommand({
           type: "submit-shot",
-          roomId: session.roomId,
+          roomId,
           playerId: session.playerId,
           functionFamilyId: "normal",
           aimDirection,

@@ -21,6 +21,7 @@ export type GameClient = {
 };
 
 export type ConnectGameClientOptions = {
+  guildId?: string;
   roomId: string;
   serverUrl?: string;
   locationHref?: string;
@@ -32,6 +33,13 @@ export type ConnectGameClientOptions = {
   onEvent: (event: ServerEvent) => void;
   onOpen?: () => void;
   onReconnect?: () => void;
+};
+
+export type BuildRoomWebSocketUrlOptions = {
+  guildId?: string;
+  roomId: string;
+  serverUrl?: string;
+  locationHref?: string;
 };
 
 function readLocationHref(): string {
@@ -65,19 +73,29 @@ function normalizeServerUrl(serverUrl: string): string {
   }
 }
 
-export function buildRoomWebSocketUrl(roomId: string, serverUrl?: string, locationHref = readLocationHref()): string {
-  const baseUrl = serverUrl
-    ? normalizeServerUrl(serverUrl)
+export function buildRoomWebSocketUrl(options: BuildRoomWebSocketUrlOptions): string {
+  const locationHref = options.locationHref ?? readLocationHref();
+  const baseUrl = options.serverUrl
+    ? normalizeServerUrl(options.serverUrl)
     : `ws://${new URL(locationHref, "http://localhost:5173/").hostname}:8787`;
 
-  return `${baseUrl}/rooms/${encodeURIComponent(roomId)}`;
+  if (options.guildId) {
+    return `${baseUrl}/guilds/${encodeURIComponent(options.guildId)}/rooms/${encodeURIComponent(options.roomId)}`;
+  }
+
+  return `${baseUrl}/rooms/${encodeURIComponent(options.roomId)}`;
 }
 
 export function connectGameClient(options: ConnectGameClientOptions): GameClient {
   const WebSocketCtor = options.webSocketCtor ?? readWebSocketConstructor();
   const openState = WebSocketCtor.OPEN ?? 1;
   const reconnectDelayMs = options.reconnectDelayMs ?? 750;
-  const url = buildRoomWebSocketUrl(options.roomId, options.serverUrl, options.locationHref);
+  const url = buildRoomWebSocketUrl({
+    guildId: options.guildId,
+    roomId: options.roomId,
+    serverUrl: options.serverUrl,
+    locationHref: options.locationHref
+  });
   const pendingPayloads: string[] = [];
   let manualClose = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;

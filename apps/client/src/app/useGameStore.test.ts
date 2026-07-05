@@ -5,7 +5,10 @@ import type { ClientSession } from "../sessions/localSession";
 import { createGameStore } from "./useGameStore";
 
 const session: ClientSession = {
+  guildId: "local-guild",
+  discordUserId: "alice",
   playerId: "alice",
+  defaultAlias: "Alice",
   displayName: "Alice",
   roomId: "local-test",
   source: "local"

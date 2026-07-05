@@ -60,16 +60,34 @@ class FakeWebSocket {
 }
 
 describe("buildRoomWebSocketUrl", () => {
+  it("builds guild-scoped websocket urls", () => {
+    expect(
+      buildRoomWebSocketUrl({
+        guildId: "local-guild",
+        roomId: "room 1",
+        serverUrl: "http://127.0.0.1:8787/",
+        locationHref: "http://localhost:5173/"
+      })
+    ).toBe("ws://127.0.0.1:8787/guilds/local-guild/rooms/room%201");
+  });
+
   it("defaults to the current hostname on port 8787", () => {
-    expect(buildRoomWebSocketUrl("local test", undefined, "http://devbox.local:5173/path")).toBe(
-      "ws://devbox.local:8787/rooms/local%20test"
-    );
+    expect(
+      buildRoomWebSocketUrl({
+        roomId: "local test",
+        locationHref: "http://devbox.local:5173/path"
+      })
+    ).toBe("ws://devbox.local:8787/rooms/local%20test");
   });
 
   it("uses an explicit server override as the WebSocket base", () => {
-    expect(buildRoomWebSocketUrl("local-test", "ws://127.0.0.1:9999/", "http://localhost:5173/")).toBe(
-      "ws://127.0.0.1:9999/rooms/local-test"
-    );
+    expect(
+      buildRoomWebSocketUrl({
+        roomId: "local-test",
+        serverUrl: "ws://127.0.0.1:9999/",
+        locationHref: "http://localhost:5173/"
+      })
+    ).toBe("ws://127.0.0.1:9999/rooms/local-test");
   });
 });
 

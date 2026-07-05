@@ -18,13 +18,38 @@ class MemoryStorage implements Pick<Storage, "getItem" | "setItem" | "removeItem
 }
 
 describe("readLocalSession", () => {
+  it("reads guild and discord user identity from local testing query parameters", () => {
+    const session = readLocalSession(
+      "http://localhost:5173/?guild=local-guild&user=alice-id&server=http://127.0.0.1:8787"
+    );
+
+    expect(session).toMatchObject({
+      guildId: "local-guild",
+      discordUserId: "alice-id",
+      playerId: "alice-id",
+      source: "local",
+      serverUrl: "http://127.0.0.1:8787"
+    });
+  });
+
+  it("keeps mockPlayer as a compatibility identity shortcut", () => {
+    const session = readLocalSession("http://localhost:5173/?mockPlayer=bob&displayName=Bob");
+
+    expect(session.guildId).toBe("local-guild");
+    expect(session.discordUserId).toBe("bob");
+    expect(session.defaultAlias).toBe("Bob");
+  });
+
   it("reads local session values from query parameters", () => {
     const session = readLocalSession(
       "http://localhost:5173/?room=duel-room&mockPlayer=alice&displayName=Alice&server=ws://127.0.0.1:9999"
     );
 
     expect(session).toEqual({
+      guildId: "local-guild",
+      discordUserId: "alice",
       playerId: "alice",
+      defaultAlias: "Alice",
       displayName: "Alice",
       roomId: "duel-room",
       serverUrl: "ws://127.0.0.1:9999",
@@ -38,9 +63,12 @@ describe("readLocalSession", () => {
     const firstSession = readLocalSession("http://localhost:5173/", storage);
     const secondSession = readLocalSession("http://localhost:5173/", storage);
 
-    expect(firstSession.roomId).toBe("local-test");
+    expect(firstSession.guildId).toBe("local-guild");
+    expect(firstSession.roomId).toBeUndefined();
+    expect(firstSession.discordUserId).toMatch(/^local-/);
     expect(firstSession.playerId).toMatch(/^local-/);
     expect(secondSession.playerId).toBe(firstSession.playerId);
+    expect(firstSession.defaultAlias).toBe(firstSession.playerId);
     expect(firstSession.displayName).toBe(firstSession.playerId);
     expect(firstSession.serverUrl).toBeUndefined();
     expect(firstSession.source).toBe("local");
@@ -50,6 +78,8 @@ describe("readLocalSession", () => {
     const session = readLocalSession("http://localhost:5173/?mockPlayer=bob");
 
     expect(session.playerId).toBe("bob");
+    expect(session.discordUserId).toBe("bob");
+    expect(session.defaultAlias).toBe("bob");
     expect(session.displayName).toBe("bob");
   });
 });

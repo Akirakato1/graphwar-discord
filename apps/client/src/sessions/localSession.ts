@@ -1,7 +1,10 @@
 export type ClientSession = {
+  guildId: string;
+  discordUserId: string;
   playerId: string;
+  defaultAlias: string;
+  roomId?: string;
   displayName: string;
-  roomId: string;
   serverUrl?: string;
   source: "local" | "discord";
 };
@@ -59,14 +62,19 @@ function readStableLocalPlayerId(storage: LocalSessionStorage | undefined): stri
 
 export function readLocalSession(href = readCurrentHref(), storage = readBrowserStorage()): ClientSession {
   const url = new URL(href, "http://localhost:5173/");
-  const playerId = readParam(url, "mockPlayer") ?? readStableLocalPlayerId(storage);
-  const displayName = readParam(url, "displayName") ?? playerId;
+  const guildId = readParam(url, "guild") ?? "local-guild";
+  const discordUserId = readParam(url, "user") ?? readParam(url, "mockPlayer") ?? readStableLocalPlayerId(storage);
+  const defaultAlias = readParam(url, "displayName") ?? discordUserId;
+  const roomId = readParam(url, "room");
   const serverUrl = readParam(url, "server");
 
   return {
-    playerId,
-    displayName,
-    roomId: readParam(url, "room") ?? "local-test",
+    guildId,
+    discordUserId,
+    playerId: discordUserId,
+    defaultAlias,
+    displayName: defaultAlias,
+    ...(roomId ? { roomId } : {}),
     ...(serverUrl ? { serverUrl } : {}),
     source: "local"
   };

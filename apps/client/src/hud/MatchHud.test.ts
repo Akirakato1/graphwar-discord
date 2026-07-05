@@ -5,7 +5,10 @@ import { MatchHud } from "./MatchHud";
 import type { MatchSnapshot } from "@graphwar/shared";
 
 const session = {
+  guildId: "local-guild",
+  discordUserId: "alice",
   playerId: "alice",
+  defaultAlias: "Alice",
   displayName: "Alice",
   roomId: "local-test",
   source: "local" as const
