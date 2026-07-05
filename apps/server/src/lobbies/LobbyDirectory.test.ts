@@ -423,4 +423,171 @@ describe("LobbyDirectory", () => {
       "Only the lobby leader can start."
     );
   });
+
+  it("rejects start checks after the match has already started", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    directory.autoAssignTeams("guild-1", "room-1", "alice-id");
+    directory.markPlaying("guild-1", "room-1");
+
+    expect(() => directory.assertCanStart("guild-1", "room-1", "alice-id")).toThrow(
+      "Match has already started."
+    );
+  });
+
+  it("allows started player reconnects while keeping new users spectator-only", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    directory.autoAssignTeams("guild-1", "room-1", "alice-id");
+    directory.markPlaying("guild-1", "room-1");
+
+    const playerReconnect = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bobby",
+      slot: "player"
+    });
+
+    expect(playerReconnect.session).toEqual(
+      expect.objectContaining({
+        discordUserId: "bob-id",
+        alias: "Bobby",
+        slot: "player"
+      })
+    );
+    expect(playerReconnect.lobby.occupants).toContainEqual(
+      expect.objectContaining({
+        discordUserId: "bob-id",
+        alias: "Bobby",
+        slot: "player",
+        placement: "team-b"
+      })
+    );
+
+    const spectatorReconnect = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Robert",
+      slot: "spectator"
+    });
+
+    expect(spectatorReconnect.session).toEqual(
+      expect.objectContaining({
+        discordUserId: "bob-id",
+        alias: "Robert",
+        slot: "player"
+      })
+    );
+    expect(spectatorReconnect.lobby.occupants).toContainEqual(
+      expect.objectContaining({
+        discordUserId: "bob-id",
+        alias: "Robert",
+        slot: "player",
+        placement: "team-b"
+      })
+    );
+
+    await expect(
+      directory.joinLobby("guild-1", "room-1", {
+        discordUserId: "carol-id",
+        alias: "Carol",
+        slot: "player"
+      })
+    ).rejects.toThrow("Started lobbies can only be joined as a spectator.");
+
+    const spectatorJoin = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "dana-id",
+      alias: "Dana",
+      slot: "spectator"
+    });
+
+    expect(spectatorJoin.lobby.occupants).toContainEqual(
+      expect.objectContaining({
+        discordUserId: "dana-id",
+        slot: "spectator",
+        placement: "spectator"
+      })
+    );
+  });
+
+  it("validates moved placements for team-versus lobbies", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    expect(() => directory.moveOccupant("guild-1", "room-1", "alice-id", "alice-id", "players")).toThrow(
+      "Invalid placement for team-versus lobby."
+    );
+  });
+
+  it("validates moved placements for free-for-all lobbies", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Free Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "free-for-all",
+      initialSlot: "player"
+    });
+
+    expect(() => directory.moveOccupant("guild-1", "room-1", "alice-id", "alice-id", "team-a")).toThrow(
+      "Invalid placement for free-for-all lobby."
+    );
+    expect(() => directory.moveOccupant("guild-1", "room-1", "alice-id", "alice-id", "team-b")).toThrow(
+      "Invalid placement for free-for-all lobby."
+    );
+  });
+
+  it("rolls back occupant changes when stats upsert fails", async () => {
+    const upsertStatsEntry = vi.fn(async (_guildId: string, discordUserId: string) => {
+      if (discordUserId === "bob-id") {
+        throw new Error("stats unavailable");
+      }
+    });
+    const directory = createDirectory({ upsertStatsEntry });
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    await expect(
+      directory.joinLobby("guild-1", "room-1", {
+        discordUserId: "bob-id",
+        alias: "Bob",
+        slot: "player"
+      })
+    ).rejects.toThrow("stats unavailable");
+
+    expect(directory.getLobby("guild-1", "room-1").occupants).not.toContainEqual(
+      expect.objectContaining({ discordUserId: "bob-id" })
+    );
+  });
 });

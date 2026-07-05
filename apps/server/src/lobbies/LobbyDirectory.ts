@@ -87,12 +87,13 @@ export class LobbyDirectory {
   async joinLobby(guildId: string, roomId: string, request: JoinLobbyRequest): Promise<LobbyJoinResult> {
     const lobby = this.requireLobby(guildId, roomId);
     const alias = request.alias.trim();
+    const existingOccupant = lobby.occupants.get(request.discordUserId);
 
     if (!alias) {
       throw new Error("Alias is required.");
     }
 
-    if (lobby.status === "playing" && request.slot === "player") {
+    if (lobby.status === "playing" && request.slot === "player" && existingOccupant?.slot !== "player") {
       throw new Error("Started lobbies can only be joined as a spectator.");
     }
 
@@ -102,20 +103,20 @@ export class LobbyDirectory {
       }
     }
 
-    const existingOccupant = lobby.occupants.get(request.discordUserId);
-    const placement = this.resolvePlacement(lobby, request.slot, existingOccupant);
+    const slot = lobby.status === "playing" && existingOccupant?.slot === "player" ? "player" : request.slot;
+    const placement = this.resolvePlacement(lobby, slot, existingOccupant);
     const occupant: LobbyOccupant = {
       discordUserId: request.discordUserId,
       playerId: existingOccupant?.playerId ?? request.discordUserId,
       alias,
-      slot: request.slot,
+      slot,
       placement,
       connected: true,
       isLeader: request.discordUserId === lobby.leaderDiscordUserId
     };
 
-    lobby.occupants.set(request.discordUserId, occupant);
     await this.upsertStatsEntry(guildId, request.discordUserId, alias);
+    lobby.occupants.set(request.discordUserId, occupant);
 
     return {
       lobby: this.snapshot(lobby),
@@ -125,7 +126,7 @@ export class LobbyDirectory {
         discordUserId: request.discordUserId,
         playerId: occupant.playerId,
         alias,
-        slot: request.slot
+        slot
       }
     };
   }
@@ -168,6 +169,8 @@ export class LobbyDirectory {
     if (actorId !== targetId && actorId !== lobby.leaderDiscordUserId) {
       throw new Error("Only the lobby leader can move another player.");
     }
+
+    this.assertPlacementAllowed(lobby, placement);
 
     const occupant = this.requireOccupant(lobby, targetId);
     const slot: LobbySlot = placement === "spectator" ? "spectator" : "player";
@@ -247,6 +250,16 @@ export class LobbyDirectory {
     return occupant;
   }
 
+  private assertPlacementAllowed(lobby: RuntimeLobby, placement: LobbyPlacementId): void {
+    if (lobby.mode === "team-versus" && placement === "players") {
+      throw new Error("Invalid placement for team-versus lobby.");
+    }
+
+    if (lobby.mode === "free-for-all" && (placement === "team-a" || placement === "team-b")) {
+      throw new Error("Invalid placement for free-for-all lobby.");
+    }
+  }
+
   private resolvePlacement(
     lobby: RuntimeLobby,
     slot: LobbySlot,
@@ -276,6 +289,14 @@ export class LobbyDirectory {
   }
 
   private startBlockedReason(lobby: RuntimeLobby): string | undefined {
+    if (lobby.status === "playing") {
+      return "Match has already started.";
+    }
+
+    if (lobby.status !== "open") {
+      return "Lobby is not open.";
+    }
+
     if (lobby.mode === "free-for-all") {
       const playerCount = Array.from(lobby.occupants.values()).filter((occupant) => occupant.slot === "player").length;
       return playerCount >= 2 ? undefined : "Free for all needs at least two players.";
