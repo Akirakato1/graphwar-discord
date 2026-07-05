@@ -1,6 +1,12 @@
 import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { describe, expect, it } from "vitest";
-import { findLatestShotResolvedEvent, isLatestShotFollowedByTurnEvent, renderWorld, worldToCanvas } from "./renderWorld";
+import {
+  findLatestShotResolvedEvent,
+  findSnapshotBeforeLatestShot,
+  isLatestShotFollowedByTurnEvent,
+  renderWorld,
+  worldToCanvas
+} from "./renderWorld";
 
 const snapshot: MatchSnapshot = {
   phase: "playing",
@@ -252,6 +258,39 @@ describe("findLatestShotResolvedEvent", () => {
       ])
     ).toBe(false);
   });
+
+  it("returns the authoritative snapshot before the latest shot for playback staging", () => {
+    const beforeShot: ServerEvent = {
+      type: "room-snapshot",
+      roomId: "local-test",
+      snapshot: {
+        ...snapshot,
+        terrain: { blobs: [] },
+        players: snapshot.players.map((player) => ({ ...player, hp: 100, alive: true }))
+      }
+    };
+    const afterShot: ServerEvent = {
+      type: "shot-resolved",
+      roomId: "local-test",
+      shooterId: "alice",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "x",
+      path: [
+        { x: -10, y: 0 },
+        { x: 10, y: 0 }
+      ],
+      impact: { reason: "player-hit", point: { x: 10, y: 0 }, targetPlayerId: "bob" },
+      damage: [{ playerId: "bob", amount: 35, hpAfter: 65 }],
+      eliminations: [],
+      snapshot: {
+        ...snapshot,
+        players: snapshot.players.map((player) => (player.id === "bob" ? { ...player, hp: 65 } : player))
+      }
+    };
+
+    expect(findSnapshotBeforeLatestShot([beforeShot, afterShot])).toBe(beforeShot.snapshot);
+  });
 });
 
 describe("renderWorld", () => {
@@ -316,7 +355,7 @@ describe("renderWorld", () => {
     );
   });
 
-  it("attenuates shot path color as the path consumes its length budget", () => {
+  it("linearly attenuates shot path opacity over the returned path while keeping the tail visible", () => {
     const context = new RecordingCanvasContext();
 
     renderWorld(context as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
@@ -341,6 +380,8 @@ describe("renderWorld", () => {
       .map(Number);
 
     expect(pathStrokeAlphas.length).toBeGreaterThan(1);
-    expect(pathStrokeAlphas[0]).toBeGreaterThan(pathStrokeAlphas[pathStrokeAlphas.length - 1]);
+    expect(pathStrokeAlphas[0]).toBeCloseTo(0.95);
+    expect(pathStrokeAlphas[1]).toBeCloseTo(0.575);
+    expect(pathStrokeAlphas[2]).toBeCloseTo(0.2);
   });
 });

@@ -7,9 +7,11 @@ import type { ClientSession } from "../sessions/localSession";
 
 type MatchHudProps = {
   connectionStatus: ConnectionStatus;
+  displaySnapshot?: MatchSnapshot;
   lastError?: string;
   lastRejection?: CommandRejection;
   onSubmitShot: (expression: string, aimDirection: AimDirectionId) => void;
+  playbackInProgress?: boolean;
   session: ClientSession;
   snapshot?: MatchSnapshot;
 };
@@ -30,13 +32,23 @@ function phaseLabel(snapshot: MatchSnapshot | undefined): string {
   return `Turn ${snapshot.turn.turnNumber}`;
 }
 
-export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitShot, session, snapshot }: MatchHudProps) {
+export function MatchHud({
+  connectionStatus,
+  displaySnapshot,
+  lastError,
+  lastRejection,
+  onSubmitShot,
+  playbackInProgress = false,
+  session,
+  snapshot
+}: MatchHudProps) {
   const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
   const activePlayer = snapshot?.players.find((player) => player.id === snapshot.turn.activePlayerId);
   const localPlayer = snapshot?.players.find((player) => player.id === session.playerId);
+  const displayLocalPlayer = displaySnapshot?.players.find((player) => player.id === session.playerId) ?? localPlayer;
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
-  const canSubmitShot = connectionStatus === "open" && isMyTurn;
+  const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress;
   const notice = lastError ?? lastRejection?.reason;
 
   if (isPlaying) {
@@ -55,14 +67,14 @@ export function MatchHud({ connectionStatus, lastError, lastRejection, onSubmitS
         <div className="play-control-strip">
           <div className="own-hp" data-testid="own-hp">
             <span>HP</span>
-            <strong>{localPlayer ? `${localPlayer.hp} HP` : "-- HP"}</strong>
+            <strong>{displayLocalPlayer ? `${displayLocalPlayer.hp} HP` : "-- HP"}</strong>
           </div>
-          <DirectionDial disabled={!isMyTurn} onChange={setAimDirection} value={aimDirection} />
+          <DirectionDial disabled={!isMyTurn || playbackInProgress} onChange={setAimDirection} value={aimDirection} />
         </div>
 
         <FunctionInput
           canSubmit={canSubmitShot}
-          disabled={!isMyTurn}
+          disabled={!isMyTurn || playbackInProgress}
           onSubmitShot={(expression) => onSubmitShot(expression, aimDirection)}
         />
 

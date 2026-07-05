@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { GameCanvas } from "../game-renderer/GameCanvas";
+import { useEffect, useMemo, useState } from "react";
+import { GameCanvas, SHOT_ANIMATION_MS, shotEventKey } from "../game-renderer/GameCanvas";
+import { findLatestShotResolvedEvent, findSnapshotBeforeLatestShot } from "../game-renderer/renderWorld";
 import { LobbyPanel } from "../hud/LobbyPanel";
 import { MatchHud } from "../hud/MatchHud";
 import { useGameStore, type ConnectionStatus } from "./useGameStore";
@@ -43,6 +44,26 @@ export function App() {
   const connected = connectionStatus === "open";
   const connecting = connectionStatus === "connecting" || connectionStatus === "reconnecting";
   const isPlaying = snapshot?.phase === "playing";
+  const latestShot = useMemo(() => findLatestShotResolvedEvent(recentEvents), [recentEvents]);
+  const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
+  const snapshotBeforeLatestShot = useMemo(() => findSnapshotBeforeLatestShot(recentEvents), [recentEvents]);
+  const [playbackShotKey, setPlaybackShotKey] = useState<string | undefined>();
+  const playbackInProgress = Boolean(latestShotKey && playbackShotKey === latestShotKey);
+  const displaySnapshot = playbackInProgress && snapshotBeforeLatestShot ? snapshotBeforeLatestShot : snapshot;
+
+  useEffect(() => {
+    if (!latestShotKey || !snapshotBeforeLatestShot) {
+      setPlaybackShotKey(undefined);
+      return undefined;
+    }
+
+    setPlaybackShotKey(latestShotKey);
+    const timeout = window.setTimeout(() => {
+      setPlaybackShotKey((current) => (current === latestShotKey ? undefined : current));
+    }, SHOT_ANIMATION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [latestShotKey, snapshotBeforeLatestShot]);
 
   return (
     <main className="app-shell">
@@ -113,9 +134,11 @@ export function App() {
         {isPlaying && (
           <MatchHud
             connectionStatus={connectionStatus}
+            displaySnapshot={displaySnapshot}
             lastError={lastError}
             lastRejection={lastRejection}
             onSubmitShot={submitShot}
+            playbackInProgress={playbackInProgress}
             session={session}
             snapshot={snapshot}
           />

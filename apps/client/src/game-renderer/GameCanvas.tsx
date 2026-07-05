@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MatchSnapshot, ServerEvent, ShotResolvedEvent } from "@graphwar/shared";
 import {
   findLatestShotResolvedEvent,
+  findSnapshotBeforeLatestShot,
   isLatestShotFollowedByTurnEvent,
   renderWorld,
   type CanvasSize
@@ -13,7 +14,7 @@ type GameCanvasProps = {
 };
 
 const DEFAULT_CANVAS_SIZE: CanvasSize = { width: 960, height: 576 };
-const SHOT_ANIMATION_MS = 750;
+export const SHOT_ANIMATION_MS = 750;
 const useCanvasLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export function GameCanvas({ events, snapshot }: GameCanvasProps) {
@@ -21,6 +22,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
   const latestShot = useMemo(() => findLatestShotResolvedEvent(events), [events]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
   const latestShotHasTurnAfter = useMemo(() => isLatestShotFollowedByTurnEvent(events), [events]);
+  const snapshotBeforeLatestShot = useMemo(() => findSnapshotBeforeLatestShot(events), [events]);
   const [hiddenShotKey, setHiddenShotKey] = useState<string | undefined>();
   const visibleShot = latestShotKey && hiddenShotKey === latestShotKey ? undefined : latestShot;
   const activeShotKeyRef = useRef<string | undefined>();
@@ -53,8 +55,9 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
 
     function draw(progress: number): void {
       const size = syncCanvasSize(canvas, ctx);
+      const renderSnapshot = visibleShot && progress < 1 && snapshotBeforeLatestShot ? snapshotBeforeLatestShot : snapshot;
       renderWorld(ctx, size, {
-        snapshot,
+        snapshot: renderSnapshot,
         shot: visibleShot
           ? {
               impact: visibleShot.impact,
@@ -133,7 +136,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       window.removeEventListener("resize", restartDraw);
       resizeObserver?.disconnect();
     };
-  }, [hiddenShotKey, latestShotHasTurnAfter, latestShotKey, snapshot, visibleShot]);
+  }, [hiddenShotKey, latestShotHasTurnAfter, latestShotKey, snapshot, snapshotBeforeLatestShot, visibleShot]);
 
   return (
     <section className="panel world-panel" aria-labelledby="world-title">

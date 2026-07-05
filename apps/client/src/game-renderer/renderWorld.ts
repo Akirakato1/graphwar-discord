@@ -40,6 +40,27 @@ export function findLatestShotResolvedEvent(events: ServerEvent[]): ShotResolved
   return undefined;
 }
 
+export function findSnapshotBeforeLatestShot(events: ServerEvent[]): MatchSnapshot | undefined {
+  let foundLatestShot = false;
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (!foundLatestShot) {
+      if (event.type === "shot-resolved") {
+        foundLatestShot = true;
+      }
+      continue;
+    }
+
+    const snapshot = snapshotFromEvent(event);
+    if (snapshot) {
+      return snapshot;
+    }
+  }
+
+  return undefined;
+}
+
 export function isLatestShotFollowedByTurnEvent(events: ServerEvent[]): boolean {
   let foundTurnAfterLatestShot = false;
 
@@ -55,6 +76,18 @@ export function isLatestShotFollowedByTurnEvent(events: ServerEvent[]): boolean 
   }
 
   return false;
+}
+
+function snapshotFromEvent(event: ServerEvent): MatchSnapshot | undefined {
+  switch (event.type) {
+    case "room-snapshot":
+    case "match-started":
+    case "shot-resolved":
+    case "match-ended":
+      return event.snapshot;
+    default:
+      return undefined;
+  }
 }
 
 export function renderWorld(ctx: CanvasRenderingContext2D, size: CanvasSize, options: RenderWorldOptions = {}): void {
@@ -133,13 +166,14 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
 
   const visiblePath = getVisiblePath(shot.path, shot.progress ?? 1);
   if (visiblePath.length > 0) {
+    const segmentCount = Math.max(1, shot.path.length - 1);
     ctx.save();
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 7]);
     for (let index = 1; index < visiblePath.length; index += 1) {
       const start = worldToCanvas(visiblePath[index - 1], size);
       const end = worldToCanvas(visiblePath[index], size);
-      ctx.strokeStyle = shotPathColor(index - 1);
+      ctx.strokeStyle = shotPathColor(index - 1, segmentCount);
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.lineTo(end.x, end.y);
@@ -163,10 +197,10 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
   }
 }
 
-function shotPathColor(segmentIndex: number): string {
-  const budgetIndex = Math.max(1, defaultMatchTuning.maxPathPoints - 1);
-  const remainingRatio = 1 - Math.min(1, segmentIndex / budgetIndex);
-  const alpha = 0.3 + remainingRatio * 0.65;
+function shotPathColor(segmentIndex: number, segmentCount: number): string {
+  const denominator = Math.max(1, segmentCount - 1);
+  const consumedRatio = Math.min(1, segmentIndex / denominator);
+  const alpha = 0.95 - consumedRatio * 0.75;
   return `rgba(249, 242, 199, ${Number(alpha.toFixed(3))})`;
 }
 

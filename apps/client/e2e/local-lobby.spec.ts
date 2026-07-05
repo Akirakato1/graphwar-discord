@@ -102,6 +102,36 @@ test("two local players can start a match and advance turns with a function shot
   }
 });
 
+test("player damage appears after the shot playback reaches impact", async ({ browser }, testInfo) => {
+  const roomId = roomIdFor(testInfo.title);
+  const aliceContext = await browser.newContext();
+  const bobContext = await browser.newContext();
+  const alicePage = await aliceContext.newPage();
+  const bobPage = await bobContext.newPage();
+
+  try {
+    await joinLocalRoom(alicePage, roomId, alice);
+    await joinLocalRoom(bobPage, roomId, bob);
+    await expectBothPagesShowPlayers([alicePage, bobPage]);
+
+    await alicePage.getByRole("button", { name: "Start Match" }).click();
+    await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+
+    await alicePage.getByLabel("Function Shot").fill("0.05x(36-x)");
+    await alicePage.getByRole("button", { name: "Fire" }).click();
+
+    await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+
+    await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
+    await expect(bobPage.getByTestId("own-hp")).toContainText("65 HP");
+  } finally {
+    await aliceContext.close();
+    await bobContext.close();
+  }
+});
+
 test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling", async ({ browser }, testInfo) => {
   const viewports = [
     { width: 1280, height: 720 },
