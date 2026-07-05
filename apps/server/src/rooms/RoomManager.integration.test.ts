@@ -5,7 +5,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { serverEventSchema, type ServerEvent } from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildServer } from "../index";
+import { buildServer, type BuildServerOptions } from "../index";
+import { LobbyDirectory } from "../lobbies/LobbyDirectory";
 import { LocalStateStore } from "../persistence/LocalStateStore";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
@@ -13,6 +14,18 @@ type TestServer = Awaited<ReturnType<typeof buildServer>>;
 const servers: TestServer[] = [];
 const sockets: WebSocket[] = [];
 const tempDirs: string[] = [];
+
+type Deferred = {
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+};
+
+class FailingMatchResultStore extends LocalStateStore {
+  override async recordMatchResult(): Promise<void> {
+    throw new Error("Match result persistence failed.");
+  }
+}
 
 function socketUrl(app: TestServer, roomId: string, mockPlayer: string): string {
   const address = app.server.address() as AddressInfo;
@@ -54,10 +67,25 @@ function collectEvents(socket: WebSocket): ServerEvent[] {
   return events;
 }
 
-async function startTestServer(): Promise<TestServer> {
+function createDeferred(): Deferred {
+  let resolve!: () => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<void>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+async function createTempStateStore(): Promise<LocalStateStore> {
   const dir = await mkdtemp(join(tmpdir(), "graphwar-server-"));
   tempDirs.push(dir);
-  const app = await buildServer({ stateStore: new LocalStateStore(join(dir, "local-state.json")) });
+  return new LocalStateStore(join(dir, "local-state.json"));
+}
+
+async function startTestServer(options: BuildServerOptions = {}): Promise<TestServer> {
+  const stateStore = options.stateStore ?? (await createTempStateStore());
+  const app = await buildServer({ ...options, stateStore });
   await app.listen({ port: 0, host: "127.0.0.1" });
   servers.push(app);
   return app;
@@ -321,6 +349,279 @@ describe("RoomManager WebSocket integration", () => {
     send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
     await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
     await waitForEvent(() => bobEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("keeps a started guild match recoverable after all websocket clients disconnect", async () => {
+    const app = await startTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Reconnect Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      discordUserId: "alice-id",
+      alias: "Alice",
+      displayName: "Alice",
+      slot: "player"
+    });
+    send(bob, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      discordUserId: "bob-id",
+      alias: "Bob",
+      displayName: "Bob",
+      slot: "player"
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, {
+      type: "auto-assign-teams",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id"
+    });
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+    await waitForEvent(() => bobEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+
+    const { socket: reconnected, events: reconnectEvents } = await connectWithEvents(
+      guildSocketUrl(app, "local-guild", created.session.roomId)
+    );
+    const event = await waitForEvent(
+      () => reconnectEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.guildId === "local-guild"
+    );
+
+    expect(event.type).toBe("room-snapshot");
+    if (event.type === "room-snapshot") {
+      expect(event.lobby?.status).toBe("playing");
+      expect(event.snapshot.phase).toBe("playing");
+    }
+
+    await closeSocket(reconnected);
+  });
+
+  it("serializes async guild commands before applying later room commands", async () => {
+    const stateStore = await createTempStateStore();
+    const bobJoinStarted = createDeferred();
+    const releaseBobJoin = createDeferred();
+    let delayBobWebsocketJoin = false;
+    const lobbies = new LobbyDirectory({
+      upsertStatsEntry: async (guildId, discordUserId, alias) => {
+        if (delayBobWebsocketJoin && discordUserId === "bob-id") {
+          bobJoinStarted.resolve();
+          await releaseBobJoin.promise;
+        }
+        return stateStore.upsertStatsEntry(guildId, discordUserId, alias);
+      }
+    });
+    const app = await startTestServer({ stateStore, lobbies });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Queued Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+
+    delayBobWebsocketJoin = true;
+    send(bob, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      discordUserId: "bob-id",
+      alias: "Bob",
+      displayName: "Bob",
+      slot: "player"
+    });
+    await bobJoinStarted.promise;
+
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForNoEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("Team B needs")
+    );
+
+    releaseBobJoin.resolve();
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
+  it("broadcasts match-ended even when leaderboard persistence fails", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "graphwar-server-"));
+    tempDirs.push(dir);
+    const stateStore = new FailingMatchResultStore(join(dir, "local-state.json"));
+    const app = await startTestServer({ stateStore });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Persistence Failure Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      discordUserId: "alice-id",
+      alias: "Alice",
+      displayName: "Alice",
+      slot: "player"
+    });
+    send(bob, {
+      type: "join-room",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      discordUserId: "bob-id",
+      alias: "Bob",
+      displayName: "Bob",
+      slot: "player"
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    const hitBobExpression = "-0.03*x*(x-32)";
+    send(alice, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      functionFamilyId: "normal",
+      aimDirection: "west",
+      expression: hitBobExpression
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "turn-advanced" && candidate.playerId === "bob-id" && candidate.turnNumber === 2
+    );
+    send(bob, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "-x"
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "turn-advanced" && candidate.playerId === "alice-id" && candidate.turnNumber === 3
+    );
+    send(alice, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      functionFamilyId: "normal",
+      aimDirection: "west",
+      expression: hitBobExpression
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "turn-advanced" && candidate.playerId === "bob-id" && candidate.turnNumber === 4
+    );
+    send(bob, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      functionFamilyId: "normal",
+      aimDirection: "east",
+      expression: "-x"
+    });
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "turn-advanced" && candidate.playerId === "alice-id" && candidate.turnNumber === 5
+    );
+    send(alice, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      functionFamilyId: "normal",
+      aimDirection: "west",
+      expression: hitBobExpression
+    });
+
+    const ended = await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "match-ended" && candidate.winnerIds.includes("alice-id")
+    );
+    expect(ended.type).toBe("match-ended");
+    await waitForNoEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("persistence")
+    );
 
     await closeSocket(alice);
     await closeSocket(bob);

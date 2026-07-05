@@ -28,29 +28,29 @@ export class RoomManager {
     socket: WebSocket,
     data: WebSocket.RawData
   ): Promise<void> {
-      let command: ClientCommand;
-      try {
-        command = parseCommand(String(data));
-      } catch (error) {
-        room.sendTo(socket, {
-          type: "shot-rejected",
-          roomId,
-          playerId: "unknown",
-          reason: error instanceof Error ? error.message : "Invalid command"
-        });
-        return;
-      }
+    let command: ClientCommand;
+    try {
+      command = parseCommand(String(data));
+    } catch (error) {
+      room.sendTo(socket, {
+        type: "shot-rejected",
+        roomId,
+        playerId: "unknown",
+        reason: error instanceof Error ? error.message : "Invalid command"
+      });
+      return;
+    }
 
-      try {
-        await room.handleCommand(socket, command);
-      } catch (error) {
-        room.sendTo(socket, {
-          type: "shot-rejected",
-          roomId,
-          playerId: command.playerId,
-          reason: error instanceof Error ? error.message : "Command failed"
-        });
-      }
+    try {
+      await room.enqueueCommand(socket, command);
+    } catch (error) {
+      room.sendTo(socket, {
+        type: "shot-rejected",
+        roomId,
+        playerId: command.playerId,
+        reason: error instanceof Error ? error.message : "Command failed"
+      });
+    }
   }
 
   private getOrCreateRoom(guildId: string, roomId: RoomId): GameRoom {
@@ -64,6 +64,9 @@ export class RoomManager {
       roomId,
       () => {
         if (this.rooms.get(key) === room && room.isEmpty()) {
+          if (room.shouldRetainWhenEmpty()) {
+            return;
+          }
           this.rooms.delete(key);
         }
       },

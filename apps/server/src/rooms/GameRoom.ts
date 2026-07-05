@@ -19,6 +19,7 @@ type LobbyContext = {
 
 export class GameRoom {
   readonly clients = new Set<WebSocket>();
+  private commandQueue: Promise<void> = Promise.resolve();
   private readonly match: MatchController;
 
   constructor(
@@ -46,6 +47,27 @@ export class GameRoom {
 
   isEmpty(): boolean {
     return this.clients.size === 0;
+  }
+
+  shouldRetainWhenEmpty(): boolean {
+    if (!this.lobbyContext) {
+      return false;
+    }
+
+    try {
+      return this.lobbyContext.lobbies.getLobby(this.lobbyContext.guildId, this.roomId).status === "playing";
+    } catch {
+      return false;
+    }
+  }
+
+  enqueueCommand(socket: WebSocket, command: ClientCommand): Promise<void> {
+    const next = this.commandQueue.then(
+      () => this.handleCommand(socket, command),
+      () => this.handleCommand(socket, command)
+    );
+    this.commandQueue = next.catch(() => undefined);
+    return next;
   }
 
   async handleCommand(socket: WebSocket, command: ClientCommand): Promise<void> {
@@ -250,15 +272,11 @@ export class GameRoom {
       return;
     }
 
+    this.broadcast(this.withLobbyContext(event));
     if (event.type === "match-ended" && this.lobbyContext) {
-      await this.lobbyContext.stateStore.recordMatchResult(
-        this.lobbyContext.guildId,
-        event.winnerIds,
-        event.snapshot.players.map((player) => player.id)
-      );
+      await this.recordMatchResult(event.winnerIds, event.snapshot.players.map((player) => player.id));
     }
 
-    this.broadcast(this.withLobbyContext(event));
     if (event.type === "shot-resolved") {
       this.broadcast({
         type: "turn-advanced",
@@ -288,6 +306,18 @@ export class GameRoom {
     }
 
     return event;
+  }
+
+  private async recordMatchResult(winnerIds: string[], participantIds: string[]): Promise<void> {
+    if (!this.lobbyContext) {
+      return;
+    }
+
+    try {
+      await this.lobbyContext.stateStore.recordMatchResult(this.lobbyContext.guildId, winnerIds, participantIds);
+    } catch {
+      // Match resolution is authoritative; leaderboard persistence must not hide the completed match from clients.
+    }
   }
 
   private resolveLobbyPlacement(

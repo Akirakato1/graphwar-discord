@@ -79,8 +79,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
       return await lobbies.joinLobby(guildId, roomId, parsed.data);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Lobby join failed.";
-      const status = message.includes("taken") ? 409 : message.includes("not found") ? 404 : 400;
-      return reply.code(status).send({ code: status === 409 ? "alias-taken" : "invalid-lobby", error: message });
+      const normalizedMessage = message.toLowerCase();
+      const status = normalizedMessage.includes("taken") ? 409 : normalizedMessage.includes("not found") ? 404 : 400;
+      const code = status === 409 ? "alias-taken" : status === 404 ? "not-found" : "invalid-lobby";
+      return reply.code(status).send({ code, error: message });
     }
   });
 

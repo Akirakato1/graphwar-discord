@@ -148,4 +148,17 @@ describe("guild HTTP routes", () => {
       })
     ]);
   });
+
+  it("returns not found when joining a missing lobby", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/guilds/missing-guild/lobbies/missing-room/join",
+      payload: { discordUserId: "alice-id", alias: "Alice", slot: "player" }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(JSON.parse(response.body)).toMatchObject({ code: "not-found" });
+  });
 });
