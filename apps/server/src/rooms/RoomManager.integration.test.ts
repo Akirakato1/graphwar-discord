@@ -298,13 +298,13 @@ describe("RoomManager WebSocket integration", () => {
       slot: "player"
     });
 
-    await waitForEvent(
-      () => [...aliceEvents, ...bobEvents],
-      (candidate) =>
-        candidate.type === "room-snapshot" &&
-        candidate.guildId === "local-guild" &&
-        candidate.lobby?.occupants.length === 2
-    );
+    const hasBothLobbyOccupants = (candidate: ServerEvent) =>
+      candidate.type === "room-snapshot" &&
+      candidate.guildId === "local-guild" &&
+      candidate.lobby?.occupants.length === 2;
+
+    await waitForEvent(() => aliceEvents, hasBothLobbyOccupants);
+    await waitForEvent(() => bobEvents, hasBothLobbyOccupants);
 
     send(bob, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "bob-id" });
     await waitForEvent(
@@ -319,7 +319,8 @@ describe("RoomManager WebSocket integration", () => {
       playerId: "alice-id"
     });
     send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
-    await waitForEvent(() => [...aliceEvents, ...bobEvents], (candidate) => candidate.type === "match-started");
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+    await waitForEvent(() => bobEvents, (candidate) => candidate.type === "match-started");
 
     await closeSocket(alice);
     await closeSocket(bob);
