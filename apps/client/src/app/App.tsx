@@ -7,7 +7,9 @@ import { CreateLobbyView } from "../lobby/CreateLobbyView";
 import { JoinLobbyView } from "../lobby/JoinLobbyView";
 import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
-import { useGameStore, type ConnectionStatus } from "./useGameStore";
+import { useGameStore, type ConnectionStatus, type SelectedLobbySession } from "./useGameStore";
+import type { ClientSession } from "../sessions/localSession";
+import type { LobbyRuntimeSnapshot } from "@graphwar/shared";
 
 function statusText(status: ConnectionStatus): string {
   switch (status) {
@@ -70,8 +72,7 @@ export function App() {
     return (
       <LobbySetupPlaceholder
         connectionStatus={connectionStatus}
-        lobbyName={currentLobby?.name ?? "Selected lobby"}
-        lobbyStatus={currentLobby?.status ?? "open"}
+        lobby={currentLobby}
         onBack={() => {
           disconnect();
           setView("main-menu");
@@ -84,44 +85,45 @@ export function App() {
   return <GameActivity />;
 }
 
-function LobbySetupPlaceholder({
+export function LobbySetupPlaceholder({
   connectionStatus,
-  lobbyName,
-  lobbyStatus,
+  lobby,
   onBack,
   onStartMatch
 }: {
   connectionStatus: ConnectionStatus;
-  lobbyName: string;
-  lobbyStatus: string;
+  lobby?: LobbyRuntimeSnapshot;
   onBack: () => void;
   onStartMatch: () => void;
 }) {
+  const startDisabled = connectionStatus !== "open" || !lobby?.canStart;
+
   return (
     <main className="app-shell">
       <section className="panel menu-panel" aria-labelledby="lobby-setup-title">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Lobby setup</p>
-            <h2 id="lobby-setup-title">{lobbyName}</h2>
+            <h2 id="lobby-setup-title">{lobby?.name ?? "Selected lobby"}</h2>
           </div>
           <span className={`connection-light ${connectionStatus}`} aria-hidden="true" />
         </div>
         <dl className="connection-details">
           <div>
             <dt>Status</dt>
-            <dd>{lobbyStatus}</dd>
+            <dd>{lobby?.status ?? "open"}</dd>
           </div>
           <div>
             <dt>Connection</dt>
             <dd>{statusText(connectionStatus)}</dd>
           </div>
         </dl>
+        {lobby?.startBlockedReason && <p className="notice">{lobby.startBlockedReason}</p>}
         <div className="connection-actions">
           <button className="secondary-action" onClick={onBack} type="button">
             Back
           </button>
-          <button className="primary-action" onClick={onStartMatch} type="button">
+          <button className="primary-action" disabled={startDisabled} onClick={onStartMatch} type="button">
             Start Match
           </button>
         </div>
@@ -135,6 +137,7 @@ function GameActivity() {
   const lastError = useGameStore((state) => state.lastError);
   const lastRejection = useGameStore((state) => state.lastRejection);
   const recentEvents = useGameStore((state) => state.recentEvents);
+  const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
   const submitShot = useGameStore((state) => state.submitShot);
@@ -167,10 +170,7 @@ function GameActivity() {
           <p className="eyebrow">Graphwar Activity Prototype</p>
           <h1>Local Room Control</h1>
         </div>
-        <div className="session-pill">
-          <span>{session.displayName}</span>
-          <span>{session.roomId}</span>
-        </div>
+        <GameSessionPill selectedLobbySession={selectedLobbySession} session={session} />
       </header>
 
       <div className="app-grid playing-grid">
@@ -187,5 +187,21 @@ function GameActivity() {
         />
       </div>
     </main>
+  );
+}
+
+export function GameSessionPill({
+  selectedLobbySession,
+  session
+}: {
+  selectedLobbySession?: SelectedLobbySession;
+  session: ClientSession;
+}) {
+  return (
+    <div className="session-pill">
+      <span>{selectedLobbySession?.alias ?? session.displayName}</span>
+      <span>{selectedLobbySession?.roomId ?? session.roomId ?? "No lobby selected"}</span>
+      <span>{selectedLobbySession?.playerId ?? session.playerId}</span>
+    </div>
   );
 }

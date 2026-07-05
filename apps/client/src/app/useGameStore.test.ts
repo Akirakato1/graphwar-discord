@@ -255,6 +255,76 @@ describe("createGameStore", () => {
     ]);
   });
 
+  it("reconnects to a newly selected lobby when already connected", async () => {
+    const commands: ClientCommand[] = [];
+    const closedRooms: string[] = [];
+    const connectOptions: ConnectGameClientOptions[] = [];
+    let createCount = 0;
+    let onOpen: (() => void) | undefined;
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor(),
+        createLobby: async (guildId, request) => {
+          createCount += 1;
+          const roomId = `room-${createCount}`;
+          return {
+            lobby: {
+              guildId,
+              roomId,
+              name: request.name,
+              mode: request.mode,
+              status: "open",
+              leaderDiscordUserId: request.leaderDiscordUserId,
+              occupants: [],
+              canStart: false,
+              createdAt: "2026-07-05T00:00:00.000Z"
+            },
+            session: {
+              guildId,
+              roomId,
+              discordUserId: request.leaderDiscordUserId,
+              playerId: request.leaderDiscordUserId,
+              alias: request.alias,
+              slot: request.initialSlot
+            }
+          };
+        }
+      },
+      clientFactory: (options) => {
+        connectOptions.push(options);
+        onOpen = options.onOpen;
+        return {
+          send: (command) => commands.push(command),
+          close: () => closedRooms.push(options.roomId)
+        };
+      }
+    });
+
+    await store.getState().createLobby({
+      name: "First Lobby",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    onOpen?.();
+    await store.getState().createLobby({
+      name: "Second Lobby",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    onOpen?.();
+
+    expect(connectOptions.map((options) => options.roomId)).toEqual(["room-1", "room-2"]);
+    expect(closedRooms).toEqual(["room-1"]);
+    expect(commands.filter((command) => command.type === "join-room").map((command) => command.roomId)).toEqual([
+      "room-1",
+      "room-2"
+    ]);
+    expect(store.getState().selectedLobbySession?.roomId).toBe("room-2");
+  });
+
   it("auto-joins the selected lobby room when the socket opens", async () => {
     const commands: ClientCommand[] = [];
     let onOpen: (() => void) | undefined;

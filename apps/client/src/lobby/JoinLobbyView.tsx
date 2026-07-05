@@ -8,25 +8,64 @@ type JoinLobbyViewProps = {
   onLoad: () => Promise<void>;
 };
 
+export function validateJoinAlias(alias: string): string | undefined {
+  return alias.trim() ? undefined : "Enter an alias.";
+}
+
+export function isAliasConflictError(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.message === "Alias is already taken.") ||
+    (typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      (error as { status?: unknown }).status === 409)
+  );
+}
+
+function messageFromError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyViewProps) {
   const [alias, setAlias] = useState("");
   const [aliasTaken, setAliasTaken] = useState(false);
+  const [formError, setFormError] = useState<string | undefined>();
   const [joiningRoomId, setJoiningRoomId] = useState<string | undefined>();
+  const [loadError, setLoadError] = useState<string | undefined>();
   const [slot, setSlot] = useState<LobbySlot>("player");
 
+  async function loadLobbies(): Promise<void> {
+    setLoadError(undefined);
+    try {
+      await onLoad();
+    } catch (error) {
+      setLoadError(messageFromError(error, "Could not load lobbies."));
+    }
+  }
+
   useEffect(() => {
-    void onLoad();
+    void loadLobbies();
   }, [onLoad]);
 
   async function handleJoin(roomId: string, event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setAliasTaken(false);
+    setFormError(undefined);
+    const aliasError = validateJoinAlias(alias);
+    if (aliasError) {
+      setFormError(aliasError);
+      return;
+    }
+
     setJoiningRoomId(roomId);
     try {
-      await onJoin(roomId, { alias, slot });
+      await onJoin(roomId, { alias: alias.trim(), slot });
     } catch (error) {
-      if (error instanceof Error && error.message === "Alias is already taken.") {
+      if (isAliasConflictError(error)) {
         setAliasTaken(true);
+        setFormError("Alias is already taken.");
+      } else {
+        setFormError(messageFromError(error, "Could not join lobby."));
       }
     } finally {
       setJoiningRoomId(undefined);
@@ -40,7 +79,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
           <p className="eyebrow">Available rooms</p>
           <h2 id="join-lobby-title">Join Lobby</h2>
         </div>
-        <button className="secondary-action" onClick={() => void onLoad()} type="button">
+        <button className="secondary-action" onClick={() => void loadLobbies()} type="button">
           Refresh
         </button>
       </div>
@@ -55,6 +94,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
             onChange={(event) => {
               setAlias(event.currentTarget.value);
               setAliasTaken(false);
+              setFormError(undefined);
             }}
           />
         </label>
@@ -66,6 +106,11 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
           </select>
         </label>
       </div>
+      {(loadError || formError) && (
+        <p className="notice" role="alert">
+          {formError ?? loadError}
+        </p>
+      )}
 
       <div className="lobby-list">
         {lobbies.length === 0 ? (

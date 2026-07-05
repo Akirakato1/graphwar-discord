@@ -213,6 +213,18 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       return selected;
     }
 
+    function closeClientForLobbySwitch(): void {
+      if (!client) {
+        return;
+      }
+
+      connectionId += 1;
+      const previousClient = client;
+      client = undefined;
+      previousClient.close();
+      set({ connectionStatus: "closed" });
+    }
+
     function handleEvent(event: ServerEvent): void {
       set((state) => ({
         currentLobby: "lobby" in event && event.lobby ? event.lobby : state.currentLobby,
@@ -322,6 +334,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             mode: form.mode,
             initialSlot: form.initialSlot
           });
+          closeClientForLobbySwitch();
           set({
             currentLobby: result.lobby,
             selectedLobbySession: result.session,
@@ -352,6 +365,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             alias: form.alias,
             slot: form.slot
           });
+          closeClientForLobbySwitch();
           set({
             currentLobby: result.lobby,
             selectedLobbySession: result.session,

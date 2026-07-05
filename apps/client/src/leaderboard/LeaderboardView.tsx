@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { PlayerStatsEntry } from "@graphwar/shared";
 
 type LeaderboardViewProps = {
@@ -8,8 +8,19 @@ type LeaderboardViewProps = {
 };
 
 export function LeaderboardView({ entries, onBack, onLoad }: LeaderboardViewProps) {
+  const [loadError, setLoadError] = useState<string | undefined>();
+
+  async function loadLeaderboard(): Promise<void> {
+    setLoadError(undefined);
+    try {
+      await onLoad();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not load leaderboard.");
+    }
+  }
+
   useEffect(() => {
-    void onLoad();
+    void loadLeaderboard();
   }, [onLoad]);
 
   return (
@@ -19,10 +30,15 @@ export function LeaderboardView({ entries, onBack, onLoad }: LeaderboardViewProp
           <p className="eyebrow">Guild standings</p>
           <h2 id="leaderboard-title">Leaderboard</h2>
         </div>
-        <button className="secondary-action" onClick={() => void onLoad()} type="button">
+        <button className="secondary-action" onClick={() => void loadLeaderboard()} type="button">
           Refresh
         </button>
       </div>
+      {loadError && (
+        <p className="notice" role="alert">
+          {loadError}
+        </p>
+      )}
       <table className="leaderboard-table">
         <thead>
           <tr>
