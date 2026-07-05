@@ -127,6 +127,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
                     className="lobby-select-button"
                     onClick={() => {
                       setSelectedRoomId(lobby.roomId);
+                      setAliasTaken(false);
                       setFormError(undefined);
                     }}
                     type="button"

@@ -21,6 +21,17 @@ function headerValue(value: string | string[] | undefined, fallback: string): st
   return value ?? fallback;
 }
 
+const defaultCorsAllowedOrigins = ["http://127.0.0.1:5173", "http://localhost:5173"];
+
+function readConfiguredCorsOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
+  const configuredOrigins = (env.GRAPHWAR_CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...defaultCorsAllowedOrigins, ...configuredOrigins]));
+}
+
 function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomId: string } | undefined {
   try {
     const url = new URL(requestUrl ?? "/", "http://localhost");
@@ -36,6 +47,7 @@ function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomI
 }
 
 export type BuildServerOptions = {
+  corsAllowedOrigins?: string[];
   stateStore?: LocalStateStore;
   lobbies?: LobbyDirectory;
   rooms?: RoomManager;
@@ -51,6 +63,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
     });
   const rooms = options.rooms ?? new RoomManager(lobbies, stateStore);
   const wss = new WebSocketServer({ noServer: true });
+  const corsAllowedOrigins = new Set(options.corsAllowedOrigins ?? readConfiguredCorsOrigins());
 
   app.addHook("onRequest", async (request, reply) => {
     const isGuildApiRequest = request.url.startsWith("/guilds/");
@@ -59,7 +72,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
     }
 
     const origin = request.headers.origin;
-    if (origin) {
+    if (origin && corsAllowedOrigins.has(origin)) {
       reply.header("access-control-allow-origin", origin);
       reply.header("access-control-allow-methods", "GET, POST, PUT, OPTIONS");
       reply.header(
@@ -70,6 +83,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
     }
 
     if (request.method === "OPTIONS") {
+      if (origin && !corsAllowedOrigins.has(origin)) {
+        return reply.code(403).send({ error: "CORS origin is not allowed." });
+      }
+
       return reply.code(204).send();
     }
   });

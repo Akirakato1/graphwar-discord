@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildServer, isMainModule } from "./index";
+import { buildServer, type BuildServerOptions, isMainModule } from "./index";
 import { LocalStateStore } from "./persistence/LocalStateStore";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
@@ -11,11 +11,11 @@ type TestServer = Awaited<ReturnType<typeof buildServer>>;
 const servers: TestServer[] = [];
 const tempDirs: string[] = [];
 
-async function createTestServer(): Promise<{ app: TestServer; stateStore: LocalStateStore }> {
+async function createTestServer(options: BuildServerOptions = {}): Promise<{ app: TestServer; stateStore: LocalStateStore }> {
   const dir = await mkdtemp(join(tmpdir(), "graphwar-index-"));
   tempDirs.push(dir);
   const stateStore = new LocalStateStore(join(dir, "local-state.json"));
-  const app = await buildServer({ stateStore });
+  const app = await buildServer({ ...options, stateStore });
   servers.push(app);
   return { app, stateStore };
 }
@@ -40,23 +40,72 @@ describe("isMainModule", () => {
 });
 
 describe("guild HTTP routes", () => {
-  it("answers browser CORS preflight requests for lobby APIs", async () => {
+  it("answers browser CORS preflight requests for allowed local lobby API origins", async () => {
+    const { app } = await createTestServer();
+
+    for (const origin of ["http://127.0.0.1:5173", "http://localhost:5173"]) {
+      const response = await app.inject({
+        method: "OPTIONS",
+        url: "/guilds/local-guild/lobbies",
+        headers: {
+          origin,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type"
+        }
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(response.headers["access-control-allow-origin"]).toBe(origin);
+      expect(response.headers["access-control-allow-methods"]).toContain("POST");
+      expect(response.headers["access-control-allow-headers"]).toContain("content-type");
+    }
+  });
+
+  it("rejects browser CORS preflight requests from unlisted origins", async () => {
     const { app } = await createTestServer();
 
     const response = await app.inject({
       method: "OPTIONS",
       url: "/guilds/local-guild/lobbies",
       headers: {
-        origin: "http://127.0.0.1:5173",
+        origin: "https://example.invalid",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("allows explicitly configured browser CORS origins for guild APIs", async () => {
+    const { app } = await createTestServer({ corsAllowedOrigins: ["https://activity.example"] });
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/guilds/local-guild/lobbies",
+      headers: {
+        origin: "https://activity.example",
         "access-control-request-method": "POST",
         "access-control-request-headers": "content-type"
       }
     });
 
     expect(response.statusCode).toBe(204);
-    expect(response.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
-    expect(response.headers["access-control-allow-methods"]).toContain("POST");
-    expect(response.headers["access-control-allow-headers"]).toContain("content-type");
+    expect(response.headers["access-control-allow-origin"]).toBe("https://activity.example");
+  });
+
+  it("does not attach CORS headers to guild API requests from unlisted origins", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/guilds/local-guild/lobbies",
+      headers: { origin: "https://example.invalid" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("does not attach CORS headers to health checks", async () => {

@@ -84,6 +84,30 @@ async function canvasPathPoints(page: Page): Promise<number> {
   return Number(rawValue ?? 0);
 }
 
+async function expectShotControlsAbsent(page: Page): Promise<void> {
+  await expect(page.getByLabel("Function Shot")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Fire" })).toHaveCount(0);
+  await expect(page.getByLabel("Aim west")).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Function snippet palette" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Insert .+ function|Insert .+ template|Insert .+ variable|Insert .+ constant|Insert .+ operator|Insert parentheses/ })).toHaveCount(0);
+}
+
+async function expectMenuCreateJoinNoScroll(page: Page, player: Player, guildId: string): Promise<void> {
+  await openLocalMenu(page, player, guildId);
+  await expectNoPageScroll(page);
+
+  await page.getByRole("button", { name: "Create Lobby" }).click();
+  await expect(page.getByRole("heading", { name: "Create Lobby" })).toBeVisible();
+  await expectNoPageScroll(page);
+  await page.getByRole("button", { name: "Back" }).click();
+
+  await page.getByRole("button", { name: "Join Lobby" }).click();
+  await expect(page.getByRole("heading", { name: "Join Lobby" })).toBeVisible();
+  await expectNoPageScroll(page);
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("heading", { name: "Graphwar" })).toBeVisible();
+}
+
 test("two local players can start a match and advance turns with a function shot", async ({ browser }, testInfo) => {
   const guildId = idFor(testInfo.title, "guild");
   const lobbyName = idFor(testInfo.title, "lobby");
@@ -105,6 +129,8 @@ test("two local players can start a match and advance turns with a function shot
     await bobPage.getByRole("button", { name: "Join As Player" }).click();
     await expect(bobPage.getByLabel("Alias")).toHaveAttribute("aria-invalid", "true");
     await expect(bobPage.getByText("Alias is already taken.")).toBeVisible();
+    await bobPage.getByRole("button", { name: lobbyName }).click();
+    await expect(bobPage.getByLabel("Alias")).not.toHaveAttribute("aria-invalid", "true");
     await bobPage.getByLabel("Alias").fill("Bob");
     await bobPage.getByRole("button", { name: "Join As Player" }).click();
     await expect(bobPage.getByRole("heading", { name: lobbyName })).toBeVisible();
@@ -124,7 +150,7 @@ test("two local players can start a match and advance turns with a function shot
     await joinLobby(spectatorPage, lobbyName, "Charlie", "spectator", "game");
     await expect(spectatorPage.getByTestId("game-canvas")).toBeVisible();
     await expect(spectatorPage.getByText("Spectating")).toBeVisible();
-    await expect(spectatorPage.getByLabel("Function Shot")).toHaveCount(0);
+    await expectShotControlsAbsent(spectatorPage);
 
     const aliceTurn = await activeTurnText(alicePage);
     const activePage = aliceTurn.includes("Your Turn") ? alicePage : bobPage;
@@ -202,7 +228,7 @@ test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling
     const bobPage = await bobContext.newPage();
 
     try {
-      await openLocalMenu(alicePage, alice, guildId);
+      await expectMenuCreateJoinNoScroll(alicePage, alice, guildId);
       await createLobby(alicePage, lobbyName, "Alice");
       await openLocalMenu(bobPage, bob, guildId);
       await joinLobby(bobPage, lobbyName, "Bob");
