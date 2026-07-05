@@ -122,6 +122,36 @@ describe("MatchController", () => {
     expect(controller.getSnapshot().mode).toBe("free-for-all");
   });
 
+  it("starts a team match using explicit lobby team placements", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-b" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-a" }
+    ]);
+
+    const snapshot = controller.startMatch("team-versus");
+
+    expect(snapshot.teams).toEqual([
+      { id: "team-a", playerIds: ["bob-id"] },
+      { id: "team-b", playerIds: ["alice-id"] }
+    ]);
+    expect(snapshot.players.find((player) => player.id === "alice-id")?.teamId).toBe("team-b");
+  });
+
+  it("rebuilds lobby snapshots from non-spectator lobby players only", () => {
+    const controller = new MatchController("room-1");
+    const snapshot = controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+
+    expect(snapshot.players.map((player) => player.id)).toEqual(["alice-id", "bob-id"]);
+    expect(snapshot.teams).toEqual([
+      { id: "player-alice-id", playerIds: ["alice-id"] },
+      { id: "player-bob-id", playerIds: ["bob-id"] }
+    ]);
+  });
+
   it("throws when selecting a mode after match start", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");

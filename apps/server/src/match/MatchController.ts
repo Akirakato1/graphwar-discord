@@ -58,6 +58,20 @@ export class MatchController {
     return this.getSnapshot();
   }
 
+  setLobbyPlayers(modeId: MatchModeId, players: LobbyPlayer[]): MatchState {
+    if (this.snapshot.phase !== "lobby") {
+      throw new Error("Match has already started");
+    }
+
+    this.lobbyPlayers.clear();
+    for (const player of players) {
+      this.lobbyPlayers.set(player.id, player);
+    }
+    this.snapshot = this.createLobbySnapshot(modeId);
+
+    return this.getSnapshot();
+  }
+
   startMatch(modeId: MatchModeId): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Match has already started");

@@ -1,11 +1,21 @@
 import type { MatchModeId, PlayerId, TeamState } from "@graphwar/shared";
 import { GameMode, type LobbyPlayer, type TurnPlayer } from "./GameMode";
-import { splitPlayerIdsByTeam } from "./TeamAssignment";
+import { splitPlayerIdsByTeam, teamVersusTeamIds } from "./TeamAssignment";
 
 export class TeamVersusMode extends GameMode {
   readonly id: MatchModeId = "team-versus";
 
   buildTeams(players: LobbyPlayer[]): TeamState[] {
+    const explicitTeamPlayers = players.filter((player) =>
+      teamVersusTeamIds.some((teamId) => teamId === player.teamId)
+    );
+    if (explicitTeamPlayers.length === players.length && players.length > 0) {
+      return teamVersusTeamIds.map((teamId) => ({
+        id: teamId,
+        playerIds: players.filter((player) => player.teamId === teamId).map((player) => player.id)
+      }));
+    }
+
     return splitPlayerIdsByTeam(players.map((player) => player.id));
   }
 

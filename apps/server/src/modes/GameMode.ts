@@ -1,6 +1,6 @@
 import type { MatchModeId, PlayerId, TeamId, TeamState } from "@graphwar/shared";
 
-export type LobbyPlayer = { id: PlayerId; displayName: string };
+export type LobbyPlayer = { id: PlayerId; displayName: string; teamId?: TeamId };
 export type TurnPlayer = { id: PlayerId; teamId: TeamId; alive: boolean };
 
 export abstract class GameMode {
