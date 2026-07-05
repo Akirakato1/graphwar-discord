@@ -17,6 +17,7 @@ import type { MapGenerator } from "../maps/MapGenerator";
 import { TeamVersusMapGenerator } from "../maps/TeamVersusMapGenerator";
 import { FreeForAllMode } from "../modes/FreeForAllMode";
 import type { GameMode, LobbyPlayer, TurnPlayer } from "../modes/GameMode";
+import { teamVersusTeamIds } from "../modes/TeamAssignment";
 import { TeamVersusMode } from "../modes/TeamVersusMode";
 import { ShotSimulator } from "../simulation/ShotSimulator";
 import type { MatchState } from "./MatchState";
@@ -65,7 +66,7 @@ export class MatchController {
 
     this.lobbyPlayers.clear();
     for (const player of players) {
-      this.lobbyPlayers.set(player.id, player);
+      this.lobbyPlayers.set(player.id, { ...player });
     }
     this.snapshot = this.createLobbySnapshot(modeId);
 
@@ -87,7 +88,8 @@ export class MatchController {
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
-    const map = generator.generate(this.mapSeed(playerIds), playerIds);
+    const mapPlayerIds = this.createMapPlayerIds(modeId, teams, playerIds);
+    const map = generator.generate(this.mapSeed(playerIds), mapPlayerIds);
     const spawnsByPlayerId = new Map(map.spawns.map((spawn) => [spawn.playerId, spawn.position]));
     const players = lobbyPlayers.map((player) => ({
       id: player.id,
@@ -293,6 +295,34 @@ export class MatchController {
       }
     }
     return teamIds;
+  }
+
+  private createMapPlayerIds(modeId: MatchModeId, teams: TeamState[], fallbackPlayerIds: PlayerId[]): PlayerId[] {
+    if (modeId !== "team-versus") {
+      return fallbackPlayerIds;
+    }
+
+    const playerIdsByTeamId = new Map(teams.map((team) => [team.id, team.playerIds]));
+    const teamAPlayerIds = playerIdsByTeamId.get(teamVersusTeamIds[0]);
+    const teamBPlayerIds = playerIdsByTeamId.get(teamVersusTeamIds[1]);
+    if (!teamAPlayerIds || !teamBPlayerIds) {
+      return fallbackPlayerIds;
+    }
+
+    const playerIds: PlayerId[] = [];
+    const maxTeamSize = Math.max(teamAPlayerIds.length, teamBPlayerIds.length);
+    for (let index = 0; index < maxTeamSize; index += 1) {
+      const teamAPlayerId = teamAPlayerIds[index];
+      const teamBPlayerId = teamBPlayerIds[index];
+      if (teamAPlayerId !== undefined) {
+        playerIds.push(teamAPlayerId);
+      }
+      if (teamBPlayerId !== undefined) {
+        playerIds.push(teamBPlayerId);
+      }
+    }
+
+    return playerIds;
   }
 
   private mapSeed(playerIds: PlayerId[]): string {

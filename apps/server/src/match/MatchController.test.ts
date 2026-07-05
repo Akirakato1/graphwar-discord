@@ -136,6 +136,9 @@ describe("MatchController", () => {
       { id: "team-b", playerIds: ["alice-id"] }
     ]);
     expect(snapshot.players.find((player) => player.id === "alice-id")?.teamId).toBe("team-b");
+    expect(snapshot.players.find((player) => player.id === "alice-id")?.position.x).toBeGreaterThan(0);
+    expect(snapshot.players.find((player) => player.id === "bob-id")?.position.x).toBeLessThan(0);
+    expect(snapshot.turn.order).toEqual(["alice-id", "bob-id"]);
   });
 
   it("rebuilds lobby snapshots from non-spectator lobby players only", () => {
@@ -150,6 +153,30 @@ describe("MatchController", () => {
       { id: "player-alice-id", playerIds: ["alice-id"] },
       { id: "player-bob-id", playerIds: ["bob-id"] }
     ]);
+  });
+
+  it("copies lobby players passed to setLobbyPlayers", () => {
+    const controller = new MatchController("room-1");
+    const players: Parameters<MatchController["setLobbyPlayers"]>[1] = [
+      { id: "alice-id", displayName: "Alice", teamId: "team-a" }
+    ];
+    controller.setLobbyPlayers("team-versus", players);
+    players[0].displayName = "Mallory";
+    players[0].teamId = "team-b";
+
+    expect(controller.getSnapshot().players[0]).toMatchObject({ displayName: "Alice", teamId: "team-a" });
+    expect(controller.startMatch("team-versus").players[0]).toMatchObject({ displayName: "Alice", teamId: "team-a" });
+  });
+
+  it("throws when replacing lobby players after match start", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-a" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-b" }
+    ]);
+    controller.startMatch("team-versus");
+
+    expect(() => controller.setLobbyPlayers("team-versus", [])).toThrow("Match has already started");
   });
 
   it("throws when selecting a mode after match start", () => {
