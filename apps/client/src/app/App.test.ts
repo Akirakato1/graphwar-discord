@@ -1,7 +1,8 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { App, GameSessionPill, LobbySetupPlaceholder } from "./App";
+import { App, GameSessionPill } from "./App";
+import { LobbySetupView } from "../lobby/LobbySetupView";
 
 describe("App", () => {
   it("renders the main menu before any websocket game UI", () => {
@@ -17,8 +18,8 @@ describe("App", () => {
 
   it("disables lobby setup start while the lobby cannot start", () => {
     const html = renderToStaticMarkup(
-      React.createElement(LobbySetupPlaceholder, {
-        connectionStatus: "open",
+      React.createElement(LobbySetupView, {
+        currentPlayerId: "alice",
         lobby: {
           guildId: "local-guild",
           roomId: "room-1",
@@ -31,8 +32,10 @@ describe("App", () => {
           startBlockedReason: "Need at least two players.",
           createdAt: "2026-07-05T00:00:00.000Z"
         },
+        onAutoAssign: () => {},
         onBack: () => {},
-        onStartMatch: () => {}
+        onMove: () => {},
+        onStart: () => {}
       })
     );
 

@@ -14,6 +14,7 @@ type MatchHudProps = {
   playbackInProgress?: boolean;
   session: ClientSession;
   snapshot?: MatchSnapshot;
+  spectator?: boolean;
 };
 
 function phaseLabel(snapshot: MatchSnapshot | undefined): string {
@@ -40,7 +41,8 @@ export function MatchHud({
   onSubmitShot,
   playbackInProgress = false,
   session,
-  snapshot
+  snapshot,
+  spectator = false
 }: MatchHudProps) {
   const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
   const activePlayer = snapshot?.players.find((player) => player.id === snapshot.turn.activePlayerId);
@@ -50,6 +52,22 @@ export function MatchHud({
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
   const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress;
   const notice = lastError ?? lastRejection?.reason;
+
+  if (isPlaying && spectator) {
+    return (
+      <section className="panel match-hud compact-match-hud spectator-hud" aria-labelledby="match-title">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Spectating</p>
+            <h2 id="match-title">{activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}</h2>
+          </div>
+          <span className="turn-badge" data-testid="active-turn">
+            {activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   if (isPlaying) {
     return (

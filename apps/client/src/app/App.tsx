@@ -5,30 +5,14 @@ import { MatchHud } from "../hud/MatchHud";
 import { LeaderboardView } from "../leaderboard/LeaderboardView";
 import { CreateLobbyView } from "../lobby/CreateLobbyView";
 import { JoinLobbyView } from "../lobby/JoinLobbyView";
+import { LobbySetupView } from "../lobby/LobbySetupView";
 import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
-import { useGameStore, type ConnectionStatus, type SelectedLobbySession } from "./useGameStore";
+import { useGameStore, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
-import type { LobbyRuntimeSnapshot } from "@graphwar/shared";
-
-function statusText(status: ConnectionStatus): string {
-  switch (status) {
-    case "idle":
-      return "Idle";
-    case "connecting":
-      return "Connecting";
-    case "open":
-      return "Connected";
-    case "closed":
-      return "Closed";
-    case "reconnecting":
-      return "Reconnecting";
-    case "error":
-      return "Error";
-  }
-}
 
 export function App() {
+  const autoAssignTeams = useGameStore((state) => state.autoAssignTeams);
   const createLobby = useGameStore((state) => state.createLobby);
   const currentLobby = useGameStore((state) => state.currentLobby);
   const leaderboard = useGameStore((state) => state.leaderboard);
@@ -40,10 +24,11 @@ export function App() {
   const settings = useGameStore((state) => state.settings);
   const setView = useGameStore((state) => state.setView);
   const view = useGameStore((state) => state.view);
-  const connectionStatus = useGameStore((state) => state.connectionStatus);
   const disconnect = useGameStore((state) => state.disconnect);
   const joinLobby = useGameStore((state) => state.joinLobby);
+  const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
+  const setTeam = useGameStore((state) => state.setTeam);
   const startMatch = useGameStore((state) => state.startMatch);
 
   if (view === "main-menu") {
@@ -69,67 +54,38 @@ export function App() {
   }
 
   if (view === "lobby-setup") {
+    if (!currentLobby) {
+      return (
+        <section className="lobby-setup-screen" aria-labelledby="lobby-setup-title">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Lobby setup</p>
+              <h1 id="lobby-setup-title">Selected lobby</h1>
+            </div>
+          </div>
+          <div className="notice" role="status">
+            Waiting for lobby snapshot.
+          </div>
+        </section>
+      );
+    }
+
     return (
-      <LobbySetupPlaceholder
-        connectionStatus={connectionStatus}
+      <LobbySetupView
+        currentPlayerId={selectedLobbySession?.playerId ?? session.playerId}
         lobby={currentLobby}
+        onAutoAssign={autoAssignTeams}
         onBack={() => {
           disconnect();
           setView("main-menu");
         }}
-        onStartMatch={startMatch}
+        onMove={setTeam}
+        onStart={startMatch}
       />
     );
   }
 
   return <GameActivity />;
-}
-
-export function LobbySetupPlaceholder({
-  connectionStatus,
-  lobby,
-  onBack,
-  onStartMatch
-}: {
-  connectionStatus: ConnectionStatus;
-  lobby?: LobbyRuntimeSnapshot;
-  onBack: () => void;
-  onStartMatch: () => void;
-}) {
-  const startDisabled = connectionStatus !== "open" || !lobby?.canStart;
-
-  return (
-    <main className="app-shell">
-      <section className="panel menu-panel" aria-labelledby="lobby-setup-title">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Lobby setup</p>
-            <h2 id="lobby-setup-title">{lobby?.name ?? "Selected lobby"}</h2>
-          </div>
-          <span className={`connection-light ${connectionStatus}`} aria-hidden="true" />
-        </div>
-        <dl className="connection-details">
-          <div>
-            <dt>Status</dt>
-            <dd>{lobby?.status ?? "open"}</dd>
-          </div>
-          <div>
-            <dt>Connection</dt>
-            <dd>{statusText(connectionStatus)}</dd>
-          </div>
-        </dl>
-        {lobby?.startBlockedReason && <p className="notice">{lobby.startBlockedReason}</p>}
-        <div className="connection-actions">
-          <button className="secondary-action" onClick={onBack} type="button">
-            Back
-          </button>
-          <button className="primary-action" disabled={startDisabled} onClick={onStartMatch} type="button">
-            Start Match
-          </button>
-        </div>
-      </section>
-    </main>
-  );
 }
 
 function GameActivity() {
@@ -148,6 +104,7 @@ function GameActivity() {
   const [playbackShotKey, setPlaybackShotKey] = useState<string | undefined>();
   const playbackInProgress = Boolean(latestShotKey && playbackShotKey === latestShotKey);
   const displaySnapshot = playbackInProgress && snapshotBeforeLatestShot ? snapshotBeforeLatestShot : snapshot;
+  const spectator = selectedLobbySession?.slot === "spectator";
 
   useEffect(() => {
     if (!latestShotKey || !snapshotBeforeLatestShot) {
@@ -184,6 +141,7 @@ function GameActivity() {
           playbackInProgress={playbackInProgress}
           session={session}
           snapshot={snapshot}
+          spectator={spectator}
         />
       </div>
     </main>

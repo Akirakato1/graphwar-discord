@@ -96,4 +96,27 @@ describe("MatchHud", () => {
     expect(html).toMatch(/aria-label="Insert sine function"[^>]*disabled=""/);
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
   });
+
+  it("hides function controls for spectators", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MatchHud, {
+        connectionStatus: "open",
+        onSubmitShot: () => undefined,
+        session: {
+          guildId: "local-guild",
+          discordUserId: "spectator-id",
+          playerId: "spectator-id",
+          defaultAlias: "Spec",
+          displayName: "Spec",
+          source: "local"
+        },
+        snapshot: playingSnapshot,
+        spectator: true
+      })
+    );
+
+    expect(html).toContain("Spectating");
+    expect(html).not.toContain("Function Shot");
+    expect(html).not.toContain("Fire");
+  });
 });
