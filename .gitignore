@@ -4,3 +4,4 @@ dist/
 test-results/
 playwright-report/
 .superpowers/
+apps/server/data/local-state.json
