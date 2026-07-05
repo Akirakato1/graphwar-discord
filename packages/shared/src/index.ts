@@ -2,6 +2,8 @@ export * from "./constants";
 export * from "./geometry/coordinates";
 export * from "./geometry/polygons";
 export * from "./geometry/types";
+export * from "./lobby/alias";
+export * from "./lobby/types";
 export * from "./protocol/commands";
 export * from "./protocol/events";
 export * from "./protocol/schemas";
