@@ -12,6 +12,7 @@ export const nonNegativeFiniteNumberSchema = finiteNumberSchema.nonnegative();
 export const positiveIntegerSchema = z.number().finite().int().positive();
 export const aimDirectionSchema = z.enum(aimDirections);
 const optionalGuildIdSchema = z.string().min(1).optional();
+const optionalSessionTokenSchema = z.string().min(1).optional();
 
 export const pointSchema = z.object({ x: finiteNumberSchema, y: finiteNumberSchema });
 
@@ -50,14 +51,16 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     discordUserId: z.string().optional(),
     alias: z.string().optional(),
     displayName: z.string(),
-    slot: lobbySlotSchema.optional()
+    slot: lobbySlotSchema.optional(),
+    sessionToken: optionalSessionTokenSchema
   }),
   z.object({
     type: z.literal("select-mode"),
     guildId: optionalGuildIdSchema,
     roomId: z.string(),
     playerId: z.string(),
-    mode: matchModeSchema
+    mode: matchModeSchema,
+    sessionToken: optionalSessionTokenSchema
   }),
   z.object({
     type: z.literal("set-team"),
@@ -66,10 +69,23 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     playerId: z.string(),
     targetPlayerId: z.string().optional(),
     placement: lobbyPlacementSchema.optional(),
-    teamId: z.string().optional()
+    teamId: z.string().optional(),
+    sessionToken: optionalSessionTokenSchema
   }),
-  z.object({ type: z.literal("auto-assign-teams"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() }),
-  z.object({ type: z.literal("start-match"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() }),
+  z.object({
+    type: z.literal("auto-assign-teams"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    sessionToken: optionalSessionTokenSchema
+  }),
+  z.object({
+    type: z.literal("start-match"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    sessionToken: optionalSessionTokenSchema
+  }),
   z.object({
     type: z.literal("submit-shot"),
     guildId: optionalGuildIdSchema,
@@ -77,16 +93,24 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     playerId: z.string(),
     functionFamilyId: z.literal("normal"),
     aimDirection: aimDirectionSchema,
-    expression: z.string().min(1)
+    expression: z.string().min(1),
+    sessionToken: optionalSessionTokenSchema
   }),
   z.object({
     type: z.literal("send-chat"),
     guildId: optionalGuildIdSchema,
     roomId: z.string(),
     playerId: z.string(),
-    message: z.string().min(1).max(500)
+    message: z.string().min(1).max(500),
+    sessionToken: optionalSessionTokenSchema
   }),
-  z.object({ type: z.literal("request-rematch"), guildId: optionalGuildIdSchema, roomId: z.string(), playerId: z.string() })
+  z.object({
+    type: z.literal("request-rematch"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    sessionToken: optionalSessionTokenSchema
+  })
 ]);
 
 export const clientCommandSchema = clientCommandUnionSchema.superRefine((command, context) => {

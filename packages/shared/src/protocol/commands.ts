@@ -17,6 +17,7 @@ export type JoinRoomCommand = {
   alias?: string;
   displayName: string;
   slot?: LobbySlot;
+  sessionToken?: string;
 };
 export type SelectModeCommand = {
   type: "select-mode";
@@ -24,6 +25,7 @@ export type SelectModeCommand = {
   roomId: RoomId;
   playerId: PlayerId;
   mode: MatchModeId;
+  sessionToken?: string;
 };
 export type SetTeamCommand = {
   type: "set-team";
@@ -33,14 +35,22 @@ export type SetTeamCommand = {
   targetPlayerId?: PlayerId;
   placement?: LobbyPlacementId;
   teamId?: TeamId;
+  sessionToken?: string;
 };
 export type AutoAssignTeamsCommand = {
   type: "auto-assign-teams";
   guildId?: GuildId;
   roomId: RoomId;
   playerId: PlayerId;
+  sessionToken?: string;
 };
-export type StartMatchCommand = { type: "start-match"; guildId?: GuildId; roomId: RoomId; playerId: PlayerId };
+export type StartMatchCommand = {
+  type: "start-match";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  sessionToken?: string;
+};
 export type SubmitShotCommand = {
   type: "submit-shot";
   guildId?: GuildId;
@@ -49,9 +59,23 @@ export type SubmitShotCommand = {
   functionFamilyId: FunctionFamilyId;
   aimDirection: AimDirectionId;
   expression: string;
+  sessionToken?: string;
 };
-export type SendChatCommand = { type: "send-chat"; guildId?: GuildId; roomId: RoomId; playerId: PlayerId; message: string };
-export type RequestRematchCommand = { type: "request-rematch"; guildId?: GuildId; roomId: RoomId; playerId: PlayerId };
+export type SendChatCommand = {
+  type: "send-chat";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  message: string;
+  sessionToken?: string;
+};
+export type RequestRematchCommand = {
+  type: "request-rematch";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  sessionToken?: string;
+};
 
 export type ClientCommand =
   | JoinRoomCommand

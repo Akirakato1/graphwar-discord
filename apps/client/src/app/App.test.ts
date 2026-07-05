@@ -52,7 +52,8 @@ describe("App", () => {
           discordUserId: "alice",
           playerId: "alice-id",
           alias: "Alice",
-          slot: "player"
+          slot: "player",
+          sessionToken: "session-token"
         },
         session: {
           guildId: "local-guild",
@@ -100,7 +101,8 @@ describe("App", () => {
         discordUserId: "alice-discord",
         playerId: "alice-player",
         alias: "Alice",
-        slot: "player"
+        slot: "player",
+        sessionToken: "session-token"
       },
       session: {
         guildId: "local-guild",

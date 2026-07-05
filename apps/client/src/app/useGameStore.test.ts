@@ -92,7 +92,8 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         discordUserId: request.leaderDiscordUserId,
         playerId: request.leaderDiscordUserId,
         alias: request.alias,
-        slot: request.initialSlot
+        slot: request.initialSlot,
+        sessionToken: "session-token"
       }
     }),
     listLobbies: async () => [],
@@ -114,7 +115,8 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         discordUserId: request.discordUserId,
         playerId: request.discordUserId,
         alias: request.alias,
-        slot: request.slot
+        slot: request.slot,
+        sessionToken: "join-session-token"
       }
     }),
     getSettings: async (guildId) => ({ guildId, defaultMode: "team-versus", allowSpectators: true }),
@@ -175,7 +177,8 @@ describe("createGameStore", () => {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
-      slot: "player" as const
+      slot: "player" as const,
+      sessionToken: "alice-session"
     };
     let connectOptions: ConnectGameClientOptions | undefined;
     let onOpen: (() => void) | undefined;
@@ -250,7 +253,8 @@ describe("createGameStore", () => {
         discordUserId: "alice-id",
         alias: "Alice",
         displayName: "Alice",
-        slot: "player"
+        slot: "player",
+        sessionToken: "alice-session"
       }
     ]);
   });
@@ -286,7 +290,8 @@ describe("createGameStore", () => {
               discordUserId: request.leaderDiscordUserId,
               playerId: request.leaderDiscordUserId,
               alias: request.alias,
-              slot: request.initialSlot
+              slot: request.initialSlot,
+              sessionToken: `session-${createCount}`
             }
           };
         }
@@ -353,7 +358,8 @@ describe("createGameStore", () => {
         discordUserId: "alice",
         alias: "Alice",
         displayName: "Alice",
-        slot: "player"
+        slot: "player",
+        sessionToken: "session-token"
       }
     ]);
   });
@@ -380,13 +386,15 @@ describe("createGameStore", () => {
         roomId: "local-test",
         playerId: "alice",
         targetPlayerId: "bob",
-        placement: "spectator"
+        placement: "spectator",
+        sessionToken: "session-token"
       },
       {
         type: "auto-assign-teams",
         guildId: "local-guild",
         roomId: "local-test",
-        playerId: "alice"
+        playerId: "alice",
+        sessionToken: "session-token"
       }
     ]);
   });
@@ -455,8 +463,21 @@ describe("createGameStore", () => {
     expect(store.getState().recentEvents.map((event) => event.type)).toEqual(["room-snapshot", "shot-rejected"]);
     expect(store.getState().lastRejection).toEqual({ playerId: "alice", reason: "Player is not active" });
     expect(commands).toEqual([
-      { type: "select-mode", guildId: "local-guild", roomId: "local-test", playerId: "alice", mode: "free-for-all" },
-      { type: "start-match", guildId: "local-guild", roomId: "local-test", playerId: "alice" },
+      {
+        type: "select-mode",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        mode: "free-for-all",
+        sessionToken: "session-token"
+      },
+      {
+        type: "start-match",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        sessionToken: "session-token"
+      },
       {
         type: "submit-shot",
         guildId: "local-guild",
@@ -464,7 +485,8 @@ describe("createGameStore", () => {
         playerId: "alice",
         functionFamilyId: "normal",
         aimDirection: "west",
-        expression: "sin(x)"
+        expression: "sin(x)",
+        sessionToken: "session-token"
       }
     ]);
   });

@@ -41,7 +41,8 @@ describe("LobbyDirectory", () => {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
-      slot: "player"
+      slot: "player",
+      sessionToken: expect.any(String)
     });
     expect(result.lobby.occupants).toEqual([
       {
@@ -291,7 +292,8 @@ describe("LobbyDirectory", () => {
       discordUserId: "carol-id",
       playerId: "carol-id",
       alias: "Carol",
-      slot: "spectator"
+      slot: "spectator",
+      sessionToken: expect.any(String)
     });
     expect(result.lobby.occupants).toContainEqual(
       expect.objectContaining({
@@ -830,5 +832,32 @@ describe("LobbyDirectory", () => {
         placement: "team-a"
       })
     ]);
+  });
+
+  it("hides ended lobbies from listings and rejects later joins", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Finished Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "free-for-all",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+    directory.markPlaying("guild-1", "room-1");
+    directory.markEnded("guild-1", "room-1");
+
+    expect(directory.listLobbies("guild-1")).toEqual([]);
+    await expect(
+      directory.joinLobby("guild-1", "room-1", {
+        discordUserId: "carol-id",
+        alias: "Carol",
+        slot: "spectator"
+      })
+    ).rejects.toThrow("Lobby has ended.");
   });
 });

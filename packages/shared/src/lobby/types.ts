@@ -93,6 +93,7 @@ export type LobbyJoinResult = {
     playerId: PlayerId;
     alias: string;
     slot: LobbySlot;
+    sessionToken: string;
   };
 };
 

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import type { Duplex } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { createLobbyRequestSchema, guildSettingsSchema, joinLobbyRequestSchema } from "@graphwar/shared";
 import Fastify from "fastify";
@@ -36,15 +37,36 @@ function readConfiguredCorsOrigins(env: NodeJS.ProcessEnv = process.env): string
   return defaultCorsAllowedOrigins;
 }
 
-function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomId: string } | undefined {
+function rejectWebSocketUpgrade(socket: Duplex, statusCode: number, message: string): void {
+  const body = JSON.stringify({ error: message });
+  socket.write(
+    [
+      `HTTP/1.1 ${statusCode} Forbidden`,
+      "Connection: close",
+      "Content-Type: application/json",
+      `Content-Length: ${Buffer.byteLength(body)}`,
+      "",
+      body
+    ].join("\r\n")
+  );
+  socket.destroy();
+}
+
+function parseRoomPath(requestUrl: string | undefined): { guildId: string; roomId: string; guildScoped: boolean } | undefined {
   try {
     const url = new URL(requestUrl ?? "/", "http://localhost");
     const guildMatch = /^\/guilds\/([^/]+)\/rooms\/([^/]+)$/.exec(url.pathname);
     if (guildMatch) {
-      return { guildId: decodeURIComponent(guildMatch[1]), roomId: decodeURIComponent(guildMatch[2]) };
+      return {
+        guildId: decodeURIComponent(guildMatch[1]),
+        roomId: decodeURIComponent(guildMatch[2]),
+        guildScoped: true
+      };
     }
     const legacyMatch = /^\/rooms\/([^/]+)$/.exec(url.pathname);
-    return legacyMatch ? { guildId: "local-guild", roomId: decodeURIComponent(legacyMatch[1]) } : undefined;
+    return legacyMatch
+      ? { guildId: "local-guild", roomId: decodeURIComponent(legacyMatch[1]), guildScoped: false }
+      : undefined;
   } catch {
     return undefined;
   }
@@ -108,6 +130,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
     if (!parsed.success) {
       return reply.code(400).send({ code: "invalid-lobby", error: parsed.error.message });
     }
+    const settings = await stateStore.getGuildSettings(guildId);
+    if (!settings.allowSpectators && parsed.data.initialSlot === "spectator") {
+      return reply.code(403).send({ code: "forbidden", error: "Spectators are disabled for this server." });
+    }
     try {
       return reply.code(201).send(await lobbies.createLobby(guildId, parsed.data));
     } catch (error) {
@@ -125,6 +151,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
     const parsed = joinLobbyRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ code: "invalid-lobby", error: parsed.error.message });
+    }
+    const settings = await stateStore.getGuildSettings(guildId);
+    if (!settings.allowSpectators && parsed.data.slot === "spectator") {
+      return reply.code(403).send({ code: "forbidden", error: "Spectators are disabled for this server." });
     }
     try {
       return await lobbies.joinLobby(guildId, roomId, parsed.data);
@@ -160,6 +190,12 @@ export async function buildServer(options: BuildServerOptions = {}) {
     const parsed = parseRoomPath(request.url);
     if (!parsed) {
       socket.destroy();
+      return;
+    }
+
+    const origin = request.headers.origin;
+    if (parsed.guildScoped && origin && !corsAllowedOrigins.has(origin)) {
+      rejectWebSocketUpgrade(socket, 403, "WebSocket origin is not allowed.");
       return;
     }
 

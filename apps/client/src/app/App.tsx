@@ -73,16 +73,37 @@ export function App() {
   const startMatch = useGameStore((state) => state.startMatch);
   const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
 
+  useEffect(() => {
+    if ((view === "create-lobby" || view === "join-lobby" || view === "settings") && !settings) {
+      void loadSettings();
+    }
+  }, [loadSettings, settings, view]);
+
   if (view === "main-menu") {
     return <MainMenu guildId={session.guildId} onNavigate={setView} />;
   }
 
   if (view === "create-lobby") {
-    return <CreateLobbyView defaultAlias={session.defaultAlias} onBack={() => setView("main-menu")} onCreate={createLobby} />;
+    return (
+      <CreateLobbyView
+        defaultAlias={session.defaultAlias}
+        onBack={() => setView("main-menu")}
+        onCreate={createLobby}
+        settings={settings}
+      />
+    );
   }
 
   if (view === "join-lobby") {
-    return <JoinLobbyView lobbies={lobbies} onBack={() => setView("main-menu")} onJoin={joinLobby} onLoad={loadLobbies} />;
+    return (
+      <JoinLobbyView
+        lobbies={lobbies}
+        onBack={() => setView("main-menu")}
+        onJoin={joinLobby}
+        onLoad={loadLobbies}
+        settings={settings}
+      />
+    );
   }
 
   if (view === "settings") {

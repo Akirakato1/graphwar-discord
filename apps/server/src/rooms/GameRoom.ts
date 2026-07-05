@@ -7,7 +7,7 @@ import type {
   SubmitShotCommand
 } from "@graphwar/shared";
 import WebSocket from "ws";
-import { LobbyDirectory } from "../lobbies/LobbyDirectory";
+import { LobbyDirectory, type LobbySessionIdentity } from "../lobbies/LobbyDirectory";
 import { MatchController } from "../match/MatchController";
 import { LocalStateStore } from "../persistence/LocalStateStore";
 
@@ -19,6 +19,7 @@ type LobbyContext = {
 
 export class GameRoom {
   readonly clients = new Set<WebSocket>();
+  private readonly lobbySessions = new WeakMap<WebSocket, LobbySessionIdentity>();
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly match: MatchController;
 
@@ -139,17 +140,26 @@ export class GameRoom {
 
     switch (command.type) {
       case "join-room": {
-        await context.lobbies.joinLobby(context.guildId, this.roomId, {
-          discordUserId: command.discordUserId ?? command.playerId,
-          alias: command.alias ?? command.displayName,
-          slot: command.slot ?? "player"
-        });
+        const session = context.lobbies.validateSession(context.guildId, this.roomId, command.sessionToken);
+        if (
+          command.playerId !== session.playerId ||
+          (command.discordUserId !== undefined && command.discordUserId !== session.discordUserId)
+        ) {
+          this.sendRejection(socket, command.playerId, "Command actor does not match socket session.");
+          return;
+        }
+        context.lobbies.markConnected(context.guildId, this.roomId, session.sessionToken);
+        this.lobbySessions.set(socket, session);
         this.syncLobbySnapshot();
-        this.broadcast({ type: "player-joined", roomId: this.roomId, playerId: command.playerId });
+        this.broadcast({ type: "player-joined", roomId: this.roomId, playerId: session.playerId });
         this.broadcastRoomSnapshot();
         return;
       }
       case "set-team": {
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
         const placement = this.resolveLobbyPlacement(command.placement, command.teamId);
         if (!placement) {
           this.sendRejection(socket, command.playerId, "set-team requires a valid lobby placement.");
@@ -158,8 +168,8 @@ export class GameRoom {
         context.lobbies.moveOccupant(
           context.guildId,
           this.roomId,
-          command.playerId,
-          command.targetPlayerId ?? command.playerId,
+          session.discordUserId,
+          command.targetPlayerId ?? session.discordUserId,
           placement
         );
         this.syncLobbySnapshot();
@@ -167,14 +177,22 @@ export class GameRoom {
         return;
       }
       case "auto-assign-teams": {
-        context.lobbies.autoAssignTeams(context.guildId, this.roomId, command.playerId);
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
+        context.lobbies.autoAssignTeams(context.guildId, this.roomId, session.discordUserId);
         this.syncLobbySnapshot();
         this.broadcastRoomSnapshot();
         return;
       }
       case "start-match": {
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
         this.syncLobbySnapshot();
-        context.lobbies.assertCanStart(context.guildId, this.roomId, command.playerId);
+        context.lobbies.assertCanStart(context.guildId, this.roomId, session.discordUserId);
         const lobby = context.lobbies.markPlaying(context.guildId, this.roomId);
         const snapshot = this.match.startMatch(lobby.mode);
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
@@ -187,11 +205,15 @@ export class GameRoom {
         return;
       }
       case "submit-shot": {
-        if (this.isSpectator(command.playerId)) {
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
+        if (this.isSpectator(session.playerId)) {
           this.sendRejection(socket, command.playerId, "Spectators cannot submit shots.");
           return;
         }
-        await this.handleSubmitShot(socket, command);
+        await this.handleSubmitShot(socket, { ...command, playerId: session.playerId });
         return;
       }
       case "select-mode":
@@ -351,7 +373,33 @@ export class GameRoom {
     return this.lobbyContext;
   }
 
+  private requireLobbySession(socket: WebSocket, command: ClientCommand): LobbySessionIdentity | undefined {
+    const session = this.lobbySessions.get(socket);
+    if (!session) {
+      this.sendRejection(socket, command.playerId, "Join lobby before sending commands.");
+      return undefined;
+    }
+
+    if (command.playerId !== session.playerId || (command.sessionToken && command.sessionToken !== session.sessionToken)) {
+      this.sendRejection(socket, command.playerId, "Command actor does not match socket session.");
+      return undefined;
+    }
+
+    return session;
+  }
+
   private removeClient(socket: WebSocket): void {
+    const session = this.lobbySessions.get(socket);
+    if (session && this.lobbyContext) {
+      this.lobbySessions.delete(socket);
+      this.lobbyContext.lobbies.markDisconnected(this.lobbyContext.guildId, this.roomId, session.sessionToken);
+      try {
+        this.broadcastRoomSnapshot();
+      } catch {
+        // Disconnect snapshots are best-effort; room cleanup below still owns lifecycle.
+      }
+    }
+
     const removed = this.clients.delete(socket);
     if (removed && this.isEmpty()) {
       this.onEmpty();

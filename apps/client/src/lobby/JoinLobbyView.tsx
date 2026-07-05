@@ -1,11 +1,12 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
-import type { LobbySlot, LobbySummary } from "@graphwar/shared";
+import type { GuildSettings, LobbySlot, LobbySummary } from "@graphwar/shared";
 
 type JoinLobbyViewProps = {
   lobbies: LobbySummary[];
   onBack: () => void;
   onJoin: (roomId: string, form: { alias: string; slot: LobbySlot }) => Promise<void>;
   onLoad: () => Promise<void>;
+  settings?: GuildSettings;
 };
 
 export function validateJoinAlias(alias: string): string | undefined {
@@ -30,11 +31,15 @@ export function isJoinActionDisabled(lobby: LobbySummary, slot: LobbySlot, joini
   return joiningRoomId === lobby.roomId || (slot === "player" && lobby.status === "playing");
 }
 
+export function availableJoinSlots(settings?: Pick<GuildSettings, "allowSpectators">): LobbySlot[] {
+  return settings?.allowSpectators === false ? ["player"] : ["player", "spectator"];
+}
+
 function messageFromError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyViewProps) {
+export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: JoinLobbyViewProps) {
   const [alias, setAlias] = useState("");
   const [aliasTaken, setAliasTaken] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
@@ -146,7 +151,7 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad }: JoinLobbyView
 
       {selectedLobby && (
         <div className="form-actions" aria-label={`Join ${selectedLobby.name}`}>
-          {(["player", "spectator"] as const).map((actionSlot) => (
+          {availableJoinSlots(settings).map((actionSlot) => (
             <button
               className={actionSlot === "player" ? "primary-action" : "secondary-action"}
               disabled={isJoinActionDisabled(selectedLobby, actionSlot, joiningRoomId)}

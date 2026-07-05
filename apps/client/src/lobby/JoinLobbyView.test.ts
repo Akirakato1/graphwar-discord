@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isAliasConflictError, isJoinActionDisabled, joinActionLabel, validateJoinAlias } from "./JoinLobbyView";
+import {
+  availableJoinSlots,
+  isAliasConflictError,
+  isJoinActionDisabled,
+  joinActionLabel,
+  validateJoinAlias
+} from "./JoinLobbyView";
 
 const openLobby = {
   guildId: "local-guild",
@@ -34,5 +40,9 @@ describe("JoinLobbyView helpers", () => {
     expect(isJoinActionDisabled({ ...openLobby, status: "playing" }, "player", undefined)).toBe(true);
     expect(isJoinActionDisabled({ ...openLobby, status: "playing" }, "spectator", undefined)).toBe(false);
     expect(isJoinActionDisabled(openLobby, "spectator", openLobby.roomId)).toBe(true);
+  });
+
+  it("removes spectator join actions when guild settings disable spectators", () => {
+    expect(availableJoinSlots({ allowSpectators: false })).toEqual(["player"]);
   });
 });

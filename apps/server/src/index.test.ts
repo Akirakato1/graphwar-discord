@@ -257,6 +257,57 @@ describe("guild HTTP routes", () => {
     });
   });
 
+  it("enforces disabled spectator slots when creating and joining lobbies", async () => {
+    const { app, stateStore } = await createTestServer();
+    await stateStore.saveGuildSettings({
+      guildId: "settings-guild",
+      defaultMode: "team-versus",
+      allowSpectators: false
+    });
+
+    const spectatorCreate = await app.inject({
+      method: "POST",
+      url: "/guilds/settings-guild/lobbies",
+      payload: {
+        name: "Spectator Blocked",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "spectator"
+      }
+    });
+    expect(spectatorCreate.statusCode).toBe(403);
+    expect(JSON.parse(spectatorCreate.body)).toMatchObject({
+      code: "forbidden",
+      error: "Spectators are disabled for this server."
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/settings-guild/lobbies",
+      payload: {
+        name: "Players Only",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body) as { session: { roomId: string } };
+
+    const spectatorJoin = await app.inject({
+      method: "POST",
+      url: `/guilds/settings-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "spectator" }
+    });
+    expect(spectatorJoin.statusCode).toBe(403);
+    expect(JSON.parse(spectatorJoin.body)).toMatchObject({
+      code: "forbidden",
+      error: "Spectators are disabled for this server."
+    });
+  });
+
   it("returns persisted leaderboard entries for the requested guild", async () => {
     const { app, stateStore } = await createTestServer();
     await stateStore.upsertStatsEntry("score-guild", "alice-id", "Alice");

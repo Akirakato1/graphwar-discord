@@ -35,6 +35,7 @@ export type SelectedLobbySession = {
   playerId: string;
   alias: string;
   slot: "player" | "spectator";
+  sessionToken: string;
 };
 
 export type GameLogEntry = {
@@ -252,7 +253,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           type: "auto-assign-teams",
           guildId: selected.guildId,
           roomId: selected.roomId,
-          playerId: selected.playerId
+          playerId: selected.playerId,
+          sessionToken: selected.sessionToken
         });
       },
       clearLog() {
@@ -394,7 +396,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           discordUserId: selected.discordUserId,
           alias: selected.alias,
           displayName: selected.alias,
-          slot: selected.slot
+          slot: selected.slot,
+          sessionToken: selected.sessionToken
         });
       },
       leaderboard: [],
@@ -437,7 +440,14 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           return;
         }
 
-        sendCommand({ type: "select-mode", guildId: selected.guildId, roomId: selected.roomId, playerId: selected.playerId, mode });
+        sendCommand({
+          type: "select-mode",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          mode,
+          sessionToken: selected.sessionToken
+        });
       },
       selectedLobbySession: undefined,
       session,
@@ -464,7 +474,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           roomId: selected.roomId,
           playerId: selected.playerId,
           targetPlayerId,
-          placement
+          placement,
+          sessionToken: selected.sessionToken
         });
       },
       setView(view) {
@@ -476,7 +487,13 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           return;
         }
 
-        sendCommand({ type: "start-match", guildId: selected.guildId, roomId: selected.roomId, playerId: selected.playerId });
+        sendCommand({
+          type: "start-match",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          sessionToken: selected.sessionToken
+        });
       },
       submitShot(expression, aimDirection) {
         const trimmedExpression = expression.trim();
@@ -499,7 +516,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           playerId: selected.playerId,
           functionFamilyId: "normal",
           aimDirection,
-          expression: trimmedExpression
+          expression: trimmedExpression,
+          sessionToken: selected.sessionToken
         });
       },
       view: "main-menu"

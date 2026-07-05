@@ -91,6 +91,7 @@ export const lobbyJoinResultSchema = z.object({
     discordUserId: z.string().min(1),
     playerId: z.string().min(1),
     alias: z.string().min(1),
-    slot: lobbySlotSchema
+    slot: lobbySlotSchema,
+    sessionToken: z.string().min(1)
   })
 });

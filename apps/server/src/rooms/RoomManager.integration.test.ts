@@ -2,11 +2,10 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { serverEventSchema, type ServerEvent } from "@graphwar/shared";
+import { serverEventSchema, type LobbySlot, type ServerEvent } from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type BuildServerOptions } from "../index";
-import { LobbyDirectory } from "../lobbies/LobbyDirectory";
 import { LocalStateStore } from "../persistence/LocalStateStore";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
@@ -15,10 +14,14 @@ const servers: TestServer[] = [];
 const sockets: WebSocket[] = [];
 const tempDirs: string[] = [];
 
-type Deferred = {
-  promise: Promise<void>;
-  resolve: () => void;
-  reject: (error: unknown) => void;
+type TestLobbySession = {
+  guildId: string;
+  roomId: string;
+  discordUserId: string;
+  playerId: string;
+  alias: string;
+  slot: LobbySlot;
+  sessionToken: string;
 };
 
 class FailingMatchResultStore extends LocalStateStore {
@@ -35,6 +38,20 @@ function socketUrl(app: TestServer, roomId: string, mockPlayer: string): string 
 function guildSocketUrl(app: TestServer, guildId: string, roomId: string): string {
   const address = app.server.address() as AddressInfo;
   return `ws://127.0.0.1:${address.port}/guilds/${guildId}/rooms/${roomId}`;
+}
+
+function lobbyJoinCommand(session: TestLobbySession) {
+  return {
+    type: "join-room",
+    guildId: session.guildId,
+    roomId: session.roomId,
+    playerId: session.playerId,
+    discordUserId: session.discordUserId,
+    alias: session.alias,
+    displayName: session.alias,
+    slot: session.slot,
+    sessionToken: session.sessionToken
+  };
 }
 
 function connect(url: string): Promise<WebSocket> {
@@ -65,16 +82,6 @@ function collectEvents(socket: WebSocket): ServerEvent[] {
     events.push(serverEventSchema.parse(JSON.parse(String(data))));
   });
   return events;
-}
-
-function createDeferred(): Deferred {
-  let resolve!: () => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-  return { promise, resolve, reject };
 }
 
 async function createTempStateStore(): Promise<LocalStateStore> {
@@ -135,6 +142,31 @@ function waitForSocketClose(socket: WebSocket): Promise<void> {
 
   return new Promise((resolve) => {
     socket.once("close", () => resolve());
+  });
+}
+
+function waitForRejectedUpgrade(url: string, origin: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(url, { headers: { Origin: origin } });
+    const timeout = setTimeout(() => {
+      socket.terminate();
+      reject(new Error("Timed out waiting for rejected websocket upgrade."));
+    }, 1_000);
+
+    socket.once("open", () => {
+      clearTimeout(timeout);
+      socket.terminate();
+      reject(new Error("Expected websocket upgrade to be rejected."));
+    });
+    socket.once("unexpected-response", (_request, response) => {
+      clearTimeout(timeout);
+      expect(response.statusCode).toBe(403);
+      resolve();
+    });
+    socket.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
   });
 }
 
@@ -299,32 +331,15 @@ describe("RoomManager WebSocket integration", () => {
       payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
     });
     expect(joinResponse.statusCode).toBe(200);
+    const joined = JSON.parse(joinResponse.body);
 
     const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const aliceEvents = collectEvents(alice);
     const bobEvents = collectEvents(bob);
 
-    send(alice, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "alice-id",
-      discordUserId: "alice-id",
-      alias: "Alice",
-      displayName: "Alice",
-      slot: "player"
-    });
-    send(bob, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "bob-id",
-      discordUserId: "bob-id",
-      alias: "Bob",
-      displayName: "Bob",
-      slot: "player"
-    });
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
 
     const hasBothLobbyOccupants = (candidate: ServerEvent) =>
       candidate.type === "room-snapshot" &&
@@ -354,6 +369,67 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(bob);
   });
 
+  it("rejects guild websocket upgrades from unlisted browser origins", async () => {
+    const app = await startTestServer({ corsAllowedOrigins: ["https://activity.example"] });
+
+    await waitForRejectedUpgrade(guildSocketUrl(app, "local-guild", "origin-test"), "https://evil.example");
+  });
+
+  it("rejects lobby commands when a socket acts as a different joined player", async () => {
+    const app = await startTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Impersonation Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(bob, {
+      type: "start-match",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id"
+    });
+
+    await waitForEvent(
+      () => bobEvents,
+      (candidate) =>
+        candidate.type === "shot-rejected" && candidate.reason === "Command actor does not match socket session."
+    );
+    await waitForNoEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "match-started"
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
   it("keeps a started guild match recoverable after all websocket clients disconnect", async () => {
     const app = await startTestServer();
 
@@ -369,37 +445,20 @@ describe("RoomManager WebSocket integration", () => {
       }
     });
     const created = JSON.parse(createResponse.body);
-    await app.inject({
+    const joinResponse = await app.inject({
       method: "POST",
       url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
       payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
     });
+    const joined = JSON.parse(joinResponse.body);
 
     const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const aliceEvents = collectEvents(alice);
     const bobEvents = collectEvents(bob);
 
-    send(alice, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "alice-id",
-      discordUserId: "alice-id",
-      alias: "Alice",
-      displayName: "Alice",
-      slot: "player"
-    });
-    send(bob, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "bob-id",
-      discordUserId: "bob-id",
-      alias: "Bob",
-      displayName: "Bob",
-      slot: "player"
-    });
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
     await waitForEvent(
       () => [...aliceEvents, ...bobEvents],
       (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
@@ -435,27 +494,14 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(reconnected);
   });
 
-  it("serializes async guild commands before applying later room commands", async () => {
-    const stateStore = await createTempStateStore();
-    const bobJoinStarted = createDeferred();
-    const releaseBobJoin = createDeferred();
-    let delayBobWebsocketJoin = false;
-    const lobbies = new LobbyDirectory({
-      upsertStatsEntry: async (guildId, discordUserId, alias) => {
-        if (delayBobWebsocketJoin && discordUserId === "bob-id") {
-          bobJoinStarted.resolve();
-          await releaseBobJoin.promise;
-        }
-        return stateStore.upsertStatsEntry(guildId, discordUserId, alias);
-      }
-    });
-    const app = await startTestServer({ stateStore, lobbies });
+  it("rejects lobby commands before a websocket joins with its selected session", async () => {
+    const app = await startTestServer();
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/guilds/local-guild/lobbies",
       payload: {
-        name: "Queued Room",
+        name: "Unbound Socket Room",
         leaderDiscordUserId: "alice-id",
         alias: "Alice",
         mode: "team-versus",
@@ -464,33 +510,22 @@ describe("RoomManager WebSocket integration", () => {
     });
     const created = JSON.parse(createResponse.body);
     const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
-    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const aliceEvents = collectEvents(alice);
 
-    delayBobWebsocketJoin = true;
-    send(bob, {
-      type: "join-room",
+    send(alice, {
+      type: "start-match",
       guildId: "local-guild",
       roomId: created.session.roomId,
-      playerId: "bob-id",
-      discordUserId: "bob-id",
-      alias: "Bob",
-      displayName: "Bob",
-      slot: "player"
+      playerId: "alice-id",
+      sessionToken: created.session.sessionToken
     });
-    await bobJoinStarted.promise;
 
-    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
-    await waitForNoEvent(
+    await waitForEvent(
       () => aliceEvents,
-      (candidate) => candidate.type === "shot-rejected" && candidate.reason.includes("Team B needs")
+      (candidate) => candidate.type === "shot-rejected" && candidate.reason === "Join lobby before sending commands."
     );
 
-    releaseBobJoin.resolve();
-    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
-
     await closeSocket(alice);
-    await closeSocket(bob);
   });
 
   it("broadcasts match-ended even when leaderboard persistence fails", async () => {
@@ -511,37 +546,20 @@ describe("RoomManager WebSocket integration", () => {
       }
     });
     const created = JSON.parse(createResponse.body);
-    await app.inject({
+    const joinResponse = await app.inject({
       method: "POST",
       url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
       payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
     });
+    const joined = JSON.parse(joinResponse.body);
 
     const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
     const aliceEvents = collectEvents(alice);
     const bobEvents = collectEvents(bob);
 
-    send(alice, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "alice-id",
-      discordUserId: "alice-id",
-      alias: "Alice",
-      displayName: "Alice",
-      slot: "player"
-    });
-    send(bob, {
-      type: "join-room",
-      guildId: "local-guild",
-      roomId: created.session.roomId,
-      playerId: "bob-id",
-      discordUserId: "bob-id",
-      alias: "Bob",
-      displayName: "Bob",
-      slot: "player"
-    });
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
     await waitForEvent(
       () => [...aliceEvents, ...bobEvents],
       (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2

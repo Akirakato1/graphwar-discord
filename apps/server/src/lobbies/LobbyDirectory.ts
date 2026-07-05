@@ -19,7 +19,18 @@ import type { MatchModeId } from "@graphwar/shared";
 export type LobbyDirectoryOptions = {
   now?: () => Date;
   createRoomId?: () => string;
+  createSessionToken?: () => string;
   upsertStatsEntry?: (guildId: string, discordUserId: string, alias: string) => Promise<unknown>;
+};
+
+export type LobbySessionIdentity = {
+  guildId: GuildId;
+  roomId: RoomId;
+  discordUserId: DiscordUserId;
+  playerId: string;
+  alias: string;
+  slot: LobbySlot;
+  sessionToken: string;
 };
 
 type RuntimeLobby = {
@@ -30,6 +41,7 @@ type RuntimeLobby = {
   status: LobbyStatus;
   leaderDiscordUserId: DiscordUserId;
   occupants: Map<DiscordUserId, LobbyOccupant>;
+  sessionTokens: Map<DiscordUserId, string>;
   createdAt: string;
   startedAt?: string;
 };
@@ -39,11 +51,13 @@ export class LobbyDirectory {
   private readonly mutationQueues = new Map<string, Promise<void>>();
   private readonly now: () => Date;
   private readonly createRoomId: () => string;
+  private readonly createSessionToken: () => string;
   private readonly upsertStatsEntry: (guildId: string, discordUserId: string, alias: string) => Promise<unknown>;
 
   constructor(options: LobbyDirectoryOptions = {}) {
     this.now = options.now ?? (() => new Date());
     this.createRoomId = options.createRoomId ?? (() => randomUUID().slice(0, 8));
+    this.createSessionToken = options.createSessionToken ?? (() => randomUUID());
     this.upsertStatsEntry = options.upsertStatsEntry ?? (async () => undefined);
   }
 
@@ -68,6 +82,7 @@ export class LobbyDirectory {
       status: "open",
       leaderDiscordUserId: request.leaderDiscordUserId,
       occupants: new Map(),
+      sessionTokens: new Map(),
       createdAt: this.now().toISOString()
     };
 
@@ -102,6 +117,10 @@ export class LobbyDirectory {
       throw new Error("Started lobbies can only be joined as a spectator.");
     }
 
+    if (lobby.status === "ended") {
+      throw new Error("Lobby has ended.");
+    }
+
     for (const occupant of lobby.occupants.values()) {
       if (occupant.discordUserId !== request.discordUserId && aliasesConflict(occupant.alias, alias)) {
         throw new Error("Alias is already taken.");
@@ -121,7 +140,9 @@ export class LobbyDirectory {
     };
 
     await this.upsertStatsEntry(guildId, request.discordUserId, alias);
+    const sessionToken = this.createSessionToken();
     lobby.occupants.set(request.discordUserId, occupant);
+    lobby.sessionTokens.set(request.discordUserId, sessionToken);
 
     return {
       lobby: this.snapshot(lobby),
@@ -131,14 +152,15 @@ export class LobbyDirectory {
         discordUserId: request.discordUserId,
         playerId: occupant.playerId,
         alias,
-        slot
+        slot,
+        sessionToken
       }
     };
   }
 
   listLobbies(guildId: string): LobbySummary[] {
     return Array.from(this.lobbies.values())
-      .filter((lobby) => lobby.guildId === guildId)
+      .filter((lobby) => lobby.guildId === guildId && lobby.status !== "ended")
       .map((lobby) => {
         const occupants = Array.from(lobby.occupants.values());
         const leader = occupants.find((occupant) => occupant.discordUserId === lobby.leaderDiscordUserId);
@@ -255,6 +277,26 @@ export class LobbyDirectory {
       .map((occupant) => ({ ...occupant }));
   }
 
+  validateSession(guildId: string, roomId: string, sessionToken: string | undefined): LobbySessionIdentity {
+    return this.requireSession(guildId, roomId, sessionToken).identity;
+  }
+
+  markConnected(guildId: string, roomId: string, sessionToken: string | undefined): LobbyRuntimeSnapshot {
+    const { identity, lobby, occupant } = this.requireSession(guildId, roomId, sessionToken);
+    lobby.occupants.set(identity.discordUserId, { ...occupant, connected: true });
+    return this.snapshot(lobby);
+  }
+
+  markDisconnected(guildId: string, roomId: string, sessionToken: string | undefined): LobbyRuntimeSnapshot | undefined {
+    try {
+      const { identity, lobby, occupant } = this.requireSession(guildId, roomId, sessionToken);
+      lobby.occupants.set(identity.discordUserId, { ...occupant, connected: false });
+      return this.snapshot(lobby);
+    } catch {
+      return undefined;
+    }
+  }
+
   private lobbyKey(guildId: string, roomId: string): string {
     return `${guildId}:${roomId}`;
   }
@@ -294,6 +336,40 @@ export class LobbyDirectory {
     }
 
     return occupant;
+  }
+
+  private requireSession(
+    guildId: string,
+    roomId: string,
+    sessionToken: string | undefined
+  ): { identity: LobbySessionIdentity; lobby: RuntimeLobby; occupant: LobbyOccupant } {
+    if (!sessionToken) {
+      throw new Error("Lobby session token is required.");
+    }
+
+    const lobby = this.requireLobby(guildId, roomId);
+    for (const [discordUserId, token] of lobby.sessionTokens.entries()) {
+      if (token !== sessionToken) {
+        continue;
+      }
+
+      const occupant = this.requireOccupant(lobby, discordUserId);
+      return {
+        lobby,
+        occupant,
+        identity: {
+          guildId,
+          roomId,
+          discordUserId,
+          playerId: occupant.playerId,
+          alias: occupant.alias,
+          slot: occupant.slot,
+          sessionToken
+        }
+      };
+    }
+
+    throw new Error("Invalid lobby session.");
   }
 
   private assertPlacementAllowed(lobby: RuntimeLobby, placement: LobbyPlacementId): void {

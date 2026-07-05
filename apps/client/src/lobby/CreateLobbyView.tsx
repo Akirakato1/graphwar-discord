@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
-import type { LobbySlot, MatchModeId } from "@graphwar/shared";
+import { useEffect, useState, type FormEvent } from "react";
+import type { GuildSettings, LobbySlot, MatchModeId } from "@graphwar/shared";
 
 type CreateLobbyViewProps = {
   defaultAlias: string;
   onBack: () => void;
   onCreate: (form: { name: string; alias: string; mode: MatchModeId; initialSlot: LobbySlot }) => Promise<void>;
+  settings?: GuildSettings;
 };
 
 type CreateLobbyForm = {
@@ -28,13 +29,33 @@ export function createLobbyErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Could not create lobby.";
 }
 
-export function CreateLobbyView({ defaultAlias, onBack, onCreate }: CreateLobbyViewProps) {
-  const [alias, setAlias] = useState(defaultAlias);
+export function availableInitialSlots(settings?: Pick<GuildSettings, "allowSpectators">): LobbySlot[] {
+  return settings?.allowSpectators === false ? ["player"] : ["player", "spectator"];
+}
+
+export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<GuildSettings, "defaultMode" | "allowSpectators">): CreateLobbyForm {
+  return {
+    name: "Graphwar Lobby",
+    alias: defaultAlias,
+    mode: settings?.defaultMode ?? "team-versus",
+    initialSlot: availableInitialSlots(settings)[0]
+  };
+}
+
+export function CreateLobbyView({ defaultAlias, onBack, onCreate, settings }: CreateLobbyViewProps) {
+  const initialForm = createLobbyInitialForm(defaultAlias, settings);
+  const [alias, setAlias] = useState(initialForm.alias);
   const [formError, setFormError] = useState<string | undefined>();
-  const [initialSlot, setInitialSlot] = useState<LobbySlot>("player");
-  const [mode, setMode] = useState<MatchModeId>("team-versus");
-  const [name, setName] = useState("Graphwar Lobby");
+  const [initialSlot, setInitialSlot] = useState<LobbySlot>(initialForm.initialSlot);
+  const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
+  const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
+  const slots = availableInitialSlots(settings);
+
+  useEffect(() => {
+    setMode(settings?.defaultMode ?? "team-versus");
+    setInitialSlot((currentSlot) => (availableInitialSlots(settings).includes(currentSlot) ? currentSlot : "player"));
+  }, [settings?.allowSpectators, settings?.defaultMode]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -95,8 +116,11 @@ export function CreateLobbyView({ defaultAlias, onBack, onCreate }: CreateLobbyV
         <label>
           Initial slot
           <select value={initialSlot} onChange={(event) => setInitialSlot(event.currentTarget.value as LobbySlot)}>
-            <option value="player">Player</option>
-            <option value="spectator">Spectator</option>
+            {slots.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot === "player" ? "Player" : "Spectator"}
+              </option>
+            ))}
           </select>
         </label>
         <div className="form-actions">

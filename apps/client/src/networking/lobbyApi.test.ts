@@ -30,7 +30,8 @@ function lobbyJoinResult() {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
-      slot: "player"
+      slot: "player",
+      sessionToken: "session-token"
     }
   };
 }
