@@ -152,6 +152,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
         className="world-canvas"
         data-path-points={visibleShot?.path.length ?? 0}
         data-rendered={snapshot ? "true" : "false"}
+        data-terrain-ids={snapshot?.terrain.blobs.map((blob) => blob.id).join(",") ?? ""}
         data-testid="game-canvas"
         height={DEFAULT_CANVAS_SIZE.height}
         ref={canvasRef}

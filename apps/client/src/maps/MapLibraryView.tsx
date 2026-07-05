@@ -22,7 +22,8 @@ export function MapLibraryView({
   const [importing, setImporting] = useState(false);
 
   async function importFile(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) {
       return;
     }
@@ -32,10 +33,10 @@ export function MapLibraryView({
     try {
       await onImportText(await file.text());
       setMessage("Custom map saved.");
-      event.currentTarget.value = "";
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not import custom map.");
     } finally {
+      input.value = "";
       setImporting(false);
     }
   }

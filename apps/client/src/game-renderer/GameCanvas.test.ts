@@ -24,6 +24,23 @@ const snapshot: MatchSnapshot = {
 
 describe("GameCanvas", () => {
   it("renders a canvas with current snapshot and latest shot metadata", () => {
+    const snapshotWithTerrain: MatchSnapshot = {
+      ...snapshot,
+      terrain: {
+        blobs: [
+          {
+            id: "test-platform",
+            outer: [
+              { x: -1, y: -1 },
+              { x: 1, y: -1 },
+              { x: 1, y: 1 },
+              { x: -1, y: 1 }
+            ],
+            holes: []
+          }
+        ]
+      }
+    };
     const shotResolved: ServerEvent = {
       type: "shot-resolved",
       roomId: "local-test",
@@ -38,14 +55,17 @@ describe("GameCanvas", () => {
       impact: { reason: "miss" },
       damage: [],
       eliminations: [],
-      snapshot
+      snapshot: snapshotWithTerrain
     };
 
-    const html = renderToStaticMarkup(React.createElement(GameCanvas, { events: [shotResolved], snapshot }));
+    const html = renderToStaticMarkup(
+      React.createElement(GameCanvas, { events: [shotResolved], snapshot: snapshotWithTerrain })
+    );
 
     expect(html).toContain("Battlefield");
     expect(html).toContain('data-rendered="true"');
     expect(html).toContain('data-path-points="2"');
+    expect(html).toContain('data-terrain-ids="test-platform"');
   });
 
   it("keeps latest shot metadata after an immediate turn event", () => {
