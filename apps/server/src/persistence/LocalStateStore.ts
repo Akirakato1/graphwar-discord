@@ -1,6 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { GuildSettings, PersistedServerState, PlayerStatsEntry } from "@graphwar/shared";
+
+export const defaultLocalStateFilePath = fileURLToPath(new URL("../../data/local-state.json", import.meta.url));
 
 function defaultSettings(guildId: string): GuildSettings {
   return { guildId, defaultMode: "team-versus", allowSpectators: true };
@@ -19,7 +22,9 @@ function hasErrorCode(error: unknown, code: string): boolean {
 }
 
 export class LocalStateStore {
-  constructor(private readonly filePath = "apps/server/data/local-state.json") {}
+  private mutationQueue: Promise<unknown> = Promise.resolve();
+
+  constructor(private readonly filePath = defaultLocalStateFilePath) {}
 
   async getGuildSettings(guildId: string): Promise<GuildSettings> {
     const state = await this.readState();
@@ -27,60 +32,66 @@ export class LocalStateStore {
   }
 
   async saveGuildSettings(settings: GuildSettings): Promise<GuildSettings> {
-    const state = await this.readState();
-    const guild = (state.guilds[settings.guildId] ??= {
-      settings: defaultSettings(settings.guildId),
-      leaderboard: {}
+    return this.enqueueMutation(async () => {
+      const state = await this.readState();
+      const guild = (state.guilds[settings.guildId] ??= {
+        settings: defaultSettings(settings.guildId),
+        leaderboard: {}
+      });
+      guild.settings = settings;
+      await this.writeState(state);
+      return settings;
     });
-    guild.settings = settings;
-    await this.writeState(state);
-    return settings;
   }
 
   async upsertStatsEntry(guildId: string, discordUserId: string, alias: string): Promise<PlayerStatsEntry> {
-    const state = await this.readState();
-    const guild = (state.guilds[guildId] ??= { settings: defaultSettings(guildId), leaderboard: {} });
-    const existing = guild.leaderboard[discordUserId];
-    const entry: PlayerStatsEntry = {
-      guildId,
-      discordUserId,
-      lastAlias: alias,
-      gamesPlayed: existing?.gamesPlayed ?? 0,
-      wins: existing?.wins ?? 0,
-      eliminations: existing?.eliminations ?? 0,
-      damageDealt: existing?.damageDealt ?? 0,
-      updatedAt: nowIso()
-    };
-    guild.leaderboard[discordUserId] = entry;
-    await this.writeState(state);
-    return entry;
+    return this.enqueueMutation(async () => {
+      const state = await this.readState();
+      const guild = (state.guilds[guildId] ??= { settings: defaultSettings(guildId), leaderboard: {} });
+      const existing = guild.leaderboard[discordUserId];
+      const entry: PlayerStatsEntry = {
+        guildId,
+        discordUserId,
+        lastAlias: alias,
+        gamesPlayed: existing?.gamesPlayed ?? 0,
+        wins: existing?.wins ?? 0,
+        eliminations: existing?.eliminations ?? 0,
+        damageDealt: existing?.damageDealt ?? 0,
+        updatedAt: nowIso()
+      };
+      guild.leaderboard[discordUserId] = entry;
+      await this.writeState(state);
+      return entry;
+    });
   }
 
   async recordMatchResult(guildId: string, winnerIds: string[], participantIds: string[]): Promise<void> {
-    const state = await this.readState();
-    const guild = (state.guilds[guildId] ??= { settings: defaultSettings(guildId), leaderboard: {} });
-    const winners = new Set(winnerIds);
-    for (const participantId of participantIds) {
-      const existing =
-        guild.leaderboard[participantId] ??
-        ({
-          guildId,
-          discordUserId: participantId,
-          lastAlias: participantId,
-          gamesPlayed: 0,
-          wins: 0,
-          eliminations: 0,
-          damageDealt: 0,
+    return this.enqueueMutation(async () => {
+      const state = await this.readState();
+      const guild = (state.guilds[guildId] ??= { settings: defaultSettings(guildId), leaderboard: {} });
+      const winners = new Set(winnerIds);
+      for (const participantId of participantIds) {
+        const existing =
+          guild.leaderboard[participantId] ??
+          ({
+            guildId,
+            discordUserId: participantId,
+            lastAlias: participantId,
+            gamesPlayed: 0,
+            wins: 0,
+            eliminations: 0,
+            damageDealt: 0,
+            updatedAt: nowIso()
+          } satisfies PlayerStatsEntry);
+        guild.leaderboard[participantId] = {
+          ...existing,
+          gamesPlayed: existing.gamesPlayed + 1,
+          wins: existing.wins + (winners.has(participantId) ? 1 : 0),
           updatedAt: nowIso()
-        } satisfies PlayerStatsEntry);
-      guild.leaderboard[participantId] = {
-        ...existing,
-        gamesPlayed: existing.gamesPlayed + 1,
-        wins: existing.wins + (winners.has(participantId) ? 1 : 0),
-        updatedAt: nowIso()
-      };
-    }
-    await this.writeState(state);
+        };
+      }
+      await this.writeState(state);
+    });
   }
 
   async getLeaderboard(guildId: string): Promise<PlayerStatsEntry[]> {
@@ -107,5 +118,14 @@ export class LocalStateStore {
   private async writeState(state: PersistedServerState): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
     await writeFile(this.filePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  }
+
+  private enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.mutationQueue.then(operation, operation);
+    this.mutationQueue = next.then(
+      () => undefined,
+      () => undefined
+    );
+    return next;
   }
 }
