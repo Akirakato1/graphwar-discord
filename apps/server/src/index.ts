@@ -53,6 +53,11 @@ export async function buildServer(options: BuildServerOptions = {}) {
   const wss = new WebSocketServer({ noServer: true });
 
   app.addHook("onRequest", async (request, reply) => {
+    const isGuildApiRequest = request.url.startsWith("/guilds/");
+    if (!isGuildApiRequest) {
+      return;
+    }
+
     const origin = request.headers.origin;
     if (origin) {
       reply.header("access-control-allow-origin", origin);

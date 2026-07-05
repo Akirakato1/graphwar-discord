@@ -31,12 +31,17 @@ async function joinLobby(
   page: Page,
   lobbyName: string,
   alias: string,
-  slot: "player" | "spectator" = "player"
+  slot: "player" | "spectator" = "player",
+  expectedView: "setup" | "game" = "setup"
 ): Promise<void> {
   await page.getByRole("button", { name: "Join Lobby" }).click();
   await page.getByRole("button", { name: lobbyName }).click();
   await page.getByLabel("Alias").fill(alias);
   await page.getByRole("button", { name: slot === "spectator" ? "Spectate" : "Join As Player" }).click();
+  if (expectedView === "game") {
+    await expect(page.getByTestId("game-canvas")).toBeVisible();
+    return;
+  }
   await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
 }
 
@@ -116,7 +121,7 @@ test("two local players can start a match and advance turns with a function shot
     await expect(bobPage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
 
     await openLocalMenu(spectatorPage, { id: "charlie", displayName: "Charlie" }, guildId);
-    await joinLobby(spectatorPage, lobbyName, "Charlie", "spectator");
+    await joinLobby(spectatorPage, lobbyName, "Charlie", "spectator", "game");
     await expect(spectatorPage.getByTestId("game-canvas")).toBeVisible();
     await expect(spectatorPage.getByText("Spectating")).toBeVisible();
     await expect(spectatorPage.getByLabel("Function Shot")).toHaveCount(0);

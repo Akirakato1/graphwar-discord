@@ -59,6 +59,35 @@ describe("guild HTTP routes", () => {
     expect(response.headers["access-control-allow-headers"]).toContain("content-type");
   });
 
+  it("does not attach CORS headers to health checks", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { origin: "http://127.0.0.1:5173" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("does not answer non-guild CORS preflight requests", async () => {
+    const { app } = await createTestServer();
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/health",
+      headers: {
+        origin: "http://127.0.0.1:5173",
+        "access-control-request-method": "GET"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("lists created lobby summaries scoped to the requested guild", async () => {
     const { app } = await createTestServer();
 
