@@ -1,6 +1,6 @@
 import type { ClientCommand, MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { connectGameClient, type WebSocketConstructor } from "../networking/gameClient";
+import { connectGameClient, type ConnectGameClientOptions, type WebSocketConstructor } from "../networking/gameClient";
 import type { LobbyApi } from "../networking/lobbyApi";
 import type { ClientSession } from "../sessions/localSession";
 import { createGameStore } from "./useGameStore";
@@ -154,6 +154,30 @@ describe("createGameStore", () => {
 
   it("creates a lobby through HTTP then connects to the selected websocket room", async () => {
     const commands: ClientCommand[] = [];
+    const createLobbyCalls: Array<{
+      guildId: string;
+      request: Parameters<LobbyApi["createLobby"]>[1];
+    }> = [];
+    const createdLobby = {
+      guildId: "local-guild",
+      roomId: "room-1",
+      name: "Friday Graphwar",
+      mode: "team-versus" as const,
+      status: "open" as const,
+      leaderDiscordUserId: "alice-id",
+      occupants: [],
+      canStart: false,
+      createdAt: "2026-07-05T00:00:00.000Z"
+    };
+    const selectedLobbySession = {
+      guildId: "local-guild",
+      roomId: "room-1",
+      discordUserId: "alice-id",
+      playerId: "alice-id",
+      alias: "Alice",
+      slot: "player" as const
+    };
+    let connectOptions: ConnectGameClientOptions | undefined;
     let onOpen: (() => void) | undefined;
     const store = createGameStore({
       session: {
@@ -161,30 +185,17 @@ describe("createGameStore", () => {
         guildId: "local-guild",
         discordUserId: "alice-id",
         playerId: "alice-id",
-        defaultAlias: "Alice"
+        defaultAlias: "Alice",
+        serverUrl: "ws://graphwar.test:8787"
       },
       lobbyApi: {
-        createLobby: async () => ({
-          lobby: {
-            guildId: "local-guild",
-            roomId: "room-1",
-            name: "Friday Graphwar",
-            mode: "team-versus",
-            status: "open",
-            leaderDiscordUserId: "alice-id",
-            occupants: [],
-            canStart: false,
-            createdAt: "2026-07-05T00:00:00.000Z"
-          },
-          session: {
-            guildId: "local-guild",
-            roomId: "room-1",
-            discordUserId: "alice-id",
-            playerId: "alice-id",
-            alias: "Alice",
-            slot: "player"
-          }
-        }),
+        createLobby: async (guildId, request) => {
+          createLobbyCalls.push({ guildId, request });
+          return {
+            lobby: createdLobby,
+            session: selectedLobbySession
+          };
+        },
         listLobbies: async () => [],
         joinLobby: async () => {
           throw new Error("not used");
@@ -194,6 +205,7 @@ describe("createGameStore", () => {
         getLeaderboard: async () => []
       },
       clientFactory: (options) => {
+        connectOptions = options;
         onOpen = options.onOpen;
         return { send: (command) => commands.push(command), close: () => {} };
       }
@@ -208,6 +220,27 @@ describe("createGameStore", () => {
     onOpen?.();
 
     expect(store.getState().view).toBe("lobby-setup");
+    expect(createLobbyCalls).toEqual([
+      {
+        guildId: "local-guild",
+        request: {
+          name: "Friday Graphwar",
+          leaderDiscordUserId: "alice-id",
+          alias: "Alice",
+          mode: "team-versus",
+          initialSlot: "player"
+        }
+      }
+    ]);
+    expect(store.getState().currentLobby).toEqual(createdLobby);
+    expect(store.getState().selectedLobbySession).toEqual(selectedLobbySession);
+    expect(connectOptions).toEqual(
+      expect.objectContaining({
+        guildId: "local-guild",
+        roomId: "room-1",
+        serverUrl: "ws://graphwar.test:8787"
+      })
+    );
     expect(commands).toEqual([
       {
         type: "join-room",
