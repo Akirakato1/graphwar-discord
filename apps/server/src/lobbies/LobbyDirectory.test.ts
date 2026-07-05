@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { LobbyDirectory } from "./LobbyDirectory";
+import { describe, expect, it, vi } from "vitest";
+import { LobbyDirectory, type LobbyDirectoryOptions } from "./LobbyDirectory";
 
-function createDirectory(): LobbyDirectory {
+function createDirectory(options: LobbyDirectoryOptions = {}): LobbyDirectory {
   return new LobbyDirectory({
     now: () => new Date("2026-07-05T00:00:00.000Z"),
     createRoomId: () => "room-1",
-    upsertStatsEntry: async () => undefined
+    upsertStatsEntry: async () => undefined,
+    ...options
   });
 }
 
@@ -183,6 +184,243 @@ describe("LobbyDirectory", () => {
         slot: "spectator",
         placement: "spectator"
       })
+    );
+  });
+
+  it("upserts stats after successful create and join with trimmed aliases", async () => {
+    const upsertStatsEntry = vi.fn(async () => undefined);
+    const directory = createDirectory({ upsertStatsEntry });
+
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: " Alice ",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: " Bob ",
+      slot: "player"
+    });
+
+    expect(upsertStatsEntry).toHaveBeenNthCalledWith(1, "guild-1", "alice-id", "Alice");
+    expect(upsertStatsEntry).toHaveBeenNthCalledWith(2, "guild-1", "bob-id", "Bob");
+  });
+
+  it("rejects empty aliases", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    await expect(
+      directory.joinLobby("guild-1", "room-1", {
+        discordUserId: "bob-id",
+        alias: "  ",
+        slot: "player"
+      })
+    ).rejects.toThrow("Alias is required.");
+  });
+
+  it("allows reconnects by the same discord user and updates their alias", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "alice-id",
+      alias: " alice ",
+      slot: "player"
+    });
+    const result = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "alice-id",
+      alias: " Captain Alice ",
+      slot: "player"
+    });
+
+    expect(result.session.alias).toBe("Captain Alice");
+    expect(result.lobby.occupants).toEqual([
+      expect.objectContaining({
+        discordUserId: "alice-id",
+        alias: "Captain Alice",
+        placement: "team-a",
+        isLeader: true
+      })
+    ]);
+  });
+
+  it("blocks free-for-all starts with fewer than two players", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Free Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "free-for-all",
+      initialSlot: "player"
+    });
+
+    expect(() => directory.assertCanStart("guild-1", "room-1", "alice-id")).toThrow(
+      "Free for all needs at least two players."
+    );
+  });
+
+  it("reports team-versus Team A and Team B start blockers", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "spectator"
+    });
+
+    expect(() => directory.assertCanStart("guild-1", "room-1", "alice-id")).toThrow(
+      "Team A needs at least one player."
+    );
+
+    directory.moveOccupant("guild-1", "room-1", "alice-id", "alice-id", "team-a");
+
+    expect(() => directory.assertCanStart("guild-1", "room-1", "alice-id")).toThrow(
+      "Team B needs at least one player."
+    );
+  });
+
+  it("marks lobbies playing with injected time and no longer startable", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+
+    const snapshot = directory.markPlaying("guild-1", "room-1");
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        status: "playing",
+        startedAt: "2026-07-05T00:00:00.000Z",
+        canStart: false
+      })
+    );
+  });
+
+  it("lists only lobbies for the requested guild with leader alias and slot counts", async () => {
+    const roomIds = ["room-1", "room-2", "room-3"];
+    const directory = createDirectory({ createRoomId: () => roomIds.shift() ?? "room-extra" });
+    await directory.createLobby("guild-1", {
+      name: "First Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "spectator"
+    });
+    await directory.createLobby("guild-2", {
+      name: "Other Guild Room",
+      leaderDiscordUserId: "carol-id",
+      alias: "Carol",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.createLobby("guild-1", {
+      name: "Second Room",
+      leaderDiscordUserId: "dana-id",
+      alias: "Dana",
+      mode: "free-for-all",
+      initialSlot: "spectator"
+    });
+
+    expect(directory.listLobbies("guild-1")).toEqual([
+      expect.objectContaining({
+        guildId: "guild-1",
+        roomId: "room-1",
+        leaderAlias: "Alice",
+        playerCount: 1,
+        spectatorCount: 1
+      }),
+      expect.objectContaining({
+        guildId: "guild-1",
+        roomId: "room-3",
+        leaderAlias: "Dana",
+        playerCount: 0,
+        spectatorCount: 1
+      })
+    ]);
+  });
+
+  it("returns only defensive copies of player occupants", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "spectator"
+    });
+
+    const players = directory.playerOccupants("guild-1", "room-1");
+    expect(players).toEqual([
+      expect.objectContaining({
+        discordUserId: "alice-id",
+        alias: "Alice",
+        slot: "player"
+      })
+    ]);
+
+    players[0].alias = "Changed";
+
+    expect(directory.getLobby("guild-1", "room-1").occupants).toContainEqual(
+      expect.objectContaining({
+        discordUserId: "alice-id",
+        alias: "Alice",
+        slot: "player"
+      })
+    );
+  });
+
+  it("rejects non-leader auto-assign team requests", async () => {
+    const directory = createDirectory();
+    await directory.createLobby("guild-1", {
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+
+    expect(() => directory.autoAssignTeams("guild-1", "room-1", "bob-id")).toThrow(
+      "Only the lobby leader can start."
     );
   });
 });

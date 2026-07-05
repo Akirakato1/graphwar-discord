@@ -309,7 +309,7 @@ export class LobbyDirectory {
       status: lobby.status,
       leaderDiscordUserId: lobby.leaderDiscordUserId,
       occupants: Array.from(lobby.occupants.values()).map((occupant) => ({ ...occupant })),
-      canStart: !startBlockedReason,
+      canStart: lobby.status === "open" && !startBlockedReason,
       startBlockedReason,
       createdAt: lobby.createdAt,
       startedAt: lobby.startedAt
