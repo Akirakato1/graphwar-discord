@@ -39,12 +39,19 @@ function errorMessageFromPayload(payload: unknown): string {
 }
 
 async function readJson<T>(response: Response, parse: (value: unknown) => T): Promise<T> {
-  const payload = await response.json();
   if (!response.ok) {
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = undefined;
+    }
     const error = new Error(errorMessageFromPayload(payload));
     (error as Error & { status?: number }).status = response.status;
     throw error;
   }
+
+  const payload = await response.json();
   return parse(payload);
 }
 

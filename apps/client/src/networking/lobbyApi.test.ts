@@ -73,4 +73,17 @@ describe("createLobbyApi", () => {
       api.joinLobby("local-guild", "room-1", { discordUserId: "bob-id", alias: "Alice", slot: "player" })
     ).rejects.toThrow("Alias is already taken.");
   });
+
+  it("throws fallback errors with status when non-ok responses are not JSON", async () => {
+    const fetch = vi.fn(async (_input: string | URL | Request, _init?: RequestInit): Promise<Response> =>
+      new Response("not json", { status: 500 })
+    );
+    vi.stubGlobal("fetch", fetch);
+    const api = createLobbyApi("http://127.0.0.1:8787/");
+
+    await expect(api.listLobbies("local-guild")).rejects.toMatchObject({
+      message: "Request failed.",
+      status: 500
+    });
+  });
 });
