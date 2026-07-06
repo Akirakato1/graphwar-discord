@@ -25,13 +25,21 @@ async function createLobby(
   page: Page,
   lobbyName: string,
   alias: string,
-  options: { maxFunctionLength?: number } = {}
+  options: {
+    maxFunctionLength?: number;
+    mapSizePreset?: "small" | "standard" | "large" | "huge";
+  } = {}
 ): Promise<void> {
   await page.getByRole("button", { name: "Create Lobby" }).click();
   await page.getByLabel("Lobby name").fill(lobbyName);
   await page.getByLabel("Alias").fill(alias);
   if (options.maxFunctionLength !== undefined) {
     await page.getByLabel("Max function length").fill(String(options.maxFunctionLength));
+  }
+  if (options.mapSizePreset !== undefined) {
+    const mapSizeField = page.getByLabel("Map size");
+    await expect(mapSizeField).toHaveValue(/small|standard|large|huge/i);
+    await mapSizeField.selectOption(options.mapSizePreset);
   }
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
@@ -306,7 +314,7 @@ test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling
 
     try {
       await expectMenuCreateJoinNoScroll(alicePage, alice, guildId);
-      await createLobby(alicePage, lobbyName, "Alice");
+      await createLobby(alicePage, lobbyName, "Alice", { mapSizePreset: "large" });
       await openLocalMenu(bobPage, bob, guildId);
       await joinPopulatedLobbyWithoutScroll(bobPage, lobbyName, "Bob");
       await expectSetupShowsPlayers([alicePage, bobPage]);
@@ -317,6 +325,13 @@ test("local lobby and gameplay fit Discord 16:9 viewports without page scrolling
       await alicePage.getByRole("button", { name: "Start Match" }).click();
       await expect(alicePage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
       await expect(bobPage.getByTestId("active-turn")).toContainText(/Alice|Bob|Your Turn/);
+
+      for (const page of [alicePage, bobPage]) {
+        const canvas = page.getByTestId("game-canvas");
+        await expect(canvas).toHaveAttribute("data-rendered", "true");
+        await expect(canvas).toHaveAttribute("data-camera-enabled", "true");
+        await expect(canvas).toHaveAttribute("data-world-bounds", "-37.5,37.5,-22.5,22.5");
+      }
 
       await expectNoPageScroll(alicePage);
       await expectNoPageScroll(bobPage);

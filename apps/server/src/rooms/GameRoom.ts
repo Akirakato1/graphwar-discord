@@ -260,12 +260,13 @@ export class GameRoom {
     }
 
     const lobby = this.lobbyContext.lobbies.getLobby(this.lobbyContext.guildId, this.roomId);
+    const snapshot = this.syncLobbySnapshot();
     return {
       type: "room-snapshot",
       guildId: this.lobbyContext.guildId,
       roomId: this.roomId,
       lobby,
-      snapshot: this.match.getSnapshot()
+      snapshot
     };
   }
 
@@ -286,7 +287,9 @@ export class GameRoom {
         color: occupant.color,
         teamId: occupant.placement === "team-a" || occupant.placement === "team-b" ? occupant.placement : undefined
       }));
-    return this.match.setLobbyPlayers(lobby.mode, players);
+    return this.match.setLobbyPlayers(lobby.mode, players, {
+      mapSizePreset: lobby.mapId ? undefined : lobby.mapSizePreset
+    });
   }
 
   private broadcastRoomSnapshot(): void {

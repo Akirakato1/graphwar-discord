@@ -36,6 +36,22 @@ describe("MatchController", () => {
     expect(snapshot.worldBounds).toEqual(worldBoundsForMapSize("huge"));
   });
 
+  it("uses the selected map size preset for lobby snapshots", () => {
+    const controller = new MatchController("room-1");
+
+    const snapshot = controller.setLobbyPlayers(
+      "team-versus",
+      [
+        { id: "alice-id", displayName: "Alice", teamId: "team-a" },
+        { id: "bob-id", displayName: "Bob", teamId: "team-b" }
+      ],
+      { mapSizePreset: "large" }
+    );
+
+    expect(snapshot.phase).toBe("lobby");
+    expect(snapshot.worldBounds).toEqual(worldBoundsForMapSize("large"));
+  });
+
   it("starts a match with an injected generated map when provided", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");

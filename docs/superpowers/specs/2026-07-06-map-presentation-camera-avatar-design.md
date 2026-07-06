@@ -6,7 +6,7 @@ Make match maps size-aware from lobby creation through server simulation and cli
 
 ## Scope
 
-This is Phase 1 of the larger gameplay-settings request. It includes map size presets, custom-map bounds, camera controls, avatar identity plumbing, and map-maker size setup. It does not include hit damage settings, unique function hits, or friendly fire; those belong to Phase 2.
+This is Phase 1 of the larger gameplay-settings request. It includes map size presets, custom-map bounds, camera controls, avatar identity plumbing, and preset-based map-maker size setup. It does not include hit damage settings, unique function hits, or friendly fire; those belong to Phase 2.
 
 ## Requirements
 
@@ -84,7 +84,7 @@ Derived bounds should add enough padding that edge terrain, spawn points, and pl
 
 ## Map Maker
 
-The map maker starts with a compact new-map setup state before entering the editor. The setup asks for map name and map size preset, with an optional custom bounds mode. The editor state stores `worldBounds`, the editor view uses those bounds for its SVG/canvas view box, and exports always include `worldBounds`.
+The map maker starts with a compact new-map setup state before entering the editor. The setup asks for map name and a map size preset. Arbitrary numeric custom bounds are deferred beyond this phase. The editor state stores `worldBounds`, the editor view uses those bounds for its SVG/canvas view box, and exports always include `worldBounds`.
 
 Existing editor tools adapt to bounds:
 

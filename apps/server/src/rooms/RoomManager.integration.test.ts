@@ -2,7 +2,13 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { serverEventSchema, type CustomMapImport, type LobbySlot, type ServerEvent } from "@graphwar/shared";
+import {
+  serverEventSchema,
+  worldBoundsForMapSize,
+  type CustomMapImport,
+  type LobbySlot,
+  type ServerEvent
+} from "@graphwar/shared";
 import WebSocket from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type BuildServerOptions } from "../index";
@@ -397,6 +403,42 @@ describe("RoomManager WebSocket integration", () => {
 
     await closeSocket(alice);
     await closeSocket(bob);
+  });
+
+  it("emits selected default map bounds in lobby websocket snapshots before match start", async () => {
+    const app = await startTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Large Preview Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        mapSizePreset: "large"
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+
+    send(alice, lobbyJoinCommand(created.session));
+
+    const event = await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 1
+    );
+
+    expect(event.type).toBe("room-snapshot");
+    if (event.type === "room-snapshot") {
+      expect(event.snapshot.phase).toBe("lobby");
+      expect(event.snapshot.worldBounds).toEqual(worldBoundsForMapSize("large"));
+    }
+
+    await closeSocket(alice);
   });
 
   it("starts a selected custom-map lobby with custom terrain and spawns", async () => {

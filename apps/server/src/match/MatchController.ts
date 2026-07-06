@@ -45,6 +45,11 @@ export type MatchStartOptions = {
   mapSizePreset?: MapSizePresetId;
 };
 
+export type LobbySnapshotOptions = {
+  mapSizePreset?: MapSizePresetId;
+  worldBounds?: WorldBounds;
+};
+
 function cloneSnapshot(snapshot: MatchState): MatchState {
   return structuredClone(snapshot);
 }
@@ -54,6 +59,7 @@ export class MatchController {
   private readonly functionRegistry = new FunctionRegistry();
   private readonly shotSimulator = new ShotSimulator();
   private maxFunctionLength: number = defaultMaxFunctionLength;
+  private lobbyWorldBounds: WorldBounds = worldBoundsForMapSize(defaultMapSizePreset);
   private snapshot: MatchState;
 
   constructor(private readonly roomId: RoomId) {
@@ -85,11 +91,12 @@ export class MatchController {
     return this.getSnapshot();
   }
 
-  setLobbyPlayers(modeId: MatchModeId, players: LobbyPlayer[]): MatchState {
+  setLobbyPlayers(modeId: MatchModeId, players: LobbyPlayer[], options: LobbySnapshotOptions = {}): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Match has already started");
     }
 
+    this.lobbyWorldBounds = this.resolveLobbyWorldBounds(options);
     this.lobbyPlayers.clear();
     for (const player of players) {
       this.lobbyPlayers.set(player.id, { ...player });
@@ -112,8 +119,10 @@ export class MatchController {
     const mode = this.createMode(modeId);
     this.maxFunctionLength = normalizeMaxFunctionLength(options.maxFunctionLength);
     const worldBounds = cloneWorldBounds(
-      generatedMap?.worldBounds ?? worldBoundsForMapSize(options.mapSizePreset ?? defaultMapSizePreset)
+      generatedMap?.worldBounds ??
+        (options.mapSizePreset ? worldBoundsForMapSize(options.mapSizePreset) : this.lobbyWorldBounds)
     );
+    this.lobbyWorldBounds = cloneWorldBounds(worldBounds);
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
@@ -242,7 +251,7 @@ export class MatchController {
     return {
       phase: "lobby",
       mode: "team-versus",
-      worldBounds: worldBoundsForMapSize(defaultMapSizePreset),
+      worldBounds: cloneWorldBounds(this.lobbyWorldBounds),
       players: [],
       teams: [],
       terrain: emptyTerrain,
@@ -264,7 +273,7 @@ export class MatchController {
     return {
       phase: "lobby",
       mode: mode.id,
-      worldBounds: worldBoundsForMapSize(defaultMapSizePreset),
+      worldBounds: cloneWorldBounds(this.lobbyWorldBounds),
       players: lobbyPlayers.map((player) => ({
         id: player.id,
         displayName: player.displayName,
@@ -323,6 +332,18 @@ export class MatchController {
 
   private getOrderedLobbyPlayers(): LobbyPlayer[] {
     return Array.from(this.lobbyPlayers.values());
+  }
+
+  private resolveLobbyWorldBounds(options: LobbySnapshotOptions): WorldBounds {
+    if (options.worldBounds) {
+      return cloneWorldBounds(options.worldBounds);
+    }
+
+    if (options.mapSizePreset) {
+      return worldBoundsForMapSize(options.mapSizePreset);
+    }
+
+    return cloneWorldBounds(this.lobbyWorldBounds);
   }
 
   private toTurnPlayers(players: PlayerState[]): TurnPlayer[] {

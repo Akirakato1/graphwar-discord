@@ -30,7 +30,7 @@
 - `apps/map-maker/src/editor/editorTypes.ts`: stores editor `worldBounds`.
 - `apps/map-maker/src/editor/editorModel.ts`: creates editor state for chosen bounds and places helper spawns in bounds.
 - `apps/map-maker/src/editor/mapExport.ts`: exports `worldBounds`.
-- `apps/map-maker/src/renderer/App.tsx`: setup screen for map name/preset/custom bounds and bounds-aware SVG view.
+- `apps/map-maker/src/renderer/App.tsx`: setup screen for map name/preset bounds and bounds-aware SVG view.
 
 ---
 

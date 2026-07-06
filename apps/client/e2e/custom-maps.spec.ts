@@ -71,10 +71,13 @@ test("imports a guild custom map and starts a two-client match with it", async (
     await alicePage.getByRole("button", { name: "Back" }).click();
 
     await alicePage.getByRole("button", { name: "Create Lobby" }).click();
-    await alicePage.getByLabel("Lobby name").fill(lobbyName);
-    await alicePage.getByLabel("Alias").fill("Alice");
-    await alicePage.getByLabel("Map").selectOption({ label: "E2E Custom Arena" });
-    await alicePage.getByRole("button", { name: "Create" }).click();
+    const createLobbyRegion = alicePage.getByRole("region", { name: "Create Lobby" });
+    await createLobbyRegion.getByLabel("Lobby name").fill(lobbyName);
+    await createLobbyRegion.getByLabel("Alias").fill("Alice");
+    await createLobbyRegion.getByRole("combobox", { name: "Map", exact: true }).selectOption({
+      label: "E2E Custom Arena"
+    });
+    await createLobbyRegion.getByRole("button", { name: "Create" }).click();
     await expect(alicePage.getByRole("heading", { name: lobbyName })).toBeVisible();
 
     await openLocalMenu(bobPage, bob, guildId);
