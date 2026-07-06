@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mapSizePresetCatalog, mapSizePresetSchema, worldBoundsSchema } from "./schemas";
 import { customMapImportSchema, validateCustomMapImportForSave } from "./schemas";
+import { boundsHeight, boundsWidth, isWorldPointInBounds, mapSizePresets, worldBoundsForMapSize } from "./worldBounds";
 
 function spawnPoints(count: number) {
   return Array.from({ length: count }, (_, index) => ({
@@ -33,6 +35,40 @@ const validMap = {
 } as const;
 
 describe("custom map schemas", () => {
+  it("defines centered world bounds for every map size preset", () => {
+    expect(mapSizePresetCatalog).toEqual({
+      small: { id: "small", width: 40, height: 24, worldBounds: { minX: -20, maxX: 20, minY: -12, maxY: 12 } },
+      standard: { id: "standard", width: 50, height: 30, worldBounds: { minX: -25, maxX: 25, minY: -15, maxY: 15 } },
+      large: { id: "large", width: 75, height: 45, worldBounds: { minX: -37.5, maxX: 37.5, minY: -22.5, maxY: 22.5 } },
+      huge: { id: "huge", width: 100, height: 60, worldBounds: { minX: -50, maxX: 50, minY: -30, maxY: 30 } }
+    });
+
+    expect(mapSizePresetSchema.parse("standard")).toBe("standard");
+    expect(worldBoundsSchema.parse(mapSizePresetCatalog.standard.worldBounds)).toEqual({
+      minX: -25,
+      maxX: 25,
+      minY: -15,
+      maxY: 15
+    });
+  });
+
+  it("exposes map size preset helpers", () => {
+    expect(mapSizePresets.map((preset) => preset.id)).toEqual(["small", "standard", "large", "huge"]);
+    expect(worldBoundsForMapSize("large")).toEqual({ minX: -37.5, maxX: 37.5, minY: -22.5, maxY: 22.5 });
+    expect(boundsWidth(mapSizePresetCatalog.large.worldBounds)).toBe(75);
+    expect(boundsHeight(mapSizePresetCatalog.large.worldBounds)).toBe(45);
+    expect(isWorldPointInBounds({ x: -37.5, y: 22.5 }, mapSizePresetCatalog.large.worldBounds)).toBe(true);
+    expect(isWorldPointInBounds({ x: -37.6, y: 0 }, mapSizePresetCatalog.large.worldBounds)).toBe(false);
+  });
+
+  it("returns fresh world bounds copies for map size presets", () => {
+    const bounds = worldBoundsForMapSize("large");
+    bounds.minX = 0;
+
+    expect(worldBoundsForMapSize("large")).toEqual({ minX: -37.5, maxX: 37.5, minY: -22.5, maxY: 22.5 });
+    expect(mapSizePresetCatalog.large.worldBounds).toEqual({ minX: -37.5, maxX: 37.5, minY: -22.5, maxY: 22.5 });
+  });
+
   it("accepts a valid graphwar map import", () => {
     expect(customMapImportSchema.parse(validMap).name).toBe("Arena One");
   });

@@ -6,6 +6,7 @@ import {
   createLobbyRequestSchema,
   joinLobbyRequestSchema,
   lobbyRuntimeSnapshotSchema,
+  matchSnapshotSchema,
   defaultMaxFunctionLength,
   defaultPlayerColor,
   serverEventSchema,
@@ -15,6 +16,8 @@ import {
 } from "@graphwar/shared";
 
 describe("protocol schemas", () => {
+  const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
   it("keeps client command schema output aligned with ClientCommand", () => {
     expectTypeOf<z.infer<typeof clientCommandSchema>>().toEqualTypeOf<ClientCommand>();
   });
@@ -79,6 +82,7 @@ describe("protocol schemas", () => {
       snapshot: {
         phase: "playing",
         mode: "team-versus",
+        worldBounds: standardWorldBounds,
         players: [],
         teams: [],
         terrain: { blobs: [] },
@@ -105,6 +109,7 @@ describe("protocol schemas", () => {
         snapshot: {
           phase: "playing",
           mode: "team-versus",
+          worldBounds: standardWorldBounds,
           players: [],
           teams: [],
           terrain: { blobs: [] },
@@ -130,6 +135,7 @@ describe("protocol schemas", () => {
         snapshot: {
           phase: "playing",
           mode: "team-versus",
+          worldBounds: standardWorldBounds,
           players: [],
           teams: [],
           terrain: { blobs: [] },
@@ -155,6 +161,7 @@ describe("protocol schemas", () => {
         snapshot: {
           phase: "playing",
           mode: "team-versus",
+          worldBounds: standardWorldBounds,
           players: [],
           teams: [],
           terrain: { blobs: [] },
@@ -252,15 +259,24 @@ describe("protocol schemas", () => {
       playerId: "alice-id",
       discordUserId: "alice-id",
       alias: "Alice",
+      avatarUrl: "https://example.com/alice.png",
       displayName: "Alice",
       slot: "player"
     };
 
     expect(clientCommandSchema.parse(joinCommand)).toEqual(joinCommand);
 
+    expect(
+      clientCommandSchema.parse({
+        ...joinCommand,
+        avatarUrl: "not a url"
+      })
+    ).not.toHaveProperty("avatarUrl");
+
     const snapshot = {
       phase: "lobby" as const,
       mode: "team-versus" as const,
+      worldBounds: standardWorldBounds,
       players: [],
       teams: [],
       terrain: { blobs: [] },
@@ -300,5 +316,54 @@ describe("protocol schemas", () => {
 
     expect(serverEventSchema.parse(event)).toEqual(event);
     expect(lobbyRuntimeSnapshotSchema.parse(event.lobby)).toEqual(event.lobby);
+  });
+
+  it("keeps world bounds and player avatar URLs on match snapshots", () => {
+    const parsed = matchSnapshotSchema.parse({
+      phase: "playing",
+      mode: "team-versus",
+      worldBounds: standardWorldBounds,
+      players: [
+        {
+          id: "alice",
+          displayName: "Alice",
+          avatarUrl: "https://example.com/alice.png",
+          teamId: "team-a",
+          position: { x: 0, y: 0 },
+          hp: 100,
+          alive: true
+        }
+      ],
+      teams: [{ id: "team-a", playerIds: ["alice"] }],
+      terrain: { blobs: [] },
+      turn: { activePlayerId: "alice", order: ["alice"], turnNumber: 1 }
+    });
+
+    expect(parsed.worldBounds).toEqual(standardWorldBounds);
+    expect(parsed.players[0]).toEqual(expect.objectContaining({ avatarUrl: "https://example.com/alice.png" }));
+  });
+
+  it("rejects malformed player avatar URLs in match snapshots", () => {
+    expect(() =>
+      matchSnapshotSchema.parse({
+        phase: "playing",
+        mode: "team-versus",
+        worldBounds: standardWorldBounds,
+        players: [
+          {
+            id: "alice",
+            displayName: "Alice",
+            avatarUrl: "not a url",
+            teamId: "team-a",
+            position: { x: 0, y: 0 },
+            hp: 100,
+            alive: true
+          }
+        ],
+        teams: [{ id: "team-a", playerIds: ["alice"] }],
+        terrain: { blobs: [] },
+        turn: { activePlayerId: "alice", order: ["alice"], turnNumber: 1 }
+      })
+    ).toThrow();
   });
 });

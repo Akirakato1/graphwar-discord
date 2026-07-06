@@ -171,3 +171,4 @@ Every major implementation task should:
 - Added an approved Phase 1 map presentation design covering default map-size presets, authoritative match bounds, custom-map bounds fallback, camera zoom/pan, avatar rendering, and map-maker size setup.
 - Added a Phase 2 gameplay-settings design covering configurable player-hit damage, unique successful function hits, friendly-fire target filtering, lobby rule propagation, and focused tests.
 - Added a Phase 1 map presentation implementation plan covering shared bounds contracts, server propagation, client camera/avatar rendering, map-maker bounds setup, and verification checkpoints.
+- Added shared Phase 1 map presentation contracts for map-size presets, reusable world bounds, sanitized avatar URLs, lobby map-size metadata, and optional snapshot bounds during server migration.

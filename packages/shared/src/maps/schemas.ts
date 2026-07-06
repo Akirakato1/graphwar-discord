@@ -1,18 +1,12 @@
 import { z } from "zod";
 import { pointSchema } from "../protocol/schemas";
+import { worldBoundsSchema } from "./worldBounds";
+export { defaultMapSizePreset, mapSizePresetCatalog, mapSizePresetSchema, worldBoundsSchema } from "./worldBounds";
 
 const mapNameSchema = z.string().trim().min(1).max(80);
 const spawnPointIdSchema = z.string().trim().min(1).max(80);
 
-export const customMapWorldBoundsSchema = z
-  .object({
-    minX: z.number().finite(),
-    maxX: z.number().finite(),
-    minY: z.number().finite(),
-    maxY: z.number().finite()
-  })
-  .refine((bounds) => bounds.minX < bounds.maxX, "minX must be less than maxX")
-  .refine((bounds) => bounds.minY < bounds.maxY, "minY must be less than maxY");
+export const customMapWorldBoundsSchema = worldBoundsSchema;
 
 export const customMapSpawnPointSchema = z.object({
   id: spawnPointIdSchema,

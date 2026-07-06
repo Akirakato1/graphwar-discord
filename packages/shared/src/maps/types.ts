@@ -1,15 +1,12 @@
 import type { TerrainState, WorldPoint } from "../geometry/types";
 import type { DiscordUserId, GuildId } from "../lobby/types";
+import type { WorldBounds } from "./worldBounds";
+export type { MapSizePreset, MapSizePresetId, WorldBounds } from "./worldBounds";
 
 export type CustomMapFormat = "graphwar-map";
 export type CustomMapVersion = 1;
 
-export type CustomMapWorldBounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
+export type CustomMapWorldBounds = WorldBounds;
 
 export type CustomMapSpawnPoint = {
   id: string;

@@ -1,5 +1,6 @@
 import type { TerrainState, WorldPoint } from "../geometry/types";
 import type { PlayerColor } from "../lobby/identity";
+import type { WorldBounds } from "../maps/worldBounds";
 
 export type PlayerId = string;
 export type TeamId = string;
@@ -22,6 +23,7 @@ export type MatchPhase = "lobby" | "playing" | "ended";
 export type PlayerState = {
   id: PlayerId;
   displayName: string;
+  avatarUrl?: string;
   color?: PlayerColor;
   teamId: TeamId;
   position: WorldPoint;
@@ -43,6 +45,7 @@ export type TurnState = {
 export type MatchSnapshot = {
   phase: MatchPhase;
   mode: MatchModeId;
+  worldBounds?: WorldBounds;
   players: PlayerState[];
   teams: TeamState[];
   terrain: TerrainState;

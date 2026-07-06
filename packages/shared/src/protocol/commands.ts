@@ -15,6 +15,7 @@ export type JoinRoomCommand = {
   playerId: PlayerId;
   discordUserId?: DiscordUserId;
   alias?: string;
+  avatarUrl?: string;
   displayName: string;
   slot?: LobbySlot;
   sessionToken?: string;

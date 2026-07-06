@@ -4,8 +4,11 @@ import {
   lobbyRuntimeSnapshotSchema,
   lobbySlotSchema,
   matchModeSchema,
-  playerColorSchema
+  playerColorSchema,
+  avatarUrlInputSchema,
+  avatarUrlSchema
 } from "../lobby/schemas";
+import { worldBoundsSchema } from "../maps/worldBounds";
 import { aimDirections } from "../state/types";
 
 export const finiteNumberSchema = z.number().finite();
@@ -14,6 +17,10 @@ export const positiveIntegerSchema = z.number().finite().int().positive();
 export const aimDirectionSchema = z.enum(aimDirections);
 const optionalGuildIdSchema = z.string().min(1).optional();
 const optionalSessionTokenSchema = z.string().min(1).optional();
+
+function dropUndefinedProperties<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)) as T;
+}
 
 export const pointSchema = z.object({ x: finiteNumberSchema, y: finiteNumberSchema });
 
@@ -28,16 +35,20 @@ export const terrainStateSchema = z.object({ blobs: z.array(terrainBlobSchema) }
 export const matchSnapshotSchema = z.object({
   phase: z.enum(["lobby", "playing", "ended"]),
   mode: matchModeSchema,
+  worldBounds: worldBoundsSchema.optional(),
   players: z.array(
     z.object({
       id: z.string(),
       displayName: z.string(),
+      avatarUrl: avatarUrlSchema,
       color: playerColorSchema.optional(),
       teamId: z.string(),
       position: pointSchema,
       hp: nonNegativeFiniteNumberSchema,
       alive: z.boolean()
-    })
+    }).transform(
+      (player) => Object.fromEntries(Object.entries(player).filter(([, value]) => value !== undefined)) as typeof player
+    )
   ),
   teams: z.array(z.object({ id: z.string(), playerIds: z.array(z.string()) })),
   terrain: terrainStateSchema,
@@ -52,6 +63,7 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     playerId: z.string(),
     discordUserId: z.string().optional(),
     alias: z.string().optional(),
+    avatarUrl: avatarUrlInputSchema,
     displayName: z.string(),
     slot: lobbySlotSchema.optional(),
     sessionToken: optionalSessionTokenSchema
@@ -115,20 +127,24 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
   })
 ]);
 
-export const clientCommandSchema = clientCommandUnionSchema.superRefine((command, context) => {
-  if (command.type !== "set-team") {
-    return;
-  }
+export const clientCommandSchema = clientCommandUnionSchema
+  .superRefine((command, context) => {
+    if (command.type !== "set-team") {
+      return;
+    }
 
-  if (command.teamId || (command.targetPlayerId && command.placement)) {
-    return;
-  }
+    if (command.teamId || (command.targetPlayerId && command.placement)) {
+      return;
+    }
 
-  context.addIssue({
-    code: z.ZodIssueCode.custom,
-    message: "set-team requires either teamId or targetPlayerId and placement"
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "set-team requires either teamId or targetPlayerId and placement"
+    });
+  })
+  .transform((command) => {
+    return dropUndefinedProperties(command);
   });
-});
 
 export const serverEventSchema = z.discriminatedUnion("type", [
   z.object({
