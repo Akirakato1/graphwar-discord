@@ -156,3 +156,4 @@ Every major implementation task should:
 - Added a lobby identity/settings implementation plan covering shared contracts, server shot-length tuning, client lobby controls, color-aware rendering, and E2E updates.
 - Added shared/server/client lobby identity settings: 10 fixed player colors, lobby leader crowns, group-header join buttons, centered compact create-lobby UI, color-aware in-game rendering, and a server-authoritative per-lobby max function length with focused Vitest and local-lobby Playwright coverage.
 - Added visible max-range fizzles: range-limited shots now resolve as `path-too-long`, preserve terrain/player state, still advance the turn, and render a non-explosion endpoint marker.
+- Refined the max-range fizzle marker to use circular spark particles instead of straight crossed strokes so it cannot read as extra function beams.

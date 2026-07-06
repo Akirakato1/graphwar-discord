@@ -207,6 +207,7 @@ function drawImpactRing(ctx: CanvasRenderingContext2D, size: CanvasSize, impact:
 
 function drawRangeFizzle(ctx: CanvasRenderingContext2D, size: CanvasSize, impact: { x: number; y: number }): void {
   const radius = Math.max(5, worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.2, size));
+  const particleRadius = Math.max(1.5, radius * 0.16);
 
   ctx.save();
   ctx.lineWidth = 2;
@@ -218,12 +219,18 @@ function drawRangeFizzle(ctx: CanvasRenderingContext2D, size: CanvasSize, impact
   ctx.fill();
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(impact.x - radius * 0.75, impact.y);
-  ctx.lineTo(impact.x + radius * 0.75, impact.y);
-  ctx.moveTo(impact.x, impact.y - radius * 0.75);
-  ctx.lineTo(impact.x, impact.y + radius * 0.75);
-  ctx.stroke();
+  ctx.fillStyle = "rgba(249, 242, 199, 0.72)";
+  for (const angle of [Math.PI * 0.12, Math.PI * 0.82, Math.PI * 1.48]) {
+    ctx.beginPath();
+    ctx.arc(
+      impact.x + Math.cos(angle) * radius * 0.72,
+      impact.y + Math.sin(angle) * radius * 0.72,
+      particleRadius,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
   ctx.restore();
 }
 

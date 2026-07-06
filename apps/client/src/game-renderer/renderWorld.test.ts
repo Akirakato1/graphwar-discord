@@ -410,11 +410,19 @@ describe("renderWorld", () => {
     const strokeStyles = context.calls
       .filter((call) => call.name === "setStrokeStyle")
       .map((call) => String(call.args[0]));
+    const fizzleStrokeIndex = context.calls.findIndex(
+      (call) => call.name === "setStrokeStyle" && call.args[0] === "rgba(249, 242, 199, 0.72)"
+    );
+    const fizzleRestoreIndex = context.calls.findIndex(
+      (call, index) => index > fizzleStrokeIndex && call.name === "restore"
+    );
+    const fizzleCalls = context.calls.slice(fizzleStrokeIndex, fizzleRestoreIndex);
 
     expect(centerArcs.some((call) => Number(call.args[2]) > 0 && Number(call.args[2]) < 20)).toBe(true);
     expect(centerArcs.some((call) => Number(call.args[2]) > 20)).toBe(false);
     expect(fillStyles).not.toContain("rgba(255, 111, 108, 0.16)");
     expect(strokeStyles).toContain("rgba(249, 242, 199, 0.72)");
+    expect(fizzleCalls.some((call) => call.name === "lineTo")).toBe(false);
   });
 
   it("uses a player's chosen lobby color for their marker and name label", () => {
