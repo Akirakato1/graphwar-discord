@@ -158,17 +158,21 @@ describe("NormalFunction", () => {
   });
 
   it("evaluates gamma-family helpers and continuous factorial", () => {
+    const gammaShot = NormalFunction.parse("gamma(x + 1)");
     const factorialShot = NormalFunction.parse("factorial(x)");
     const digammaShot = NormalFunction.parse("digamma(x + 1)");
     const betaShot = NormalFunction.parse("beta(x + 1, 2)");
+    const gammaSample = gammaShot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });
     const factorialSample = factorialShot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });
     const digammaSample = digammaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
     const betaSample = betaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
 
+    expect(gammaSample.ok).toBe(true);
     expect(factorialSample.ok).toBe(true);
     expect(digammaSample.ok).toBe(true);
     expect(betaSample.ok).toBe(true);
-    if (factorialSample.ok && digammaSample.ok && betaSample.ok) {
+    if (gammaSample.ok && factorialSample.ok && digammaSample.ok && betaSample.ok) {
+      expect(gammaSample.points[3]?.y).toBeCloseTo(5);
       expect(factorialSample.points[3]?.y).toBeCloseTo(5);
       expect(digammaSample.points[1]?.y).toBeCloseTo(1, 5);
       expect(betaSample.points[1]?.y).toBeCloseTo(-1 / 3, 5);
@@ -197,7 +201,16 @@ describe("NormalFunction", () => {
   });
 
   it("rejects excessive aggregate and derivative work", () => {
+    const excessiveIntegrals = [
+      "int(t, 0, 1, t)",
+      "int(u, 0, 1, u)",
+      "int(v, 0, 1, v)",
+      "int(w, 0, 1, w)",
+      "int(z, 0, 1, z)"
+    ].join(" + ");
+
     expect(() => NormalFunction.parse("sum(n, 0, 2000, n)")).toThrow(/evaluation limit/i);
+    expect(() => NormalFunction.parse(excessiveIntegrals)).toThrow(/evaluation limit/i);
     expect(() => NormalFunction.parse("diff(x, 5, sin(x))")).toThrow(/derivative order/i);
     expect(() => NormalFunction.parse("diff(t, 1, sin(t))")).toThrow(/only supports x/i);
   });
