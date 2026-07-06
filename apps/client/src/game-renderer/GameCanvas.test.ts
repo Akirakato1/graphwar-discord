@@ -2,7 +2,7 @@ import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { GameCanvas, shotEventKey } from "./GameCanvas";
+import { GameCanvas, canRetryAvatarUrl, resolveShotPlaybackState, shotEventKey } from "./GameCanvas";
 
 const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
 
@@ -71,6 +71,18 @@ describe("GameCanvas", () => {
     expect(html).toContain('data-terrain-ids="test-platform"');
   });
 
+  it("includes camera metadata when a snapshot is available", () => {
+    const hugeSnapshot: MatchSnapshot = {
+      ...snapshot,
+      worldBounds: { minX: -50, maxX: 50, minY: -30, maxY: 30 }
+    };
+
+    const html = renderToStaticMarkup(React.createElement(GameCanvas, { events: [], snapshot: hugeSnapshot }));
+
+    expect(html).toContain('data-camera-enabled="true"');
+    expect(html).toContain('data-world-bounds="-50,50,-30,30"');
+  });
+
   it("keeps latest shot metadata after an immediate turn event", () => {
     const shotResolved: ServerEvent = {
       type: "shot-resolved",
@@ -125,5 +137,55 @@ describe("GameCanvas", () => {
         }
       })
     );
+  });
+});
+
+describe("resolveShotPlaybackState", () => {
+  it("preserves elapsed playback for the same shot key across non-shot rerenders", () => {
+    expect(
+      resolveShotPlaybackState(
+        {
+          activeShotKey: "shot-1",
+          startedAt: 1_000,
+          completedShotKey: undefined
+        },
+        "shot-1",
+        1_300,
+        750
+      )
+    ).toEqual({
+      activeShotKey: "shot-1",
+      startedAt: 1_000,
+      completedShotKey: undefined,
+      progress: 0.4
+    });
+  });
+
+  it("resets playback timing only when a new shot key arrives", () => {
+    expect(
+      resolveShotPlaybackState(
+        {
+          activeShotKey: "shot-1",
+          startedAt: 1_000,
+          completedShotKey: "shot-1"
+        },
+        "shot-2",
+        1_300,
+        750
+      )
+    ).toEqual({
+      activeShotKey: "shot-2",
+      startedAt: 1_300,
+      completedShotKey: undefined,
+      progress: 0
+    });
+  });
+});
+
+describe("canRetryAvatarUrl", () => {
+  it("allows a bounded number of retries for a static snapshot avatar url", () => {
+    expect(canRetryAvatarUrl(undefined)).toBe(true);
+    expect(canRetryAvatarUrl(1)).toBe(true);
+    expect(canRetryAvatarUrl(2)).toBe(false);
   });
 });

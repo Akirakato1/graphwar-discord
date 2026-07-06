@@ -1,11 +1,11 @@
 import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { describe, expect, it } from "vitest";
+import { fitCameraToBounds } from "./camera";
 import {
   findLatestShotResolvedEvent,
   findSnapshotBeforeLatestShot,
   isLatestShotFollowedByTurnEvent,
   renderWorld,
-  worldToCanvas
 } from "./renderWorld";
 
 const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
@@ -105,6 +105,14 @@ class RecordingCanvasContext {
     this.record("closePath", []);
   }
 
+  public clip(...args: unknown[]) {
+    this.record("clip", args);
+  }
+
+  public drawImage(...args: unknown[]) {
+    this.record("drawImage", args);
+  }
+
   public fill(...args: unknown[]) {
     this.record("fill", args);
   }
@@ -145,24 +153,6 @@ class RecordingCanvasContext {
     this.calls.push({ name, args });
   }
 }
-
-describe("worldToCanvas", () => {
-  it("maps the shared field bounds into canvas pixels with origin centered and y upward", () => {
-    const size = { width: 1000, height: 600 };
-
-    expect(worldToCanvas({ x: 0, y: 0 }, size)).toEqual({ x: 500, y: 300 });
-    expect(worldToCanvas({ x: -25, y: 15 }, size)).toEqual({ x: 0, y: 0 });
-    expect(worldToCanvas({ x: 25, y: -15 }, size)).toEqual({ x: 1000, y: 600 });
-  });
-
-  it("letterboxes wide canvases instead of stretching world geometry", () => {
-    const size = { width: 1000, height: 300 };
-
-    expect(worldToCanvas({ x: 0, y: 0 }, size)).toEqual({ x: 500, y: 150 });
-    expect(worldToCanvas({ x: -25, y: 15 }, size)).toEqual({ x: 250, y: 0 });
-    expect(worldToCanvas({ x: 25, y: -15 }, size)).toEqual({ x: 750, y: 300 });
-  });
-});
 
 describe("findLatestShotResolvedEvent", () => {
   it("returns the newest authoritative shot event from the recent event buffer", () => {
@@ -448,5 +438,58 @@ describe("renderWorld", () => {
       .filter((call) => call.name === "setFillStyle")
       .map((call) => String(call.args[0]));
     expect(fillStyles.filter((value) => value === "#f72585")).toHaveLength(2);
+  });
+
+  it("renders non-standard world bounds through the camera transform", () => {
+    const context = new RecordingCanvasContext();
+    const hugeSnapshot: MatchSnapshot = {
+      ...snapshot,
+      worldBounds: { minX: -50, maxX: 50, minY: -30, maxY: 30 },
+      players: [
+        {
+          ...snapshot.players[0],
+          position: { x: 50, y: -30 }
+        }
+      ],
+      teams: [{ id: "red", playerIds: ["alice"] }]
+    };
+
+    renderWorld(context as unknown as CanvasRenderingContext2D, { width: 960, height: 576 }, {
+      snapshot: hugeSnapshot
+    });
+
+    expect(
+      context.calls.some(
+        (call) => call.name === "arc" && call.args[0] === 960 && call.args[1] === 576 && Number(call.args[2]) > 0
+      )
+    ).toBe(true);
+  });
+
+  it("draws loaded avatar images inside the player marker when available", () => {
+    const context = new RecordingCanvasContext();
+    const avatarSnapshot: MatchSnapshot = {
+      ...snapshot,
+      players: [
+        {
+          ...snapshot.players[0],
+          avatarUrl: "https://cdn.example/alice.png"
+        }
+      ],
+      teams: [{ id: "red", playerIds: ["alice"] }]
+    };
+    const avatarImage = { complete: true, naturalWidth: 80, naturalHeight: 80 };
+
+    renderWorld(
+      context as unknown as CanvasRenderingContext2D,
+      { width: 1000, height: 600 },
+      {
+        snapshot: avatarSnapshot,
+        camera: fitCameraToBounds(avatarSnapshot.worldBounds, { width: 1000, height: 600 }),
+        avatarImages: { alice: avatarImage }
+      } as unknown as Parameters<typeof renderWorld>[2]
+    );
+
+    expect(context.calls.some((call) => call.name === "clip")).toBe(true);
+    expect(context.calls.some((call) => call.name === "drawImage" && call.args[0] === avatarImage)).toBe(true);
   });
 });

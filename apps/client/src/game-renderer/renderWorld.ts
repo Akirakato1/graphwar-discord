@@ -1,4 +1,14 @@
-import { defaultMatchTuning, fieldBounds, type ImpactEvent, type MatchSnapshot, type ServerEvent, type ShotResolvedEvent, type WorldPoint } from "@graphwar/shared";
+import {
+  defaultMatchTuning,
+  fieldBounds,
+  type ImpactEvent,
+  type MatchSnapshot,
+  type ServerEvent,
+  type ShotResolvedEvent,
+  type WorldBounds,
+  type WorldPoint
+} from "@graphwar/shared";
+import { fitCameraToBounds, type Camera, worldToCanvasWithCamera } from "./camera";
 
 export type CanvasSize = {
   width: number;
@@ -12,21 +22,17 @@ export type RenderShot = {
 };
 
 export type RenderWorldOptions = {
+  avatarImages?: Record<string, CanvasImageSource>;
+  camera?: Camera;
   shot?: RenderShot;
   snapshot?: MatchSnapshot;
 };
 
-const WORLD_WIDTH = fieldBounds.maxX - fieldBounds.minX;
-const WORLD_HEIGHT = fieldBounds.maxY - fieldBounds.minY;
 const GRID_STEP = 5;
 const TEAM_COLORS = ["#ef6f6c", "#5fb3f9", "#f5c542", "#7bd88f", "#c084fc", "#f59f5f"];
 
 export function worldToCanvas(point: WorldPoint, size: CanvasSize) {
-  const viewport = worldViewport(size);
-  return {
-    x: viewport.offsetX + (point.x - fieldBounds.minX) * viewport.scale,
-    y: viewport.offsetY + (fieldBounds.maxY - point.y) * viewport.scale
-  };
+  return worldToCanvasWithCamera(point, fitCameraToBounds(fieldBounds, size));
 }
 
 export function findLatestShotResolvedEvent(events: ServerEvent[]): ShotResolvedEvent | undefined {
@@ -91,15 +97,18 @@ function snapshotFromEvent(event: ServerEvent): MatchSnapshot | undefined {
 }
 
 export function renderWorld(ctx: CanvasRenderingContext2D, size: CanvasSize, options: RenderWorldOptions = {}): void {
+  const bounds = options.snapshot?.worldBounds ?? fieldBounds;
+  const camera = options.camera ?? fitCameraToBounds(bounds, size);
+
   ctx.save();
   drawBackground(ctx, size);
-  drawGrid(ctx, size);
-  drawAxes(ctx, size);
+  drawGrid(ctx, bounds, camera);
+  drawAxes(ctx, bounds, camera);
 
   if (options.snapshot) {
-    drawTerrain(ctx, size, options.snapshot);
-    drawShot(ctx, size, options.shot);
-    drawPlayers(ctx, size, options.snapshot);
+    drawTerrain(ctx, camera, options.snapshot);
+    drawShot(ctx, camera, options.shot);
+    drawPlayers(ctx, camera, options.snapshot, options.avatarImages);
   } else {
     drawEmptyState(ctx, size);
   }
@@ -113,32 +122,32 @@ function drawBackground(ctx: CanvasRenderingContext2D, size: CanvasSize): void {
   ctx.fillRect(0, 0, size.width, size.height);
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D, size: CanvasSize): void {
+function drawGrid(ctx: CanvasRenderingContext2D, bounds: WorldBounds, camera: Camera): void {
   ctx.save();
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(218, 210, 188, 0.1)";
 
-  for (let x = Math.ceil(fieldBounds.minX / GRID_STEP) * GRID_STEP; x <= fieldBounds.maxX; x += GRID_STEP) {
-    drawWorldLine(ctx, size, { x, y: fieldBounds.minY }, { x, y: fieldBounds.maxY });
+  for (let x = Math.ceil(bounds.minX / GRID_STEP) * GRID_STEP; x <= bounds.maxX; x += GRID_STEP) {
+    drawWorldLine(ctx, camera, { x, y: bounds.minY }, { x, y: bounds.maxY });
   }
 
-  for (let y = Math.ceil(fieldBounds.minY / GRID_STEP) * GRID_STEP; y <= fieldBounds.maxY; y += GRID_STEP) {
-    drawWorldLine(ctx, size, { x: fieldBounds.minX, y }, { x: fieldBounds.maxX, y });
+  for (let y = Math.ceil(bounds.minY / GRID_STEP) * GRID_STEP; y <= bounds.maxY; y += GRID_STEP) {
+    drawWorldLine(ctx, camera, { x: bounds.minX, y }, { x: bounds.maxX, y });
   }
 
   ctx.restore();
 }
 
-function drawAxes(ctx: CanvasRenderingContext2D, size: CanvasSize): void {
+function drawAxes(ctx: CanvasRenderingContext2D, bounds: WorldBounds, camera: Camera): void {
   ctx.save();
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = "rgba(159, 211, 197, 0.36)";
-  drawWorldLine(ctx, size, { x: fieldBounds.minX, y: 0 }, { x: fieldBounds.maxX, y: 0 });
-  drawWorldLine(ctx, size, { x: 0, y: fieldBounds.minY }, { x: 0, y: fieldBounds.maxY });
+  drawWorldLine(ctx, camera, { x: bounds.minX, y: 0 }, { x: bounds.maxX, y: 0 });
+  drawWorldLine(ctx, camera, { x: 0, y: bounds.minY }, { x: 0, y: bounds.maxY });
   ctx.restore();
 }
 
-function drawTerrain(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: MatchSnapshot): void {
+function drawTerrain(ctx: CanvasRenderingContext2D, camera: Camera, snapshot: MatchSnapshot): void {
   ctx.save();
   ctx.fillStyle = "#6f7d52";
   ctx.strokeStyle = "#a0ae79";
@@ -146,10 +155,10 @@ function drawTerrain(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: 
 
   for (const blob of snapshot.terrain.blobs) {
     ctx.beginPath();
-    drawPolygonRing(ctx, size, blob.outer);
+    drawPolygonRing(ctx, camera, blob.outer);
 
     for (const hole of blob.holes) {
-      drawPolygonRing(ctx, size, hole);
+      drawPolygonRing(ctx, camera, hole);
     }
 
     ctx.fill("evenodd");
@@ -159,7 +168,7 @@ function drawTerrain(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: 
   ctx.restore();
 }
 
-function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderShot | undefined): void {
+function drawShot(ctx: CanvasRenderingContext2D, camera: Camera, shot: RenderShot | undefined): void {
   if (!shot || shot.path.length === 0) {
     return;
   }
@@ -171,8 +180,8 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 7]);
     for (let index = 1; index < visiblePath.length; index += 1) {
-      const start = worldToCanvas(visiblePath[index - 1], size);
-      const end = worldToCanvas(visiblePath[index], size);
+      const start = worldToCanvasWithCamera(visiblePath[index - 1], camera);
+      const end = worldToCanvasWithCamera(visiblePath[index], camera);
       ctx.strokeStyle = shotPathColor(index - 1, segmentCount);
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
@@ -184,29 +193,29 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
   }
 
   if (shot.impact?.point && (shot.progress ?? 1) >= 1) {
-    const impact = worldToCanvas(shot.impact.point, size);
+    const impact = worldToCanvasWithCamera(shot.impact.point, camera);
     if (shot.impact.reason === "path-too-long") {
-      drawRangeFizzle(ctx, size, impact);
+      drawRangeFizzle(ctx, camera, impact);
     } else {
-      drawImpactRing(ctx, size, impact);
+      drawImpactRing(ctx, camera, impact);
     }
   }
 }
 
-function drawImpactRing(ctx: CanvasRenderingContext2D, size: CanvasSize, impact: { x: number; y: number }): void {
+function drawImpactRing(ctx: CanvasRenderingContext2D, camera: Camera, impact: { x: number; y: number }): void {
   ctx.save();
   ctx.lineWidth = 2.5;
   ctx.strokeStyle = "#ffcf5d";
   ctx.fillStyle = "rgba(255, 111, 108, 0.16)";
   ctx.beginPath();
-  ctx.arc(impact.x, impact.y, worldDistanceToCanvas(defaultMatchTuning.circleCraterRadius, size), 0, Math.PI * 2);
+  ctx.arc(impact.x, impact.y, worldDistanceToCanvas(defaultMatchTuning.circleCraterRadius, camera), 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
 }
 
-function drawRangeFizzle(ctx: CanvasRenderingContext2D, size: CanvasSize, impact: { x: number; y: number }): void {
-  const radius = Math.max(5, worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.2, size));
+function drawRangeFizzle(ctx: CanvasRenderingContext2D, camera: Camera, impact: { x: number; y: number }): void {
+  const radius = Math.max(5, worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.2, camera));
   const particleRadius = Math.max(1.5, radius * 0.16);
 
   ctx.save();
@@ -241,12 +250,18 @@ function shotPathColor(segmentIndex: number, segmentCount: number): string {
   return `rgba(249, 242, 199, ${Number(alpha.toFixed(3))})`;
 }
 
-function drawPlayers(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: MatchSnapshot): void {
+function drawPlayers(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  snapshot: MatchSnapshot,
+  avatarImages: Record<string, CanvasImageSource> | undefined
+): void {
   for (const player of snapshot.players) {
-    const point = worldToCanvas(player.position, size);
-    const radius = worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.8, size);
+    const point = worldToCanvasWithCamera(player.position, camera);
+    const radius = worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.8, camera);
     const teamColor = colorForTeam(player.teamId);
     const playerColor = player.color ?? teamColor;
+    const avatarImage = player.avatarUrl ? avatarImages?.[player.id] : undefined;
 
     ctx.save();
     ctx.globalAlpha = player.alive ? 1 : 0.48;
@@ -256,6 +271,18 @@ function drawPlayers(ctx: CanvasRenderingContext2D, size: CanvasSize, snapshot: 
     ctx.beginPath();
     ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
     ctx.fill();
+
+    if (avatarImage) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, Math.max(0, radius - 1), 0, Math.PI * 2);
+      ctx.clip();
+      drawAvatarImage(ctx, avatarImage, point, radius);
+      ctx.restore();
+    }
+
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
     ctx.stroke();
 
     if (!player.alive) {
@@ -295,25 +322,25 @@ function drawEmptyState(ctx: CanvasRenderingContext2D, size: CanvasSize): void {
   ctx.restore();
 }
 
-function drawWorldLine(ctx: CanvasRenderingContext2D, size: CanvasSize, start: WorldPoint, end: WorldPoint): void {
-  const canvasStart = worldToCanvas(start, size);
-  const canvasEnd = worldToCanvas(end, size);
+function drawWorldLine(ctx: CanvasRenderingContext2D, camera: Camera, start: WorldPoint, end: WorldPoint): void {
+  const canvasStart = worldToCanvasWithCamera(start, camera);
+  const canvasEnd = worldToCanvasWithCamera(end, camera);
   ctx.beginPath();
   ctx.moveTo(canvasStart.x, canvasStart.y);
   ctx.lineTo(canvasEnd.x, canvasEnd.y);
   ctx.stroke();
 }
 
-function drawPolygonRing(ctx: CanvasRenderingContext2D, size: CanvasSize, ring: WorldPoint[]): void {
+function drawPolygonRing(ctx: CanvasRenderingContext2D, camera: Camera, ring: WorldPoint[]): void {
   if (ring.length === 0) {
     return;
   }
 
-  const start = worldToCanvas(ring[0], size);
+  const start = worldToCanvasWithCamera(ring[0], camera);
   ctx.moveTo(start.x, start.y);
 
   for (const point of ring.slice(1)) {
-    const canvasPoint = worldToCanvas(point, size);
+    const canvasPoint = worldToCanvasWithCamera(point, camera);
     ctx.lineTo(canvasPoint.x, canvasPoint.y);
   }
 
@@ -380,17 +407,34 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function worldDistanceToCanvas(distanceValue: number, size: CanvasSize): number {
-  return distanceValue * worldViewport(size).scale;
+function worldDistanceToCanvas(distanceValue: number, camera: Camera): number {
+  return distanceValue * camera.scale;
 }
 
-function worldViewport(size: CanvasSize): { offsetX: number; offsetY: number; scale: number } {
-  const scale = Math.min(size.width / WORLD_WIDTH, size.height / WORLD_HEIGHT);
-  return {
-    offsetX: (size.width - WORLD_WIDTH * scale) / 2,
-    offsetY: (size.height - WORLD_HEIGHT * scale) / 2,
-    scale
+function drawAvatarImage(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  point: { x: number; y: number },
+  radius: number
+): void {
+  const imageWithDimensions = image as CanvasImageSource & {
+    height?: number;
+    naturalHeight?: number;
+    naturalWidth?: number;
+    videoHeight?: number;
+    videoWidth?: number;
+    width?: number;
   };
+  const sourceWidth =
+    imageWithDimensions.naturalWidth ?? imageWithDimensions.videoWidth ?? imageWithDimensions.width ?? radius * 2;
+  const sourceHeight =
+    imageWithDimensions.naturalHeight ?? imageWithDimensions.videoHeight ?? imageWithDimensions.height ?? radius * 2;
+  const diameter = radius * 2;
+  const scale = Math.max(diameter / sourceWidth, diameter / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+
+  ctx.drawImage(image, point.x - drawWidth / 2, point.y - drawHeight / 2, drawWidth, drawHeight);
 }
 
 function colorForTeam(teamId: string): string {
