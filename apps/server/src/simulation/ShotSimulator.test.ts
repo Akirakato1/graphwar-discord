@@ -16,6 +16,15 @@ function lastPathPoint(path: WorldPoint[]): WorldPoint | undefined {
   return path[path.length - 1];
 }
 
+function pathDistance(path: WorldPoint[]): number {
+  let total = 0;
+  for (let index = 1; index < path.length; index += 1) {
+    total += Math.hypot(path[index].x - path[index - 1].x, path[index].y - path[index - 1].y);
+  }
+
+  return total;
+}
+
 describe("ShotSimulator", () => {
   it("detects player hits in world space", () => {
     const players: PlayerState[] = [
@@ -83,6 +92,25 @@ describe("ShotSimulator", () => {
     expect(result.terrain).toBe(terrain);
     expect(lastPathPoint(result.path)).toEqual(result.impact.point);
     expect(lastPathPoint(result.path)?.x).toBeCloseTo(1);
+  });
+
+  it("limits max function length by traveled path distance instead of local x distance", () => {
+    const terrain: TerrainState = { blobs: [] };
+    const players: PlayerState[] = [shooter];
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain,
+      shot: NormalFunction.parse("10x"),
+      maxFunctionLength: 1
+    });
+
+    expect(result.impact.reason).toBe("path-too-long");
+    expect(pathDistance(result.path)).toBeCloseTo(1);
+    expect(lastPathPoint(result.path)?.x).toBeLessThan(0.2);
+    expect(lastPathPoint(result.path)?.y).toBeCloseTo((lastPathPoint(result.path)?.x ?? 0) * 10);
+    expect(result.players).toBe(players);
+    expect(result.terrain).toBe(terrain);
   });
 
   it("truncates player-hit paths through the impact point", () => {

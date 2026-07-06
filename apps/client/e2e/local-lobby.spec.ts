@@ -21,10 +21,18 @@ async function openLocalMenu(page: Page, player: Player, guildId: string): Promi
   await expect(page.getByRole("button", { name: "Create Lobby" })).toBeVisible();
 }
 
-async function createLobby(page: Page, lobbyName: string, alias: string): Promise<void> {
+async function createLobby(
+  page: Page,
+  lobbyName: string,
+  alias: string,
+  options: { maxFunctionLength?: number } = {}
+): Promise<void> {
   await page.getByRole("button", { name: "Create Lobby" }).click();
   await page.getByLabel("Lobby name").fill(lobbyName);
   await page.getByLabel("Alias").fill(alias);
+  if (options.maxFunctionLength !== undefined) {
+    await page.getByLabel("Max function length").fill(String(options.maxFunctionLength));
+  }
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("heading", { name: lobbyName })).toBeVisible();
 }
@@ -214,7 +222,7 @@ test("player damage appears after the shot playback reaches impact", async ({ br
 
   try {
     await openLocalMenu(alicePage, alice, guildId);
-    await createLobby(alicePage, lobbyName, "Alice");
+    await createLobby(alicePage, lobbyName, "Alice", { maxFunctionLength: 100 });
     await openLocalMenu(bobPage, bob, guildId);
     await joinLobby(bobPage, lobbyName, "Bob");
     await expectSetupShowsPlayers([alicePage, bobPage]);
@@ -247,7 +255,7 @@ test("final killing shot plays before the winner dialog returns to menu", async 
 
   try {
     await openLocalMenu(alicePage, alice, guildId);
-    await createLobby(alicePage, lobbyName, "Alice");
+    await createLobby(alicePage, lobbyName, "Alice", { maxFunctionLength: 100 });
     await openLocalMenu(bobPage, bob, guildId);
     await joinLobby(bobPage, lobbyName, "Bob");
     await expectSetupShowsPlayers([alicePage, bobPage]);

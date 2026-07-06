@@ -11,6 +11,6 @@ export const defaultMatchTuning = {
   directHitDamage: 35,
   circleCraterRadius: 1.25,
   terrainMinArea: 0.05,
-  sampleStep: 0.05,
-  maxPathPoints: 1001
+  sampleStep: 0.025,
+  maxPathPoints: 2001
 } as const;

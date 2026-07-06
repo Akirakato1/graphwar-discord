@@ -38,6 +38,7 @@ export type ShotSimulationResult = {
 
 type ResolvedImpact =
   | (CollisionHit & { kind: "field-boundary" })
+  | (CollisionHit & { kind: "range-limit" })
   | (CollisionHit & { kind: "terrain-hit" })
   | (PlayerCollisionHit & { kind: "player-hit" })
   | (CollisionHit & {
@@ -83,6 +84,7 @@ export class ShotSimulator {
     });
     const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position, aimDirection));
     const boundaryHit = this.findFirstBoundaryExit(worldPath);
+    const rangeLimitHit = this.findArcLengthLimit(worldPath, maxFunctionLength);
     const terrainHit = this.collisionSystem.findFirstTerrainHit(worldPath, input.terrain);
     const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, input.players, input.shooter.id);
     const invalidHit =
@@ -93,10 +95,14 @@ export class ShotSimulator {
             reason: sample.reason
           }
         : undefined;
-    const impact = this.resolveImpact(boundaryHit, terrainHit, playerHit, invalidHit);
+    const impact = this.resolveImpact(boundaryHit, rangeLimitHit, terrainHit, playerHit, invalidHit);
 
     if (impact?.kind === "field-boundary") {
       return this.boundaryResult(input, worldPath, impact);
+    }
+
+    if (impact?.kind === "range-limit") {
+      return this.pathTooLongResult(input, this.truncatePath(worldPath, impact));
     }
 
     if (impact?.kind === "terrain-hit") {
@@ -155,10 +161,6 @@ export class ShotSimulator {
       };
     }
 
-    if (this.reachedMaxFunctionLength(maxFunctionLength, boundaryDistance, worldPath)) {
-      return this.pathTooLongResult(input, worldPath);
-    }
-
     return {
       path: worldPath.filter(isPointInBounds),
       impact: { reason: "miss" },
@@ -200,12 +202,14 @@ export class ShotSimulator {
 
   private resolveImpact(
     boundaryHit: CollisionHit | undefined,
+    rangeLimitHit: CollisionHit | undefined,
     terrainHit: CollisionHit | undefined,
     playerHit: PlayerCollisionHit | undefined,
     invalidHit: Extract<ResolvedImpact, { kind: "invalid-shot" }> | undefined
   ): ResolvedImpact | undefined {
     const candidates: ResolvedImpact[] = [];
     if (boundaryHit) candidates.push({ ...boundaryHit, kind: "field-boundary" });
+    if (rangeLimitHit) candidates.push({ ...rangeLimitHit, kind: "range-limit" });
     if (terrainHit) candidates.push({ ...terrainHit, kind: "terrain-hit" });
     if (playerHit) candidates.push({ ...playerHit, kind: "player-hit" });
     if (invalidHit) candidates.push(invalidHit);
@@ -221,7 +225,8 @@ export class ShotSimulator {
     if (kind === "field-boundary") return 0;
     if (kind === "terrain-hit") return 1;
     if (kind === "player-hit") return 2;
-    return 3;
+    if (kind === "range-limit") return 3;
+    return 4;
   }
 
   private truncatePath(worldPath: WorldPoint[], hit: CollisionHit): WorldPoint[] {
@@ -264,6 +269,35 @@ export class ShotSimulator {
         index,
         t
       };
+    }
+
+    return undefined;
+  }
+
+  private findArcLengthLimit(worldPath: WorldPoint[], maxFunctionLength: number): CollisionHit | undefined {
+    let traveledDistance = 0;
+
+    for (let index = 0; index < worldPath.length - 1; index += 1) {
+      const start = worldPath[index];
+      const end = worldPath[index + 1];
+      const segmentDistance = Math.hypot(end.x - start.x, end.y - start.y);
+
+      if (segmentDistance <= POINT_EPSILON) {
+        continue;
+      }
+
+      if (traveledDistance + segmentDistance >= maxFunctionLength - POINT_EPSILON) {
+        const remainingDistance = Math.max(0, maxFunctionLength - traveledDistance);
+        const t = Math.min(1, Math.max(0, remainingDistance / segmentDistance));
+
+        return {
+          point: interpolate(start, end, t),
+          index,
+          t
+        };
+      }
+
+      traveledDistance += segmentDistance;
     }
 
     return undefined;
@@ -312,14 +346,6 @@ export class ShotSimulator {
 
   private maxPathPointsFor(maxX: number): number {
     return Math.max(1, Math.ceil(maxX / defaultMatchTuning.sampleStep) + 1);
-  }
-
-  private reachedMaxFunctionLength(
-    maxFunctionLength: number,
-    boundaryDistance: number,
-    worldPath: WorldPoint[]
-  ): boolean {
-    return worldPath.length > 0 && maxFunctionLength <= boundaryDistance + POINT_EPSILON;
   }
 
   private forwardFieldBoundaryDistance(shooterPosition: WorldPoint, aimDirection: AimDirectionId): number {

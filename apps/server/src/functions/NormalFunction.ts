@@ -249,12 +249,14 @@ export class NormalFunction extends ShotFunction {
   sample(context: SampleContext): TrajectorySample {
     const points: LocalPoint[] = [];
     let lastFinitePoint: LocalPoint | undefined;
+    const stepCount = Math.max(0, Math.ceil((context.maxX - context.minX) / context.step));
 
-    for (let x = context.minX; x <= context.maxX + Number.EPSILON; x += context.step) {
+    for (let stepIndex = 0; stepIndex <= stepCount; stepIndex += 1) {
       if (points.length >= context.maxPathPoints) {
         return { ok: false, reason: "path-too-long", points, lastFinitePoint };
       }
 
+      const x = Math.min(context.maxX, context.minX + stepIndex * context.step);
       const roundedX = Number(x.toFixed(8));
       let y: number;
       try {
