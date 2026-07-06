@@ -22,6 +22,35 @@ describe("FunctionInput", () => {
     expect(html).toContain(">wave<");
   });
 
+  it("renders compact advanced math palette buttons with accessible names", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(FunctionInput, {
+        canSubmit: true,
+        disabled: false,
+        onSubmitShot: () => {}
+      })
+    );
+
+    expect(html).toContain("aria-label=\"Insert summation template\"");
+    expect(html).toContain(">Σ<");
+    expect(html).toContain("aria-label=\"Insert integral template\"");
+    expect(html).toContain(">∫<");
+    expect(html).toContain("aria-label=\"Insert second derivative template\"");
+    expect(html).toContain("<sub>x</sub><sup>2</sup>");
+    expect(html).toContain("aria-label=\"Insert gamma function\"");
+    expect(html).toContain(">Γ<");
+    expect(html).toContain("aria-label=\"Insert continuous factorial function\"");
+    expect(html).toContain(">!<");
+    expect(html).toContain("aria-label=\"Insert digamma function\"");
+    expect(html).toContain(">ψ<");
+    expect(html).toContain("aria-label=\"Insert beta function\"");
+    expect(html).toContain(">Β<");
+    expect(html).toContain("aria-label=\"Insert floor function\"");
+    expect(html).toContain(">⌊x⌋<");
+    expect(html).toContain("aria-label=\"Insert ceiling function\"");
+    expect(html).toContain(">⌈x⌉<");
+  });
+
   it("disables the input, snippet buttons, and fire button together", () => {
     const html = renderToStaticMarkup(
       React.createElement(FunctionInput, {

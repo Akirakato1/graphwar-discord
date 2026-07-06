@@ -115,6 +115,8 @@ During a match, the active player chooses one of 8 facing directions before firi
 
 Normal-function input accepts explicit operators and common implicit multiplication forms. Examples include `3sin(2x)cos(x)`, `2(x+1)`, `cos(x)(-sin(x))`, and `-abs(x)`. Division remains explicit, so `sin(x)/(-2-cos(x))` and `sin(x)/-(cos(x)+2)` are equivalent supported inputs.
 
+Advanced normal-function input also accepts aggregate and special-function helpers. Examples include `sum(n,0,x,n*cos(x))`, `int(t,0,x,sin(t*x))`, `diff(x,2,sin(x))`, `gamma(x)`, `factorial(x)`, `digamma(x)`, `beta(x,2)`, `floor(x)`, `ceil(x)`, and `ceiling(x)`. The sampled local `x` is available inside summation/integration bounds and bodies. These helpers are evaluated numerically on the server with fixed safety caps.
+
 To run the built server artifact instead of the watch-mode dev server:
 
 ```bash
@@ -162,3 +164,4 @@ Every major implementation task should:
 - Changed max function length from local-x distance to true traveled path distance using accumulated segment length, while halving shot sampling `dx` to `0.025` and preserving the default `50.0` unit cap.
 - Added an approved advanced normal-function math design covering summation, numeric integration, finite-difference derivatives, gamma/factorial/digamma/beta helpers, floor/ceiling palette entries, and server-side evaluation guardrails.
 - Added an advanced normal-function math implementation plan covering the server expression compiler, special math helpers, client palette snippets, README updates, and verification commands.
+- Added advanced normal-function math helpers for server-authoritative summation, numeric integration, finite-difference derivatives, gamma-family functions, floor/ceiling aliases, and mathematical palette snippets.

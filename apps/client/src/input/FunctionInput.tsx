@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { insertSnippet } from "./insertSnippet";
 
 type FunctionInputProps = {
@@ -9,26 +9,46 @@ type FunctionInputProps = {
 };
 
 type SnippetButton = {
-  label: string;
+  key: string;
+  label: ReactNode;
   snippet: string;
   ariaLabel: string;
 };
 
 const snippetButtons: SnippetButton[] = [
-  { label: "sin", snippet: "sin()", ariaLabel: "Insert sine function" },
-  { label: "cos", snippet: "cos()", ariaLabel: "Insert cosine function" },
-  { label: "tan", snippet: "tan()", ariaLabel: "Insert tangent function" },
-  { label: "sqrt", snippet: "sqrt()", ariaLabel: "Insert square root function" },
-  { label: "log", snippet: "log()", ariaLabel: "Insert logarithm function" },
-  { label: "abs", snippet: "abs()", ariaLabel: "Insert absolute value function" },
-  { label: "exp", snippet: "exp()", ariaLabel: "Insert exponential function" },
-  { label: "x", snippet: "x", ariaLabel: "Insert x variable" },
-  { label: "PI", snippet: "PI", ariaLabel: "Insert pi constant" },
-  { label: "E", snippet: "E", ariaLabel: "Insert e constant" },
-  { label: "^", snippet: "^", ariaLabel: "Insert power operator" },
-  { label: "()", snippet: "()", ariaLabel: "Insert parentheses" },
-  { label: "x^2", snippet: "x^2", ariaLabel: "Insert x squared template" },
-  { label: "wave", snippet: "sin(x) + cos(x)", ariaLabel: "Insert wave template" }
+  { key: "sin", label: "sin", snippet: "sin()", ariaLabel: "Insert sine function" },
+  { key: "cos", label: "cos", snippet: "cos()", ariaLabel: "Insert cosine function" },
+  { key: "tan", label: "tan", snippet: "tan()", ariaLabel: "Insert tangent function" },
+  { key: "sqrt", label: "sqrt", snippet: "sqrt()", ariaLabel: "Insert square root function" },
+  { key: "log", label: "log", snippet: "log()", ariaLabel: "Insert logarithm function" },
+  { key: "abs", label: "abs", snippet: "abs()", ariaLabel: "Insert absolute value function" },
+  { key: "exp", label: "exp", snippet: "exp()", ariaLabel: "Insert exponential function" },
+  { key: "x", label: "x", snippet: "x", ariaLabel: "Insert x variable" },
+  { key: "pi", label: "PI", snippet: "PI", ariaLabel: "Insert pi constant" },
+  { key: "e", label: "E", snippet: "E", ariaLabel: "Insert e constant" },
+  { key: "power", label: "^", snippet: "^", ariaLabel: "Insert power operator" },
+  { key: "parentheses", label: "()", snippet: "()", ariaLabel: "Insert parentheses" },
+  { key: "x-squared", label: "x^2", snippet: "x^2", ariaLabel: "Insert x squared template" },
+  { key: "wave", label: "wave", snippet: "sin(x) + cos(x)", ariaLabel: "Insert wave template" },
+  { key: "sum", label: "Σ", snippet: "sum(n,0,x,)", ariaLabel: "Insert summation template" },
+  { key: "integral", label: "∫", snippet: "int(t,0,x,)", ariaLabel: "Insert integral template" },
+  {
+    key: "second-derivative",
+    label: (
+      <>
+        D<sub>x</sub>
+        <sup>2</sup>
+      </>
+    ),
+    snippet: "diff(x,2,)",
+    ariaLabel: "Insert second derivative template"
+  },
+  { key: "gamma", label: "Γ", snippet: "gamma()", ariaLabel: "Insert gamma function" },
+  { key: "factorial", label: "!", snippet: "factorial()", ariaLabel: "Insert continuous factorial function" },
+  { key: "digamma", label: "ψ", snippet: "digamma()", ariaLabel: "Insert digamma function" },
+  { key: "beta", label: "Β", snippet: "beta(,)", ariaLabel: "Insert beta function" },
+  { key: "floor", label: "⌊x⌋", snippet: "floor()", ariaLabel: "Insert floor function" },
+  { key: "ceil", label: "⌈x⌉", snippet: "ceil()", ariaLabel: "Insert ceiling function" }
 ];
 
 export function FunctionInput({
@@ -103,7 +123,7 @@ export function FunctionInput({
             aria-label={button.ariaLabel}
             className="snippet-button"
             disabled={disabled}
-            key={`${button.label}-${button.snippet}`}
+            key={button.key}
             onClick={() => handleSnippetClick(button.snippet)}
             type="button"
           >
