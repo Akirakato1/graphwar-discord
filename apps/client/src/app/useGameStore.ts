@@ -5,9 +5,11 @@ import type {
   CustomMapSummary,
   GuildSettings,
   LobbyPlacementId,
+  LobbyJoinResult,
   LobbyRuntimeSnapshot,
   LobbySlot,
   LobbySummary,
+  MapSizePresetId,
   MatchModeId,
   MatchSnapshot,
   PlayerColor,
@@ -38,6 +40,7 @@ export type SelectedLobbySession = {
   discordUserId: string;
   playerId: string;
   alias: string;
+  avatarUrl?: string;
   color: PlayerColor;
   slot: "player" | "spectator";
   sessionToken: string;
@@ -69,6 +72,7 @@ export type GameStoreState = {
     color: PlayerColor;
     maxFunctionLength: number;
     mapId?: string;
+    mapSizePreset?: MapSizePresetId;
   }): Promise<void>;
   customMaps: CustomMapSummary[];
   currentLobby?: LobbyRuntimeSnapshot;
@@ -107,6 +111,16 @@ export type CreateGameStoreOptions = {
   logLimit?: number;
   session?: ClientSession;
 };
+
+function selectedLobbySessionFromResult(
+  session: ClientSession,
+  selected: LobbyJoinResult["session"]
+): SelectedLobbySession {
+  return {
+    ...selected,
+    ...(selected.avatarUrl ?? session.avatarUrl ? { avatarUrl: selected.avatarUrl ?? session.avatarUrl } : {})
+  };
+}
 
 function snapshotFromEvent(event: ServerEvent): MatchSnapshot | undefined {
   switch (event.type) {
@@ -351,16 +365,17 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             name: form.name,
             leaderDiscordUserId: session.discordUserId,
             alias: form.alias,
+            ...(session.avatarUrl ? { avatarUrl: session.avatarUrl } : {}),
             mode: form.mode,
             initialSlot: form.initialSlot,
             color: form.color,
             maxFunctionLength: form.maxFunctionLength,
-            ...(form.mapId ? { mapId: form.mapId } : {})
+            ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();
           set({
             currentLobby: result.lobby,
-            selectedLobbySession: result.session,
+            selectedLobbySession: selectedLobbySessionFromResult(session, result.session),
             view: "lobby-setup",
             lastError: undefined,
             lastRejection: undefined
@@ -401,13 +416,14 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           const result = await lobbyApi.joinLobby(session.guildId, roomId, {
             discordUserId: session.discordUserId,
             alias: form.alias,
+            ...(session.avatarUrl ? { avatarUrl: session.avatarUrl } : {}),
             slot: form.slot,
             color: form.color
           });
           closeClientForLobbySwitch();
           set({
             currentLobby: result.lobby,
-            selectedLobbySession: result.session,
+            selectedLobbySession: selectedLobbySessionFromResult(session, result.session),
             view: "lobby-setup",
             lastError: undefined,
             lastRejection: undefined
@@ -432,6 +448,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           playerId: selected.playerId,
           discordUserId: selected.discordUserId,
           alias: selected.alias,
+          ...(selected.avatarUrl ? { avatarUrl: selected.avatarUrl } : {}),
           displayName: selected.alias,
           slot: selected.slot,
           sessionToken: selected.sessionToken

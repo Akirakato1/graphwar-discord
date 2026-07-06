@@ -197,6 +197,7 @@ describe("createGameStore", () => {
       discordUserId: "alice-id",
       playerId: "alice-id",
       alias: "Alice",
+      avatarUrl: "https://cdn.example/alice.png",
       color: defaultPlayerColor,
       slot: "player" as const,
       sessionToken: "alice-session"
@@ -210,6 +211,7 @@ describe("createGameStore", () => {
         discordUserId: "alice-id",
         playerId: "alice-id",
         defaultAlias: "Alice",
+        avatarUrl: "https://cdn.example/alice.png",
         serverUrl: "ws://graphwar.test:8787"
       },
       lobbyApi: {
@@ -248,7 +250,8 @@ describe("createGameStore", () => {
       mode: "team-versus",
       initialSlot: "player",
       color: defaultPlayerColor,
-      maxFunctionLength: 64
+      maxFunctionLength: 64,
+      mapSizePreset: "huge"
     });
     onOpen?.();
 
@@ -260,10 +263,12 @@ describe("createGameStore", () => {
           name: "Friday Graphwar",
           leaderDiscordUserId: "alice-id",
           alias: "Alice",
+          avatarUrl: "https://cdn.example/alice.png",
           mode: "team-versus",
           initialSlot: "player",
           color: defaultPlayerColor,
-          maxFunctionLength: 64
+          maxFunctionLength: 64,
+          mapSizePreset: "huge"
         }
       }
     ]);
@@ -284,6 +289,7 @@ describe("createGameStore", () => {
         playerId: "alice-id",
         discordUserId: "alice-id",
         alias: "Alice",
+        avatarUrl: "https://cdn.example/alice.png",
         displayName: "Alice",
         slot: "player",
         sessionToken: "alice-session"
@@ -291,10 +297,13 @@ describe("createGameStore", () => {
     ]);
   });
 
-  it("passes the selected color when joining a lobby", async () => {
+  it("passes the selected color and avatar when joining a lobby", async () => {
     const joinLobbyCalls: Array<Parameters<LobbyApi["joinLobby"]>> = [];
     const store = createGameStore({
-      session,
+      session: {
+        ...session,
+        avatarUrl: "https://cdn.example/alice.png"
+      },
       lobbyApi: {
         ...lobbyApiFor("room-join"),
         joinLobby: async (guildId, roomId, request) => {
@@ -311,7 +320,11 @@ describe("createGameStore", () => {
       color: playerColorPalette[2]
     });
 
-    expect(joinLobbyCalls[0]?.[2]).toMatchObject({ color: playerColorPalette[2] });
+    expect(joinLobbyCalls[0]?.[2]).toMatchObject({
+      color: playerColorPalette[2],
+      avatarUrl: "https://cdn.example/alice.png"
+    });
+    expect(store.getState().selectedLobbySession?.avatarUrl).toBe("https://cdn.example/alice.png");
   });
 
   it("passes the selected custom map id when creating a lobby", async () => {
@@ -339,6 +352,61 @@ describe("createGameStore", () => {
     });
 
     expect(createLobbyCalls[0]?.[1]).toMatchObject({ mapId: "map-1" });
+  });
+
+  it("passes the selected default-map size preset when creating a lobby without a custom map", async () => {
+    const createLobbyCalls: Array<Parameters<LobbyApi["createLobby"]>> = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor("room-map-size"),
+        createLobby: async (guildId, request) => {
+          createLobbyCalls.push([guildId, request]);
+          return lobbyApiFor("room-map-size").createLobby(guildId, request);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().createLobby({
+      name: "Huge Default Map Lobby",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50,
+      mapSizePreset: "huge"
+    });
+
+    expect(createLobbyCalls[0]?.[1]).toMatchObject({ mapSizePreset: "huge" });
+  });
+
+  it("drops map size presets when creating a lobby with a custom map", async () => {
+    const createLobbyCalls: Array<Parameters<LobbyApi["createLobby"]>> = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor("room-custom-map"),
+        createLobby: async (guildId, request) => {
+          createLobbyCalls.push([guildId, request]);
+          return lobbyApiFor("room-custom-map").createLobby(guildId, request);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().createLobby({
+      name: "Custom Map Lobby",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50,
+      mapId: "map-1",
+      mapSizePreset: "huge"
+    });
+
+    expect(createLobbyCalls[0]?.[1]).toEqual(expect.not.objectContaining({ mapSizePreset: expect.anything() }));
   });
 
   it("loads, saves, and deletes custom maps for the current session user", async () => {

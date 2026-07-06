@@ -1,3 +1,5 @@
+import { avatarUrlInputSchema } from "@graphwar/shared";
+
 export type ClientSession = {
   guildId: string;
   discordUserId: string;
@@ -5,6 +7,7 @@ export type ClientSession = {
   defaultAlias: string;
   roomId?: string;
   displayName: string;
+  avatarUrl?: string;
   serverUrl?: string;
   source: "local" | "discord";
 };
@@ -66,6 +69,7 @@ export function readLocalSession(href = readCurrentHref(), storage = readBrowser
   const discordUserId = readParam(url, "user") ?? readParam(url, "mockPlayer") ?? readStableLocalPlayerId(storage);
   const defaultAlias = readParam(url, "displayName") ?? discordUserId;
   const roomId = readParam(url, "room");
+  const avatarUrl = avatarUrlInputSchema.parse(readParam(url, "avatar"));
   const serverUrl = readParam(url, "server");
 
   return {
@@ -75,6 +79,7 @@ export function readLocalSession(href = readCurrentHref(), storage = readBrowser
     defaultAlias,
     displayName: defaultAlias,
     ...(roomId ? { roomId } : {}),
+    ...(avatarUrl ? { avatarUrl } : {}),
     ...(serverUrl ? { serverUrl } : {}),
     source: "local"
   };

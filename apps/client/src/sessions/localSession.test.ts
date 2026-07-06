@@ -57,6 +57,23 @@ describe("readLocalSession", () => {
     });
   });
 
+  it("reads a decoded http avatar query parameter", () => {
+    const session = readLocalSession(
+      "http://localhost:5173/?user=alice&avatar=https%3A%2F%2Fcdn.example%2Falice.png"
+    );
+
+    expect(session.avatarUrl).toBe("https://cdn.example/alice.png");
+  });
+
+  it("drops invalid avatar query parameters", () => {
+    expect(readLocalSession("http://localhost:5173/?user=alice&avatar=bogus").avatarUrl).toBeUndefined();
+    expect(readLocalSession("http://localhost:5173/?user=alice&avatar=").avatarUrl).toBeUndefined();
+    expect(
+      readLocalSession(`http://localhost:5173/?user=alice&avatar=${encodeURIComponent(`https://cdn.example/${"a".repeat(2050)}`)}`)
+        .avatarUrl
+    ).toBeUndefined();
+  });
+
   it("uses a stable local player id and derives display name from it", () => {
     const storage = new MemoryStorage();
 

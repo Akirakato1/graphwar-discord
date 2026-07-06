@@ -173,3 +173,4 @@ Every major implementation task should:
 - Added a Phase 1 map presentation implementation plan covering shared bounds contracts, server propagation, client camera/avatar rendering, map-maker bounds setup, and verification checkpoints.
 - Added shared Phase 1 map presentation contracts for map-size presets, reusable world bounds, sanitized avatar URLs, lobby map-size metadata, and optional snapshot bounds during server migration.
 - Propagated authoritative world bounds server-side for Phase 1 map presentation: default map-size presets feed generated maps and match snapshots, custom maps use explicit/derived/fallback bounds, shot simulation clips against active bounds, lobby summaries store default-map presets only, and `MatchSnapshot.worldBounds` is now required.
+- Added client avatar identity plumbing and default-map size preset selection for create/join lobby flows, including `join-room` avatar forwarding.

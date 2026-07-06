@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -8,7 +9,7 @@ import {
   createLobbyInitialForm,
   prepareCreateLobbyForm
 } from "./CreateLobbyView";
-import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import { defaultMapSizePreset, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 
 describe("CreateLobbyView helpers", () => {
   it("trims lobby name and alias before creating", () => {
@@ -49,9 +50,63 @@ describe("CreateLobbyView helpers", () => {
       mode: "free-for-all",
       initialSlot: "player",
       color: defaultPlayerColor,
-      maxFunctionLength: 50
+      maxFunctionLength: 50,
+      mapSizePreset: defaultMapSizePreset
     });
     expect(availableInitialSlots(settings)).toEqual(["player"]);
+  });
+
+  it("defaults default-map size to standard", () => {
+    expect(createLobbyInitialForm("Alice").mapSizePreset).toBe("standard");
+  });
+
+  it("preserves map size presets for the default map", () => {
+    expect(
+      prepareCreateLobbyForm({
+        name: "Arena",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        mapSizePreset: "huge"
+      })
+    ).toEqual({
+      form: {
+        name: "Arena",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        mapSizePreset: "huge"
+      }
+    });
+  });
+
+  it("omits map size presets when a custom map is selected", () => {
+    expect(
+      prepareCreateLobbyForm({
+        name: "Arena",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        mapId: "map-1",
+        mapSizePreset: "huge"
+      })
+    ).toEqual({
+      form: {
+        name: "Arena",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        mapId: "map-1"
+      }
+    });
   });
 
   it("renders lobby identity and custom map choices", () => {
@@ -77,9 +132,24 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Map");
     expect(html).toContain("Default Map");
     expect(html).toContain("Imported Arena");
+    expect(html).toContain("Map size");
+    expect(html).toContain('option value="small"');
+    expect(html).toContain('option value="standard"');
+    expect(html).toContain('option value="large"');
+    expect(html).toContain('option value="huge"');
     expect(html).toContain("Color");
     expect(html).toContain("Max function length");
     expect(html).toContain('min="20"');
     expect(html).toContain('max="100"');
+  });
+
+  it("keeps the compact create-lobby layout dense enough for the extra map-size row", () => {
+    const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    const compactLandscapeBlock = styles.match(/@media \(max-width: 820px\) and \(orientation: landscape\) \{([\s\S]*)\}\s*$/);
+
+    expect(compactLandscapeBlock?.[1]).toContain(".create-lobby-form");
+    expect(compactLandscapeBlock?.[1]).toContain("grid-template-columns: repeat(3, minmax(0, 1fr));");
+    expect(compactLandscapeBlock?.[1]).toContain(".create-lobby-form .color-selector");
+    expect(compactLandscapeBlock?.[1]).toContain("grid-column: 1 / -1;");
   });
 });

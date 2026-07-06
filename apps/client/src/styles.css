@@ -1119,7 +1119,11 @@ dd {
   }
 
   .create-lobby-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .create-lobby-form .color-selector {
+    grid-column: 1 / -1;
   }
 
   .menu-form label,

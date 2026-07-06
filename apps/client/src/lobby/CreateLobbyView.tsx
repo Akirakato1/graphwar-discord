@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
+  defaultMapSizePreset,
   defaultPlayerColor,
   playerColorPalette,
   type CustomMapSummary,
   type GuildSettings,
   type LobbySlot,
+  type MapSizePresetId,
   type MatchModeId,
   type PlayerColor
 } from "@graphwar/shared";
@@ -46,6 +48,7 @@ type CreateLobbyViewProps = {
     color: PlayerColor;
     maxFunctionLength: number;
     mapId?: string;
+    mapSizePreset?: MapSizePresetId;
   }) => Promise<void>;
   settings?: GuildSettings;
 };
@@ -58,6 +61,7 @@ type CreateLobbyForm = {
   color: PlayerColor;
   maxFunctionLength: number;
   mapId?: string;
+  mapSizePreset?: MapSizePresetId;
 };
 
 function boundedFunctionLength(value: number): number {
@@ -69,12 +73,15 @@ function boundedFunctionLength(value: number): number {
 }
 
 export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLobbyForm } {
+  const { mapSizePreset, ...rest } = form;
+
   return {
     form: {
-      ...form,
+      ...rest,
       name: form.name.trim(),
       alias: form.alias.trim(),
-      maxFunctionLength: boundedFunctionLength(form.maxFunctionLength)
+      maxFunctionLength: boundedFunctionLength(form.maxFunctionLength),
+      ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
     }
   };
 }
@@ -94,7 +101,8 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     mode: settings?.defaultMode ?? "team-versus",
     initialSlot: availableInitialSlots(settings)[0],
     color: lobbyDefaultPlayerColor,
-    maxFunctionLength: DEFAULT_FUNCTION_LENGTH
+    maxFunctionLength: DEFAULT_FUNCTION_LENGTH,
+    mapSizePreset: defaultMapSizePreset
   };
 }
 
@@ -105,6 +113,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [formError, setFormError] = useState<string | undefined>();
   const [initialSlot, setInitialSlot] = useState<LobbySlot>(initialForm.initialSlot);
   const [mapId, setMapId] = useState("");
+  const [mapSizePreset, setMapSizePreset] = useState<MapSizePresetId>(initialForm.mapSizePreset ?? defaultMapSizePreset);
   const [maxFunctionLength, setMaxFunctionLength] = useState(initialForm.maxFunctionLength);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
@@ -129,7 +138,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           initialSlot,
           color,
           maxFunctionLength,
-          ...(mapId ? { mapId } : {})
+          ...(mapId ? { mapId } : { mapSizePreset })
         }).form
       );
     } catch (error) {
@@ -235,6 +244,20 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             ))}
           </select>
         </label>
+        {!mapId ? (
+          <label>
+            Map size
+            <select
+              value={mapSizePreset}
+              onChange={(event) => setMapSizePreset(event.currentTarget.value as MapSizePresetId)}
+            >
+              <option value="small">Small</option>
+              <option value="standard">Standard</option>
+              <option value="large">Large</option>
+              <option value="huge">Huge</option>
+            </select>
+          </label>
+        ) : null}
         <div className="form-actions">
           <button className="secondary-action" onClick={onBack} type="button">
             Back
