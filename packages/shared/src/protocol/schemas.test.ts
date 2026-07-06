@@ -343,6 +343,19 @@ describe("protocol schemas", () => {
     expect(parsed.players[0]).toEqual(expect.objectContaining({ avatarUrl: "https://example.com/alice.png" }));
   });
 
+  it("requires world bounds on match snapshots", () => {
+    expect(() =>
+      matchSnapshotSchema.parse({
+        phase: "playing",
+        mode: "team-versus",
+        players: [],
+        teams: [],
+        terrain: { blobs: [] },
+        turn: { activePlayerId: "alice", order: ["alice"], turnNumber: 1 }
+      })
+    ).toThrow();
+  });
+
   it("rejects malformed player avatar URLs in match snapshots", () => {
     expect(() =>
       matchSnapshotSchema.parse({

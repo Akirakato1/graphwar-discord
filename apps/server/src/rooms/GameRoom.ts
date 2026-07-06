@@ -103,7 +103,7 @@ export class GameRoom {
   private async handleLegacyCommand(socket: WebSocket, command: ClientCommand): Promise<void> {
     switch (command.type) {
       case "join-room": {
-        const snapshot = this.match.join(command.playerId, command.displayName);
+        const snapshot = this.match.join(command.playerId, command.displayName, undefined, command.avatarUrl);
         this.broadcast({ type: "player-joined", roomId: this.roomId, playerId: command.playerId });
         this.broadcast({ type: "room-snapshot", roomId: this.roomId, snapshot });
         return;
@@ -207,7 +207,8 @@ export class GameRoom {
           : undefined;
         const lobby = context.lobbies.markPlaying(context.guildId, this.roomId);
         const snapshot = this.match.startMatch(lobby.mode, generatedMap, {
-          maxFunctionLength: lobby.maxFunctionLength
+          maxFunctionLength: lobby.maxFunctionLength,
+          mapSizePreset: openLobby.mapId ? undefined : lobby.mapSizePreset
         });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
         this.broadcast({
@@ -281,6 +282,7 @@ export class GameRoom {
       .map((occupant) => ({
         id: occupant.playerId,
         displayName: occupant.alias,
+        avatarUrl: occupant.avatarUrl,
         color: occupant.color,
         teamId: occupant.placement === "team-a" || occupant.placement === "team-b" ? occupant.placement : undefined
       }));

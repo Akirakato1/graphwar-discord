@@ -90,6 +90,50 @@ describe("LobbyDirectory", () => {
     ]);
   });
 
+  it("preserves avatar URLs in lobby occupants and sessions", async () => {
+    const directory = createDirectory();
+
+    const created = await directory.createLobby("guild-1", {
+      name: "Avatar Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      avatarUrl: "https://cdn.example/alice.png",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    const joined = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      avatarUrl: "https://cdn.example/bob.png",
+      slot: "player"
+    });
+
+    expect(created.session.avatarUrl).toBe("https://cdn.example/alice.png");
+    expect(created.lobby.occupants[0].avatarUrl).toBe("https://cdn.example/alice.png");
+    expect(joined.session.avatarUrl).toBe("https://cdn.example/bob.png");
+    expect(joined.lobby.occupants).toEqual([
+      expect.objectContaining({ discordUserId: "alice-id", avatarUrl: "https://cdn.example/alice.png" }),
+      expect.objectContaining({ discordUserId: "bob-id", avatarUrl: "https://cdn.example/bob.png" })
+    ]);
+  });
+
+  it("stores default map size presets for default-map lobby snapshots and summaries", async () => {
+    const directory = createDirectory();
+
+    const result = await directory.createLobby("guild-1", {
+      name: "Huge Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      mapSizePreset: "huge"
+    });
+
+    expect(result.lobby.mapSizePreset).toBe("huge");
+    expect(directory.getLobby("guild-1", "room-1").mapSizePreset).toBe("huge");
+    expect(directory.listLobbies("guild-1")).toEqual([expect.objectContaining({ mapSizePreset: "huge" })]);
+  });
+
   it("resolves selected custom map metadata into lobby snapshots and summaries", async () => {
     const resolveCustomMapName = vi.fn(async () => "Skyline Arena");
     const directory = createDirectory({ resolveCustomMapName });
@@ -105,9 +149,11 @@ describe("LobbyDirectory", () => {
 
     expect(resolveCustomMapName).toHaveBeenCalledWith("guild-1", "map-1");
     expect(result.lobby).toEqual(expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" }));
+    expect(result.lobby.mapSizePreset).toBeUndefined();
     expect(directory.getLobby("guild-1", "room-1")).toEqual(
       expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" })
     );
+    expect(directory.getLobby("guild-1", "room-1")).not.toHaveProperty("mapSizePreset");
     expect(directory.listLobbies("guild-1")).toEqual([
       expect.objectContaining({ mapId: "map-1", mapName: "Skyline Arena" })
     ]);

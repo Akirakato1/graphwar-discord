@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   aliasesConflict,
+  defaultMapSizePreset,
   defaultPlayerColor,
   type CreateLobbyRequest,
   type DiscordUserId,
@@ -13,6 +14,7 @@ import {
   type LobbySlot,
   type LobbyStatus,
   type LobbySummary,
+  type MapSizePresetId,
   normalizeMaxFunctionLength,
   normalizePlayerColor,
   type RoomId
@@ -34,6 +36,7 @@ export type LobbySessionIdentity = {
   discordUserId: DiscordUserId;
   playerId: string;
   alias: string;
+  avatarUrl?: string;
   color: PlayerColor;
   slot: LobbySlot;
   sessionToken: string;
@@ -49,6 +52,7 @@ type RuntimeLobby = {
   occupants: Map<DiscordUserId, LobbyOccupant>;
   sessionTokens: Map<DiscordUserId, string>;
   maxFunctionLength: number;
+  mapSizePreset?: MapSizePresetId;
   createdAt: string;
   startedAt?: string;
   mapId?: string;
@@ -101,6 +105,7 @@ export class LobbyDirectory {
       occupants: new Map(),
       sessionTokens: new Map(),
       maxFunctionLength: normalizeMaxFunctionLength(request.maxFunctionLength),
+      mapSizePreset: mapId ? undefined : request.mapSizePreset ?? defaultMapSizePreset,
       createdAt: this.now().toISOString(),
       mapId,
       mapName
@@ -112,6 +117,7 @@ export class LobbyDirectory {
       return await this.joinLobby(guildId, roomId, {
         discordUserId: request.leaderDiscordUserId,
         alias: request.alias,
+        avatarUrl: request.avatarUrl,
         color: request.color,
         slot: request.initialSlot
       });
@@ -155,6 +161,9 @@ export class LobbyDirectory {
       discordUserId: request.discordUserId,
       playerId: existingOccupant?.playerId ?? request.discordUserId,
       alias,
+      ...(request.avatarUrl ?? existingOccupant?.avatarUrl
+        ? { avatarUrl: request.avatarUrl ?? existingOccupant?.avatarUrl }
+        : {}),
       color,
       slot,
       placement,
@@ -175,6 +184,7 @@ export class LobbyDirectory {
         discordUserId: request.discordUserId,
         playerId: occupant.playerId,
         alias,
+        ...(occupant.avatarUrl ? { avatarUrl: occupant.avatarUrl } : {}),
         color,
         slot,
         sessionToken
@@ -199,6 +209,7 @@ export class LobbyDirectory {
           leaderDiscordUserId: lobby.leaderDiscordUserId,
           playerCount: occupants.filter((occupant) => occupant.slot === "player").length,
           spectatorCount: occupants.filter((occupant) => occupant.slot === "spectator").length,
+          ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
           mapId: lobby.mapId,
           mapName: lobby.mapName,
           createdAt: lobby.createdAt
@@ -389,6 +400,7 @@ export class LobbyDirectory {
           discordUserId,
           playerId: occupant.playerId,
           alias: occupant.alias,
+          ...(occupant.avatarUrl ? { avatarUrl: occupant.avatarUrl } : {}),
           color: occupant.color,
           slot: occupant.slot,
           sessionToken
@@ -482,6 +494,7 @@ export class LobbyDirectory {
       canStart: lobby.status === "open" && !startBlockedReason,
       startBlockedReason,
       maxFunctionLength: lobby.maxFunctionLength,
+      ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
       mapId: lobby.mapId,
       mapName: lobby.mapName,
       createdAt: lobby.createdAt,

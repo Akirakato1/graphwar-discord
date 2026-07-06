@@ -35,7 +35,7 @@ export const terrainStateSchema = z.object({ blobs: z.array(terrainBlobSchema) }
 export const matchSnapshotSchema = z.object({
   phase: z.enum(["lobby", "playing", "ended"]),
   mode: matchModeSchema,
-  worldBounds: worldBoundsSchema.optional(),
+  worldBounds: worldBoundsSchema,
   players: z.array(
     z.object({
       id: z.string(),

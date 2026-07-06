@@ -1,8 +1,10 @@
 import {
   defaultMatchTuning,
   defaultMaxFunctionLength,
+  defaultMapSizePreset,
   type AimDirectionId,
   type FunctionFamilyId,
+  type MapSizePresetId,
   type MatchModeId,
   type PlayerId,
   type PlayerState,
@@ -10,12 +12,14 @@ import {
   type ServerEvent,
   type TeamState,
   type TerrainState,
+  type WorldBounds,
   type WorldPoint,
-  normalizeMaxFunctionLength
+  normalizeMaxFunctionLength,
+  worldBoundsForMapSize
 } from "@graphwar/shared";
 import { FunctionRegistry } from "../functions/FunctionRegistry";
 import { FreeForAllMapGenerator } from "../maps/FreeForAllMapGenerator";
-import type { GeneratedMap, MapGenerator } from "../maps/MapGenerator";
+import { cloneWorldBounds, type GeneratedMap, type MapGenerator } from "../maps/MapGenerator";
 import { TeamVersusMapGenerator } from "../maps/TeamVersusMapGenerator";
 import { FreeForAllMode } from "../modes/FreeForAllMode";
 import type { GameMode, LobbyPlayer, TurnPlayer } from "../modes/GameMode";
@@ -38,6 +42,7 @@ export type ShotSubmissionEvents =
 
 export type MatchStartOptions = {
   maxFunctionLength?: number;
+  mapSizePreset?: MapSizePresetId;
 };
 
 function cloneSnapshot(snapshot: MatchState): MatchState {
@@ -55,12 +60,17 @@ export class MatchController {
     this.snapshot = this.createEmptyLobbySnapshot();
   }
 
-  join(playerId: PlayerId, displayName: string, color?: LobbyPlayer["color"]): MatchState {
+  join(
+    playerId: PlayerId,
+    displayName: string,
+    color?: LobbyPlayer["color"],
+    avatarUrl?: LobbyPlayer["avatarUrl"]
+  ): MatchState {
     if (this.snapshot.phase !== "lobby") {
       throw new Error("Cannot join after match has started");
     }
 
-    this.lobbyPlayers.set(playerId, { id: playerId, displayName, color });
+    this.lobbyPlayers.set(playerId, { id: playerId, displayName, color, avatarUrl });
     this.snapshot = this.createLobbySnapshot(this.snapshot.mode);
 
     return this.getSnapshot();
@@ -101,14 +111,18 @@ export class MatchController {
 
     const mode = this.createMode(modeId);
     this.maxFunctionLength = normalizeMaxFunctionLength(options.maxFunctionLength);
+    const worldBounds = cloneWorldBounds(
+      generatedMap?.worldBounds ?? worldBoundsForMapSize(options.mapSizePreset ?? defaultMapSizePreset)
+    );
     const playerIds = lobbyPlayers.map((player) => player.id);
     const teams = mode.buildTeams(lobbyPlayers);
     const teamIdsByPlayerId = this.teamIdsByPlayerId(teams);
-    const map = generatedMap ?? this.createMap(modeId, teams, playerIds);
+    const map = generatedMap ?? this.createMap(modeId, teams, playerIds, worldBounds);
     const spawnsByPlayerId = new Map(map.spawns.map((spawn) => [spawn.playerId, spawn.position]));
     const players = lobbyPlayers.map((player) => ({
       id: player.id,
       displayName: player.displayName,
+      avatarUrl: player.avatarUrl,
       color: player.color,
       teamId: teamIdsByPlayerId.get(player.id) ?? "",
       position: spawnsByPlayerId.get(player.id) ?? lobbyPosition,
@@ -120,6 +134,7 @@ export class MatchController {
     this.snapshot = {
       phase: "playing",
       mode: mode.id,
+      worldBounds: cloneWorldBounds(map.worldBounds),
       players,
       teams,
       terrain: map.terrain,
@@ -165,7 +180,8 @@ export class MatchController {
       terrain: this.snapshot.terrain,
       shot,
       aimDirection,
-      maxFunctionLength: this.maxFunctionLength
+      maxFunctionLength: this.maxFunctionLength,
+      worldBounds: this.snapshot.worldBounds
     });
 
     const nextTurn = this.nextTurn(result.players);
@@ -226,6 +242,7 @@ export class MatchController {
     return {
       phase: "lobby",
       mode: "team-versus",
+      worldBounds: worldBoundsForMapSize(defaultMapSizePreset),
       players: [],
       teams: [],
       terrain: emptyTerrain,
@@ -247,9 +264,11 @@ export class MatchController {
     return {
       phase: "lobby",
       mode: mode.id,
+      worldBounds: worldBoundsForMapSize(defaultMapSizePreset),
       players: lobbyPlayers.map((player) => ({
         id: player.id,
         displayName: player.displayName,
+        avatarUrl: player.avatarUrl,
         color: player.color,
         teamId: teamIdsByPlayerId.get(player.id) ?? "",
         position: lobbyPosition,
@@ -320,15 +339,20 @@ export class MatchController {
     return teamIds;
   }
 
-  private createMap(modeId: MatchModeId, teams: TeamState[], playerIds: PlayerId[]): GeneratedMap {
+  private createMap(
+    modeId: MatchModeId,
+    teams: TeamState[],
+    playerIds: PlayerId[],
+    worldBounds: WorldBounds
+  ): GeneratedMap {
     const seed = this.mapSeed(playerIds);
     if (modeId === "team-versus" && this.hasTeamVersusTeams(teams)) {
-      return new TeamVersusMapGenerator().generateForTeams(seed, teams);
+      return new TeamVersusMapGenerator().generateForTeams(seed, teams, worldBounds);
     }
 
     const generator = this.createMapGenerator(modeId);
     const mapPlayerIds = this.createMapPlayerIds(modeId, teams, playerIds);
-    return generator.generate(seed, mapPlayerIds);
+    return generator.generate(seed, mapPlayerIds, worldBounds);
   }
 
   private hasTeamVersusTeams(teams: TeamState[]): boolean {

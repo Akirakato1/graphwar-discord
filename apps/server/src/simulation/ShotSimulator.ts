@@ -1,9 +1,8 @@
 import {
   defaultMatchTuning,
-  directionVector,
-  fieldBounds,
-  isPointInBounds,
+  isWorldPointInBounds,
   localToWorld,
+  worldBoundsForMapSize,
   type AimDirectionId,
   type DamageEvent,
   type ImpactEvent,
@@ -11,6 +10,7 @@ import {
   type PlayerId,
   type PlayerState,
   type TerrainState,
+  type WorldBounds,
   type WorldPoint
 } from "@graphwar/shared";
 import { CircleCraterExplosion } from "../terrain/Explosion";
@@ -25,6 +25,7 @@ export type ShotSimulationInput = {
   shot: ShotFunction;
   aimDirection?: AimDirectionId;
   maxFunctionLength?: number;
+  worldBounds?: WorldBounds;
 };
 
 export type ShotSimulationResult = {
@@ -73,17 +74,16 @@ export class ShotSimulator {
 
   simulate(input: ShotSimulationInput): ShotSimulationResult {
     const aimDirection = input.aimDirection ?? "east";
+    const worldBounds = input.worldBounds ?? worldBoundsForMapSize("standard");
     const maxFunctionLength = this.resolveMaxFunctionLength(input.maxFunctionLength);
-    const boundaryDistance = this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection);
-    const maxX = Math.min(maxFunctionLength, boundaryDistance);
     const sample = input.shot.sample({
       minX: 0,
-      maxX,
+      maxX: maxFunctionLength,
       step: defaultMatchTuning.sampleStep,
-      maxPathPoints: this.maxPathPointsFor(maxX)
+      maxPathPoints: this.maxPathPointsFor(maxFunctionLength)
     });
     const worldPath = sample.points.map((point) => localToWorld(point, input.shooter.position, aimDirection));
-    const boundaryHit = this.findFirstBoundaryExit(worldPath);
+    const boundaryHit = this.findFirstBoundaryHit(worldPath, worldBounds);
     const rangeLimitHit = this.findArcLengthLimit(worldPath, maxFunctionLength);
     const terrainHit = this.collisionSystem.findFirstTerrainHit(worldPath, input.terrain);
     const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, input.players, input.shooter.id);
@@ -98,16 +98,16 @@ export class ShotSimulator {
     const impact = this.resolveImpact(boundaryHit, rangeLimitHit, terrainHit, playerHit, invalidHit);
 
     if (impact?.kind === "field-boundary") {
-      return this.boundaryResult(input, worldPath, impact);
+      return this.boundaryResult(input, worldPath, impact, worldBounds);
     }
 
     if (impact?.kind === "range-limit") {
-      return this.pathTooLongResult(input, this.truncatePath(worldPath, impact));
+      return this.pathTooLongResult(input, this.truncatePath(worldPath, impact, worldBounds), worldBounds);
     }
 
     if (impact?.kind === "terrain-hit") {
       return {
-        path: this.truncatePath(worldPath, impact),
+        path: this.truncatePath(worldPath, impact, worldBounds),
         impact: { reason: "terrain-hit", point: impact.point },
         terrain: this.applyCrater(input.terrain, impact.point),
         players: input.players,
@@ -126,7 +126,7 @@ export class ShotSimulator {
       const eliminations = targetAlive ? [] : [impact.player.id];
 
       return {
-        path: this.truncatePath(worldPath, impact),
+        path: this.truncatePath(worldPath, impact, worldBounds),
         impact: { reason: "player-hit", point: impact.point, targetPlayerId: impact.player.id },
         terrain: input.terrain,
         players,
@@ -137,11 +137,11 @@ export class ShotSimulator {
 
     if (impact?.kind === "invalid-shot") {
       if (impact.reason === "path-too-long") {
-        return this.pathTooLongResult(input, this.truncatePath(worldPath, impact));
+        return this.pathTooLongResult(input, this.truncatePath(worldPath, impact, worldBounds), worldBounds);
       }
 
       return {
-        path: this.truncatePath(worldPath, impact),
+        path: this.truncatePath(worldPath, impact, worldBounds),
         impact: { reason: impact.reason, point: impact.point },
         terrain: this.applyCrater(input.terrain, impact.point),
         players: input.players,
@@ -152,7 +152,7 @@ export class ShotSimulator {
 
     if (!sample.ok) {
       return {
-        path: worldPath.filter(isPointInBounds),
+        path: this.filterPathInBounds(worldPath, worldBounds),
         impact: { reason: sample.reason },
         terrain: input.terrain,
         players: input.players,
@@ -162,7 +162,7 @@ export class ShotSimulator {
     }
 
     return {
-      path: worldPath.filter(isPointInBounds),
+      path: this.filterPathInBounds(worldPath, worldBounds),
       impact: { reason: "miss" },
       terrain: input.terrain,
       players: input.players,
@@ -171,8 +171,12 @@ export class ShotSimulator {
     };
   }
 
-  private pathTooLongResult(input: ShotSimulationInput, worldPath: WorldPoint[]): ShotSimulationResult {
-    const path = worldPath.filter(isPointInBounds);
+  private pathTooLongResult(
+    input: ShotSimulationInput,
+    worldPath: WorldPoint[],
+    worldBounds: WorldBounds
+  ): ShotSimulationResult {
+    const path = this.filterPathInBounds(worldPath, worldBounds);
     const point = path[path.length - 1];
 
     return {
@@ -189,9 +193,14 @@ export class ShotSimulator {
     return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact").terrain;
   }
 
-  private boundaryResult(input: ShotSimulationInput, worldPath: WorldPoint[], hit: CollisionHit): ShotSimulationResult {
+  private boundaryResult(
+    input: ShotSimulationInput,
+    worldPath: WorldPoint[],
+    hit: CollisionHit,
+    worldBounds: WorldBounds
+  ): ShotSimulationResult {
     return {
-      path: this.truncatePath(worldPath, hit),
+      path: this.truncatePath(worldPath, hit, worldBounds),
       impact: { reason: "field-boundary", point: hit.point },
       terrain: input.terrain,
       players: input.players,
@@ -229,14 +238,18 @@ export class ShotSimulator {
     return 4;
   }
 
-  private truncatePath(worldPath: WorldPoint[], hit: CollisionHit): WorldPoint[] {
-    const path = worldPath.slice(0, hit.index + 1).filter(isPointInBounds);
+  private truncatePath(worldPath: WorldPoint[], hit: CollisionHit, worldBounds: WorldBounds): WorldPoint[] {
+    const path = this.filterPathInBounds(worldPath.slice(0, hit.index + 1), worldBounds);
     const lastPoint = path[path.length - 1];
     if (!lastPoint || !samePoint(lastPoint, hit.point)) {
       path.push(hit.point);
     }
 
     return path;
+  }
+
+  private filterPathInBounds(worldPath: WorldPoint[], worldBounds: WorldBounds): WorldPoint[] {
+    return worldPath.filter((point) => isWorldPointInBounds(point, worldBounds));
   }
 
   private lastFiniteHit(
@@ -255,23 +268,51 @@ export class ShotSimulator {
     };
   }
 
-  private findFirstBoundaryExit(worldPath: WorldPoint[]): CollisionHit | undefined {
+  private findFirstBoundaryHit(worldPath: WorldPoint[], worldBounds: WorldBounds): CollisionHit | undefined {
+    const firstPoint = worldPath[0];
+    if (firstPoint && this.isOnBoundary(firstPoint, worldBounds)) {
+      return {
+        point: this.clampToBounds(firstPoint, worldBounds),
+        index: 0,
+        t: 0
+      };
+    }
+
     for (let index = 0; index < worldPath.length - 1; index += 1) {
       const start = worldPath[index];
       const end = worldPath[index + 1];
-      if (!isPointInBounds(start) || isPointInBounds(end)) continue;
+      if (!isWorldPointInBounds(start, worldBounds)) continue;
 
-      const t = this.boundaryExitT(start, end);
+      if (this.isOnBoundary(end, worldBounds)) {
+        return {
+          point: this.clampToBounds(end, worldBounds),
+          index,
+          t: 1
+        };
+      }
+
+      if (isWorldPointInBounds(end, worldBounds)) continue;
+
+      const t = this.boundaryExitT(start, end, worldBounds);
       if (t === undefined) continue;
 
       return {
-        point: this.clampToBounds(interpolate(start, end, t)),
+        point: this.clampToBounds(interpolate(start, end, t), worldBounds),
         index,
         t
       };
     }
 
     return undefined;
+  }
+
+  private isOnBoundary(point: WorldPoint, worldBounds: WorldBounds): boolean {
+    return (
+      Math.abs(point.x - worldBounds.minX) <= POINT_EPSILON ||
+      Math.abs(point.x - worldBounds.maxX) <= POINT_EPSILON ||
+      Math.abs(point.y - worldBounds.minY) <= POINT_EPSILON ||
+      Math.abs(point.y - worldBounds.maxY) <= POINT_EPSILON
+    );
   }
 
   private findArcLengthLimit(worldPath: WorldPoint[], maxFunctionLength: number): CollisionHit | undefined {
@@ -303,13 +344,13 @@ export class ShotSimulator {
     return undefined;
   }
 
-  private boundaryExitT(start: WorldPoint, end: WorldPoint): number | undefined {
+  private boundaryExitT(start: WorldPoint, end: WorldPoint, worldBounds: WorldBounds): number | undefined {
     const candidates: number[] = [];
 
-    this.addBoundaryT(candidates, start.x, end.x, fieldBounds.minX, end.x < fieldBounds.minX);
-    this.addBoundaryT(candidates, start.x, end.x, fieldBounds.maxX, end.x > fieldBounds.maxX);
-    this.addBoundaryT(candidates, start.y, end.y, fieldBounds.minY, end.y < fieldBounds.minY);
-    this.addBoundaryT(candidates, start.y, end.y, fieldBounds.maxY, end.y > fieldBounds.maxY);
+    this.addBoundaryT(candidates, start.x, end.x, worldBounds.minX, end.x < worldBounds.minX);
+    this.addBoundaryT(candidates, start.x, end.x, worldBounds.maxX, end.x > worldBounds.maxX);
+    this.addBoundaryT(candidates, start.y, end.y, worldBounds.minY, end.y < worldBounds.minY);
+    this.addBoundaryT(candidates, start.y, end.y, worldBounds.maxY, end.y > worldBounds.maxY);
 
     return candidates.sort((a, b) => a - b)[0];
   }
@@ -329,10 +370,10 @@ export class ShotSimulator {
     }
   }
 
-  private clampToBounds(point: WorldPoint): WorldPoint {
+  private clampToBounds(point: WorldPoint, worldBounds: WorldBounds): WorldPoint {
     return {
-      x: Math.min(fieldBounds.maxX, Math.max(fieldBounds.minX, point.x)),
-      y: Math.min(fieldBounds.maxY, Math.max(fieldBounds.minY, point.y))
+      x: Math.min(worldBounds.maxX, Math.max(worldBounds.minX, point.x)),
+      y: Math.min(worldBounds.maxY, Math.max(worldBounds.minY, point.y))
     };
   }
 
@@ -348,22 +389,4 @@ export class ShotSimulator {
     return Math.max(1, Math.ceil(maxX / defaultMatchTuning.sampleStep) + 1);
   }
 
-  private forwardFieldBoundaryDistance(shooterPosition: WorldPoint, aimDirection: AimDirectionId): number {
-    const forward = directionVector(aimDirection);
-    const distances: number[] = [];
-
-    if (forward.x > POINT_EPSILON) {
-      distances.push((fieldBounds.maxX - shooterPosition.x) / forward.x);
-    } else if (forward.x < -POINT_EPSILON) {
-      distances.push((fieldBounds.minX - shooterPosition.x) / forward.x);
-    }
-
-    if (forward.y > POINT_EPSILON) {
-      distances.push((fieldBounds.maxY - shooterPosition.y) / forward.y);
-    } else if (forward.y < -POINT_EPSILON) {
-      distances.push((fieldBounds.minY - shooterPosition.y) / forward.y);
-    }
-
-    return Math.max(0, Math.min(...distances.filter((distanceValue) => distanceValue >= 0)));
-  }
 }

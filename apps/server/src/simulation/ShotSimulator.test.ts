@@ -199,6 +199,65 @@ describe("ShotSimulator", () => {
     expect(lastPathPoint(result.path)).toEqual(result.impact.point);
   });
 
+  it("uses provided world bounds for field-boundary impacts", () => {
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players: [shooter],
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      aimDirection: "east",
+      worldBounds: { minX: -2, maxX: 2, minY: -2, maxY: 2 }
+    });
+
+    expect(result.impact.reason).toBe("field-boundary");
+    expect(result.impact.point).toEqual({ x: 2, y: 0 });
+    expect(lastPathPoint(result.path)).toEqual({ x: 2, y: 0 });
+  });
+
+  it("uses standard fallback bounds for field-boundary impacts", () => {
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players: [shooter],
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      aimDirection: "east"
+    });
+
+    expect(result.impact.reason).toBe("field-boundary");
+    expect(result.impact.point).toEqual({ x: fieldBounds.maxX, y: 0 });
+    expect(lastPathPoint(result.path)).toEqual({ x: fieldBounds.maxX, y: 0 });
+  });
+
+  it("continues diagonal curved shots past the forward-axis boundary distance", () => {
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players: [shooter],
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("-0.2 * x"),
+      aimDirection: "north-east"
+    });
+
+    expect(result.impact.reason).toBe("field-boundary");
+    expect(result.impact.point?.x).toBeCloseTo(22.5);
+    expect(result.impact.point?.y).toBeCloseTo(fieldBounds.maxY);
+    expect(lastPathPoint(result.path)).toEqual(result.impact.point);
+  });
+
+  it("resolves exact side-boundary contact before the forward boundary", () => {
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players: [shooter],
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("10 * x"),
+      aimDirection: "east",
+      worldBounds: { minX: -50, maxX: 50, minY: -10, maxY: 10 }
+    });
+
+    expect(result.impact.reason).toBe("field-boundary");
+    expect(result.impact.point).toEqual({ x: 1, y: 10 });
+    expect(lastPathPoint(result.path)).toEqual({ x: 1, y: 10 });
+  });
+
   it("detects swept player collisions when sampled endpoints miss the hit radius", () => {
     const players: PlayerState[] = [
       shooter,
@@ -338,7 +397,7 @@ describe("ShotSimulator", () => {
     expect(result.terrain.blobs).not.toEqual(terrain.blobs);
   });
 
-  it("leaves players and terrain unchanged when the shot misses", () => {
+  it("leaves players and terrain unchanged when the shot reaches the field boundary without a hit", () => {
     const terrain: TerrainState = { blobs: [] };
     const players: PlayerState[] = [
       shooter,
@@ -351,7 +410,7 @@ describe("ShotSimulator", () => {
       shot: NormalFunction.parse("0")
     });
 
-    expect(result.impact.reason).toBe("miss");
+    expect(result.impact.reason).toBe("field-boundary");
     expect(result.damage).toEqual([]);
     expect(result.eliminations).toEqual([]);
     expect(result.players).toBe(players);

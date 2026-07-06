@@ -2,9 +2,12 @@ import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildRoomWebSocketUrl, connectGameClient, type WebSocketConstructor } from "./gameClient";
 
+const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
 const snapshot: MatchSnapshot = {
   phase: "lobby",
   mode: "team-versus",
+  worldBounds: standardWorldBounds,
   players: [],
   teams: [],
   terrain: { blobs: [] },

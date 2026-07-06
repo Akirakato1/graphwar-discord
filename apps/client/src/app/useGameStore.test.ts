@@ -15,9 +15,12 @@ const session: ClientSession = {
   source: "local"
 };
 
+const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
 const snapshot: MatchSnapshot = {
   phase: "lobby",
   mode: "team-versus",
+  worldBounds: standardWorldBounds,
   players: [
     { id: "alice", displayName: "Alice", teamId: "team-a", position: { x: 0, y: 0 }, hp: 100, alive: true }
   ],

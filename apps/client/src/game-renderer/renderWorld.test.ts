@@ -8,9 +8,12 @@ import {
   worldToCanvas
 } from "./renderWorld";
 
+const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
 const snapshot: MatchSnapshot = {
   phase: "playing",
   mode: "team-versus",
+  worldBounds: standardWorldBounds,
   players: [
     {
       id: "alice",

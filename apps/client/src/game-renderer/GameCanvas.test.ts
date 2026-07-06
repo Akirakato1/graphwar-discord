@@ -4,9 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GameCanvas, shotEventKey } from "./GameCanvas";
 
+const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
 const snapshot: MatchSnapshot = {
   phase: "playing",
   mode: "team-versus",
+  worldBounds: standardWorldBounds,
   players: [
     {
       id: "alice",

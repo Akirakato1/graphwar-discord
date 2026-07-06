@@ -1,5 +1,13 @@
-import type { LobbyPlacementId, MatchModeId, PersistedCustomMap, WorldPoint } from "@graphwar/shared";
-import type { GeneratedMap, SpawnPoint } from "./MapGenerator";
+import {
+  worldBoundsForMapSize,
+  type LobbyPlacementId,
+  type MatchModeId,
+  type PersistedCustomMap,
+  type TerrainState,
+  type WorldBounds,
+  type WorldPoint
+} from "@graphwar/shared";
+import { cloneWorldBounds, type GeneratedMap, type SpawnPoint } from "./MapGenerator";
 
 export type CustomMapSpawnPlayer = {
   playerId: string;
@@ -11,17 +19,56 @@ const teamSpawnLabels = {
   "team-b": "Team B"
 } as const;
 
+const derivedBoundsPadding = 2;
+
 function distanceSquared(left: WorldPoint, right: WorldPoint): number {
   const dx = left.x - right.x;
   const dy = left.y - right.y;
   return dx * dx + dy * dy;
 }
 
+function pointBounds(points: WorldPoint[]): WorldBounds | undefined {
+  if (points.length === 0) {
+    return undefined;
+  }
+
+  return points.reduce<WorldBounds>(
+    (bounds, point) => ({
+      minX: Math.min(bounds.minX, point.x),
+      maxX: Math.max(bounds.maxX, point.x),
+      minY: Math.min(bounds.minY, point.y),
+      maxY: Math.max(bounds.maxY, point.y)
+    }),
+    { minX: points[0].x, maxX: points[0].x, minY: points[0].y, maxY: points[0].y }
+  );
+}
+
+function terrainPoints(terrain: TerrainState): WorldPoint[] {
+  return terrain.blobs.flatMap((blob) => [...blob.outer, ...blob.holes.flat()]);
+}
+
+function padBounds(bounds: WorldBounds): WorldBounds {
+  return {
+    minX: bounds.minX - derivedBoundsPadding,
+    maxX: bounds.maxX + derivedBoundsPadding,
+    minY: bounds.minY - derivedBoundsPadding,
+    maxY: bounds.maxY + derivedBoundsPadding
+  };
+}
+
+function deriveBoundsFromTerrainAndSpawns(map: PersistedCustomMap): WorldBounds | undefined {
+  const bounds = pointBounds([...terrainPoints(map.terrain), ...map.spawnPoints.map((spawnPoint) => spawnPoint.position)]);
+  return bounds ? padBounds(bounds) : undefined;
+}
+
 export class CustomMapSpawner {
   generate(mode: MatchModeId, map: PersistedCustomMap, players: CustomMapSpawnPlayer[]): GeneratedMap {
     return {
       terrain: structuredClone(map.terrain),
-      spawns: mode === "team-versus" ? this.teamVersusSpawns(map, players) : this.freeForAllSpawns(map, players)
+      spawns: mode === "team-versus" ? this.teamVersusSpawns(map, players) : this.freeForAllSpawns(map, players),
+      worldBounds: cloneWorldBounds(
+        map.worldBounds ?? deriveBoundsFromTerrainAndSpawns(map) ?? worldBoundsForMapSize("standard")
+      )
     };
   }
 

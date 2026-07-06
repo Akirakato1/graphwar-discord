@@ -45,7 +45,7 @@ export type TurnState = {
 export type MatchSnapshot = {
   phase: MatchPhase;
   mode: MatchModeId;
-  worldBounds?: WorldBounds;
+  worldBounds: WorldBounds;
   players: PlayerState[];
   teams: TeamState[];
   terrain: TerrainState;

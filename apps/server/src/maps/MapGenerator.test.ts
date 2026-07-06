@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fieldBounds } from "@graphwar/shared";
+import { fieldBounds, isWorldPointInBounds, worldBoundsForMapSize } from "@graphwar/shared";
 import { FreeForAllMapGenerator } from "./FreeForAllMapGenerator";
 import { TeamVersusMapGenerator } from "./TeamVersusMapGenerator";
 
@@ -48,6 +48,13 @@ describe("map generators", () => {
     });
   });
 
+  it("returns requested world bounds for team-versus maps", () => {
+    const worldBounds = worldBoundsForMapSize("huge");
+    const map = new TeamVersusMapGenerator().generate("seed", ["alice", "bob"], worldBounds);
+
+    expect(map.worldBounds).toEqual(worldBounds);
+  });
+
   it("creates explicit team-versus spawns by team membership", () => {
     const map = new TeamVersusMapGenerator().generateForTeams("seed", [
       { id: "team-a", playerIds: ["bob"] },
@@ -67,6 +74,15 @@ describe("map generators", () => {
     expect(map.spawns).toHaveLength(3);
     expect(new Set(map.spawns.map((spawn) => `${spawn.position.x},${spawn.position.y}`)).size).toBe(3);
     expect(map.terrain.blobs.length).toBeGreaterThan(0);
+  });
+
+  it("scales free-for-all spawns into requested world bounds", () => {
+    const worldBounds = worldBoundsForMapSize("large");
+    const map = new FreeForAllMapGenerator().generate("seed", ["alice", "bob", "charlie"], worldBounds);
+
+    expect(map.worldBounds).toEqual(worldBounds);
+    expect(map.spawns.every((spawn) => isWorldPointInBounds(spawn.position, worldBounds))).toBe(true);
+    expect(map.spawns[0].position.x).toBeCloseTo(24);
   });
 
   it("creates a finite in-bounds free-for-all spawn for one player", () => {

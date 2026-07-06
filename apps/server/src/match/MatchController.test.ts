@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { matchSnapshotSchema, serverEventSchema, type ServerEvent } from "@graphwar/shared";
+import { matchSnapshotSchema, serverEventSchema, worldBoundsForMapSize, type ServerEvent } from "@graphwar/shared";
 import { MatchController, type ShotSubmissionEvents } from "./MatchController";
 
 describe("MatchController", () => {
@@ -26,12 +26,23 @@ describe("MatchController", () => {
     expect(snapshot.turn.activePlayerId).toBe("alice");
   });
 
+  it("starts a default match with the requested map size preset bounds", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+
+    const snapshot = controller.startMatch("team-versus", undefined, { mapSizePreset: "huge" });
+
+    expect(snapshot.worldBounds).toEqual(worldBoundsForMapSize("huge"));
+  });
+
   it("starts a match with an injected generated map when provided", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");
     controller.join("bob", "Bob");
 
     const snapshot = controller.startMatch("free-for-all", {
+      worldBounds: worldBoundsForMapSize("large"),
       terrain: {
         blobs: [
           {
@@ -52,8 +63,30 @@ describe("MatchController", () => {
     });
 
     expect(snapshot.terrain.blobs).toEqual([expect.objectContaining({ id: "custom-platform" })]);
+    expect(snapshot.worldBounds).toEqual(worldBoundsForMapSize("large"));
     expect(snapshot.players.find((player) => player.id === "alice")?.position).toEqual({ x: -7, y: 3 });
     expect(snapshot.players.find((player) => player.id === "bob")?.position).toEqual({ x: 9, y: -4 });
+  });
+
+  it("keeps injected map bounds isolated from later caller mutation", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [{ id: "alice-id", displayName: "Alice" }]);
+    const generatedMap = {
+      worldBounds: { minX: -2, maxX: 2, minY: -2, maxY: 2 },
+      terrain: { blobs: [] },
+      spawns: [{ playerId: "alice-id", position: { x: 0, y: 0 } }]
+    };
+    controller.startMatch("free-for-all", generatedMap);
+
+    generatedMap.worldBounds.maxX = 100;
+
+    const [event] = controller.submitShot("alice-id", "normal", "0");
+
+    expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.impact).toEqual({ reason: "field-boundary", point: { x: 2, y: 0 } });
+      expect(event.snapshot.worldBounds).toEqual({ minX: -2, maxX: 2, minY: -2, maxY: 2 });
+    }
   });
 
   it("rejects a shot from a non-active player", () => {
@@ -211,6 +244,32 @@ describe("MatchController", () => {
     );
   });
 
+  it("carries lobby player avatar URLs into lobby and playing snapshots", () => {
+    const controller = new MatchController("room-1");
+    const lobbyPlayers = [
+      {
+        id: "alice-id",
+        displayName: "Alice",
+        teamId: "team-a" as const,
+        avatarUrl: "https://cdn.example/alice.png"
+      },
+      {
+        id: "bob-id",
+        displayName: "Bob",
+        teamId: "team-b" as const,
+        avatarUrl: "https://cdn.example/bob.png"
+      }
+    ];
+    const lobby = controller.setLobbyPlayers("team-versus", lobbyPlayers);
+
+    expect(lobby.players.find((player) => player.id === "alice-id")?.avatarUrl).toBe(
+      "https://cdn.example/alice.png"
+    );
+    expect(controller.startMatch("team-versus").players.find((player) => player.id === "bob-id")?.avatarUrl).toBe(
+      "https://cdn.example/bob.png"
+    );
+  });
+
   it("uses the configured max function length for submitted shots", () => {
     const controller = new MatchController("room-1");
     controller.setLobbyPlayers("free-for-all", [
@@ -220,6 +279,7 @@ describe("MatchController", () => {
     controller.startMatch(
       "free-for-all",
       {
+        worldBounds: worldBoundsForMapSize("standard"),
         terrain: { blobs: [] },
         spawns: [
           { playerId: "alice-id", position: { x: -19, y: 0 } },

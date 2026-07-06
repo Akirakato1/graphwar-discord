@@ -48,11 +48,66 @@ describe("CustomMapSpawner", () => {
     ]);
 
     expect(generated.terrain.blobs).toEqual([expect.objectContaining({ id: "custom-rock" })]);
+    expect(generated.worldBounds).toMatchObject({
+      minX: expect.any(Number),
+      maxX: expect.any(Number),
+      minY: expect.any(Number),
+      maxY: expect.any(Number)
+    });
     expect(generated.spawns).toEqual([
       { playerId: "alice", position: { x: 0, y: 0 } },
       { playerId: "carol", position: { x: 4, y: 6 } },
       { playerId: "bob", position: { x: 20, y: 6 } }
     ]);
+  });
+
+  it("uses explicit custom map world bounds", () => {
+    const worldBounds = { minX: -80, maxX: 80, minY: -45, maxY: 45 };
+    const generated = new CustomMapSpawner().generate(
+      "free-for-all",
+      persistedMap({ worldBounds }),
+      [{ playerId: "alice", placement: "players" }]
+    );
+
+    expect(generated.worldBounds).toEqual(worldBounds);
+  });
+
+  it("derives world bounds from terrain and spawns when custom maps omit bounds", () => {
+    const generated = new CustomMapSpawner().generate(
+      "free-for-all",
+      persistedMap({
+        terrain: {
+          blobs: [
+            {
+              id: "wide-rock",
+              outer: [
+                { x: -40, y: -5 },
+                { x: 6, y: -5 },
+                { x: 6, y: 12 },
+                { x: -40, y: 12 }
+              ],
+              holes: []
+            }
+          ]
+        },
+        spawnPoints: [
+          { id: "left", position: { x: -30, y: 0 } },
+          { id: "right", position: { x: 42, y: -18 } }
+        ]
+      }),
+      [{ playerId: "alice", placement: "players" }]
+    );
+
+    expect(generated.worldBounds).toMatchObject({
+      minX: expect.any(Number),
+      maxX: expect.any(Number),
+      minY: expect.any(Number),
+      maxY: expect.any(Number)
+    });
+    expect(generated.worldBounds.minX).toBeLessThan(-40);
+    expect(generated.worldBounds.maxX).toBeGreaterThan(42);
+    expect(generated.worldBounds.minY).toBeLessThan(-18);
+    expect(generated.worldBounds.maxY).toBeGreaterThan(12);
   });
 
   it("blocks team-versus generation with a clear Team B spawn message", () => {

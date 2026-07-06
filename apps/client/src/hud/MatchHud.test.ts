@@ -14,9 +14,12 @@ const session = {
   source: "local" as const
 };
 
+const standardWorldBounds = { minX: -25, maxX: 25, minY: -15, maxY: 15 };
+
 const playingSnapshot: MatchSnapshot = {
   phase: "playing",
   mode: "team-versus",
+  worldBounds: standardWorldBounds,
   players: [
     { id: "alice", displayName: "Alice", teamId: "team-a", position: { x: 0, y: 0 }, hp: 100, alive: true },
     { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 10, y: 0 }, hp: 100, alive: true }
