@@ -18,6 +18,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/plans/2026-07-05-gameplay-ui-fixes.md`
   - `docs/superpowers/plans/2026-07-06-custom-maps-and-map-maker.md`
   - `docs/superpowers/plans/2026-07-06-lobby-identity-settings.md`
+  - `docs/superpowers/plans/2026-07-06-advanced-normal-function-math.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
@@ -160,3 +161,4 @@ Every major implementation task should:
 - Refined the max-range fizzle marker to use circular spark particles instead of straight crossed strokes so it cannot read as extra function beams.
 - Changed max function length from local-x distance to true traveled path distance using accumulated segment length, while halving shot sampling `dx` to `0.025` and preserving the default `50.0` unit cap.
 - Added an approved advanced normal-function math design covering summation, numeric integration, finite-difference derivatives, gamma/factorial/digamma/beta helpers, floor/ceiling palette entries, and server-side evaluation guardrails.
+- Added an advanced normal-function math implementation plan covering the server expression compiler, special math helpers, client palette snippets, README updates, and verification commands.
