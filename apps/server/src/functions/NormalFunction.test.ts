@@ -120,4 +120,85 @@ describe("NormalFunction", () => {
       expect(sample.lastFinitePoint).toEqual({ x: 2, y: 2 });
     }
   });
+
+  it("evaluates sums with sampled x in bounds and body", () => {
+    const shot = NormalFunction.parse("sum(n, 0, x, n*cos(x))");
+    const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points[0]).toEqual({ x: 0, y: 0 });
+      expect(sample.points[1]?.y).toBeCloseTo(Math.cos(1));
+      expect(sample.points[2]?.y).toBeCloseTo(3 * Math.cos(2));
+    }
+  });
+
+  it("evaluates numeric integrals with sampled x in bounds and integrand", () => {
+    const shot = NormalFunction.parse("int(t, 0, x, t*x)");
+    const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points[0]).toEqual({ x: 0, y: 0 });
+      expect(sample.points[1]?.y).toBeCloseTo(0.5, 5);
+      expect(sample.points[2]?.y).toBeCloseTo(4, 5);
+    }
+  });
+
+  it("evaluates finite-difference derivatives with respect to x", () => {
+    const shot = NormalFunction.parse("diff(x, 2, x^3)");
+    const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points[0]).toEqual({ x: 0, y: 0 });
+      expect(sample.points[1]?.y).toBeCloseTo(6, 2);
+      expect(sample.points[2]?.y).toBeCloseTo(12, 2);
+    }
+  });
+
+  it("evaluates gamma-family helpers and continuous factorial", () => {
+    const factorialShot = NormalFunction.parse("factorial(x)");
+    const digammaShot = NormalFunction.parse("digamma(x + 1)");
+    const betaShot = NormalFunction.parse("beta(x + 1, 2)");
+    const factorialSample = factorialShot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });
+    const digammaSample = digammaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+    const betaSample = betaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+
+    expect(factorialSample.ok).toBe(true);
+    expect(digammaSample.ok).toBe(true);
+    expect(betaSample.ok).toBe(true);
+    if (factorialSample.ok && digammaSample.ok && betaSample.ok) {
+      expect(factorialSample.points[3]?.y).toBeCloseTo(5);
+      expect(digammaSample.points[1]?.y).toBeCloseTo(1, 5);
+      expect(betaSample.points[1]?.y).toBeCloseTo(-1 / 3, 5);
+    }
+  });
+
+  it("preserves implicit multiplication and unary negatives with advanced helpers", () => {
+    const shot = NormalFunction.parse("3gamma(x + 1) + cos(x)(-sin(x))");
+    const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points[0]).toEqual({ x: 0, y: 0 });
+      expect(sample.points[2]?.y).toBeCloseTo(3 - Math.cos(2) * Math.sin(2));
+    }
+  });
+
+  it("evaluates floor and ceiling aliases", () => {
+    const shot = NormalFunction.parse("floor(x + 0.75) + ceil(x - 0.25) + ceiling(x - 0.25)");
+    const sample = shot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+
+    expect(sample.ok).toBe(true);
+    if (sample.ok) {
+      expect(sample.points).toEqual([{ x: 0, y: 0 }, { x: 1, y: 3 }]);
+    }
+  });
+
+  it("rejects excessive aggregate and derivative work", () => {
+    expect(() => NormalFunction.parse("sum(n, 0, 2000, n)")).toThrow(/evaluation limit/i);
+    expect(() => NormalFunction.parse("diff(x, 5, sin(x))")).toThrow(/derivative order/i);
+    expect(() => NormalFunction.parse("diff(t, 1, sin(t))")).toThrow(/only supports x/i);
+  });
 });
