@@ -170,6 +170,7 @@ Every major implementation task should:
 - Added advanced normal-function math helpers for server-authoritative summation, numeric integration, finite-difference derivatives, gamma-family functions, floor/ceiling aliases, and mathematical palette snippets.
 - Added an approved Phase 1 map presentation design covering default map-size presets, authoritative match bounds, custom-map bounds fallback, camera zoom/pan, avatar rendering, and map-maker size setup.
 - Added a Phase 2 gameplay-settings design covering configurable player-hit damage, unique successful function hits, friendly-fire target filtering, lobby rule propagation, and focused tests.
+- Added a Phase 2 gameplay-settings implementation plan covering shared contracts, lobby storage, simulation rules, client lobby UI, and integration/E2E verification.
 - Added a Phase 1 map presentation implementation plan covering shared bounds contracts, server propagation, client camera/avatar rendering, map-maker bounds setup, and verification checkpoints.
 - Added shared Phase 1 map presentation contracts for map-size presets, reusable world bounds, sanitized avatar URLs, lobby map-size metadata, and optional snapshot bounds during server migration.
 - Propagated authoritative world bounds server-side for Phase 1 map presentation: default map-size presets feed generated maps and match snapshots, custom maps use explicit/derived/fallback bounds, shot simulation clips against active bounds, lobby summaries store default-map presets only, and `MatchSnapshot.worldBounds` is now required.
