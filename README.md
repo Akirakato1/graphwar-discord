@@ -10,6 +10,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/specs/2026-07-05-gameplay-ui-fixes-design.md`
   - `docs/superpowers/specs/2026-07-06-custom-maps-and-map-maker-design.md`
   - `docs/superpowers/specs/2026-07-06-lobby-identity-settings-design.md`
+  - `docs/superpowers/specs/2026-07-06-advanced-normal-function-math-design.md`
 - Implementation plans:
   - `docs/superpowers/plans/2026-07-04-graphwar-discord-activity-prototype.md`
   - `docs/superpowers/plans/2026-07-05-aim-direction-hud.md`
@@ -158,3 +159,4 @@ Every major implementation task should:
 - Added visible max-range fizzles: range-limited shots now resolve as `path-too-long`, preserve terrain/player state, still advance the turn, and render a non-explosion endpoint marker.
 - Refined the max-range fizzle marker to use circular spark particles instead of straight crossed strokes so it cannot read as extra function beams.
 - Changed max function length from local-x distance to true traveled path distance using accumulated segment length, while halving shot sampling `dx` to `0.025` and preserving the default `50.0` unit cap.
+- Added an approved advanced normal-function math design covering summation, numeric integration, finite-difference derivatives, gamma/factorial/digamma/beta helpers, floor/ceiling palette entries, and server-side evaluation guardrails.
