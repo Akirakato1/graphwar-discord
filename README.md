@@ -21,6 +21,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. The first milest
   - `docs/superpowers/plans/2026-07-06-custom-maps-and-map-maker.md`
   - `docs/superpowers/plans/2026-07-06-lobby-identity-settings.md`
   - `docs/superpowers/plans/2026-07-06-advanced-normal-function-math.md`
+  - `docs/superpowers/plans/2026-07-06-map-presentation-camera-avatar.md`
 - Source mechanics notes: `graphwar_cheat_sheet.md`
 - Active branch: `feature/graphwar-prototype`
 - Remote branch: `origin/feature/graphwar-prototype`
@@ -169,3 +170,4 @@ Every major implementation task should:
 - Added advanced normal-function math helpers for server-authoritative summation, numeric integration, finite-difference derivatives, gamma-family functions, floor/ceiling aliases, and mathematical palette snippets.
 - Added an approved Phase 1 map presentation design covering default map-size presets, authoritative match bounds, custom-map bounds fallback, camera zoom/pan, avatar rendering, and map-maker size setup.
 - Added a Phase 2 gameplay-settings design covering configurable player-hit damage, unique successful function hits, friendly-fire target filtering, lobby rule propagation, and focused tests.
+- Added a Phase 1 map presentation implementation plan covering shared bounds contracts, server propagation, client camera/avatar rendering, map-maker bounds setup, and verification checkpoints.
