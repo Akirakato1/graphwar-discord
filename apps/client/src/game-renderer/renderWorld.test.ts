@@ -386,6 +386,37 @@ describe("renderWorld", () => {
     expect(pathStrokeAlphas[2]).toBeCloseTo(0.2);
   });
 
+  it("draws a small fizzle marker when a shot runs out of max function length", () => {
+    const context = new RecordingCanvasContext();
+
+    renderWorld(context as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      snapshot,
+      shot: {
+        path: [
+          { x: -10, y: 0 },
+          { x: 0, y: 0 }
+        ],
+        impact: { reason: "path-too-long", point: { x: 0, y: 0 } },
+        progress: 1
+      }
+    });
+
+    const centerArcs = context.calls.filter(
+      (call) => call.name === "arc" && call.args[0] === 500 && call.args[1] === 300
+    );
+    const fillStyles = context.calls
+      .filter((call) => call.name === "setFillStyle")
+      .map((call) => String(call.args[0]));
+    const strokeStyles = context.calls
+      .filter((call) => call.name === "setStrokeStyle")
+      .map((call) => String(call.args[0]));
+
+    expect(centerArcs.some((call) => Number(call.args[2]) > 0 && Number(call.args[2]) < 20)).toBe(true);
+    expect(centerArcs.some((call) => Number(call.args[2]) > 20)).toBe(false);
+    expect(fillStyles).not.toContain("rgba(255, 111, 108, 0.16)");
+    expect(strokeStyles).toContain("rgba(249, 242, 199, 0.72)");
+  });
+
   it("uses a player's chosen lobby color for their marker and name label", () => {
     const context = new RecordingCanvasContext();
 

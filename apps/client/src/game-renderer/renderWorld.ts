@@ -185,16 +185,46 @@ function drawShot(ctx: CanvasRenderingContext2D, size: CanvasSize, shot: RenderS
 
   if (shot.impact?.point && (shot.progress ?? 1) >= 1) {
     const impact = worldToCanvas(shot.impact.point, size);
-    ctx.save();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = "#ffcf5d";
-    ctx.fillStyle = "rgba(255, 111, 108, 0.16)";
-    ctx.beginPath();
-    ctx.arc(impact.x, impact.y, worldDistanceToCanvas(defaultMatchTuning.circleCraterRadius, size), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+    if (shot.impact.reason === "path-too-long") {
+      drawRangeFizzle(ctx, size, impact);
+    } else {
+      drawImpactRing(ctx, size, impact);
+    }
   }
+}
+
+function drawImpactRing(ctx: CanvasRenderingContext2D, size: CanvasSize, impact: { x: number; y: number }): void {
+  ctx.save();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#ffcf5d";
+  ctx.fillStyle = "rgba(255, 111, 108, 0.16)";
+  ctx.beginPath();
+  ctx.arc(impact.x, impact.y, worldDistanceToCanvas(defaultMatchTuning.circleCraterRadius, size), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRangeFizzle(ctx: CanvasRenderingContext2D, size: CanvasSize, impact: { x: number; y: number }): void {
+  const radius = Math.max(5, worldDistanceToCanvas(defaultMatchTuning.playerHitRadius * 1.2, size));
+
+  ctx.save();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(249, 242, 199, 0.72)";
+  ctx.fillStyle = "rgba(249, 242, 199, 0.08)";
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.arc(impact.x, impact.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(impact.x - radius * 0.75, impact.y);
+  ctx.lineTo(impact.x + radius * 0.75, impact.y);
+  ctx.moveTo(impact.x, impact.y - radius * 0.75);
+  ctx.lineTo(impact.x, impact.y + radius * 0.75);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function shotPathColor(segmentIndex: number, segmentCount: number): string {

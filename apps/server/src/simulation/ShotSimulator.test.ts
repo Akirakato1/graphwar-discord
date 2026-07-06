@@ -61,6 +61,7 @@ describe("ShotSimulator", () => {
   });
 
   it("limits shot sampling to the configured max function length", () => {
+    const terrain: TerrainState = { blobs: [] };
     const players: PlayerState[] = [
       shooter,
       { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 3, y: 0 }, hp: 100, alive: true }
@@ -68,13 +69,19 @@ describe("ShotSimulator", () => {
     const result = new ShotSimulator().simulate({
       shooter,
       players,
-      terrain: { blobs: [] },
+      terrain,
       shot: NormalFunction.parse("0"),
       maxFunctionLength: 1
     });
 
-    expect(result.impact.reason).toBe("miss");
+    expect(result.impact.reason).toBe("path-too-long");
+    expect(result.impact.point?.x).toBeCloseTo(1);
+    expect(result.impact.point?.y).toBeCloseTo(0);
     expect(result.damage).toEqual([]);
+    expect(result.eliminations).toEqual([]);
+    expect(result.players).toBe(players);
+    expect(result.terrain).toBe(terrain);
+    expect(lastPathPoint(result.path)).toEqual(result.impact.point);
     expect(lastPathPoint(result.path)?.x).toBeCloseTo(1);
   });
 

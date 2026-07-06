@@ -72,10 +72,9 @@ export class ShotSimulator {
 
   simulate(input: ShotSimulationInput): ShotSimulationResult {
     const aimDirection = input.aimDirection ?? "east";
-    const maxX = Math.min(
-      this.resolveMaxFunctionLength(input.maxFunctionLength),
-      this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection)
-    );
+    const maxFunctionLength = this.resolveMaxFunctionLength(input.maxFunctionLength);
+    const boundaryDistance = this.forwardFieldBoundaryDistance(input.shooter.position, aimDirection);
+    const maxX = Math.min(maxFunctionLength, boundaryDistance);
     const sample = input.shot.sample({
       minX: 0,
       maxX,
@@ -131,6 +130,10 @@ export class ShotSimulator {
     }
 
     if (impact?.kind === "invalid-shot") {
+      if (impact.reason === "path-too-long") {
+        return this.pathTooLongResult(input, this.truncatePath(worldPath, impact));
+      }
+
       return {
         path: this.truncatePath(worldPath, impact),
         impact: { reason: impact.reason, point: impact.point },
@@ -152,9 +155,27 @@ export class ShotSimulator {
       };
     }
 
+    if (this.reachedMaxFunctionLength(maxFunctionLength, boundaryDistance, worldPath)) {
+      return this.pathTooLongResult(input, worldPath);
+    }
+
     return {
       path: worldPath.filter(isPointInBounds),
       impact: { reason: "miss" },
+      terrain: input.terrain,
+      players: input.players,
+      damage: [],
+      eliminations: []
+    };
+  }
+
+  private pathTooLongResult(input: ShotSimulationInput, worldPath: WorldPoint[]): ShotSimulationResult {
+    const path = worldPath.filter(isPointInBounds);
+    const point = path[path.length - 1];
+
+    return {
+      path,
+      impact: point ? { reason: "path-too-long", point } : { reason: "path-too-long" },
       terrain: input.terrain,
       players: input.players,
       damage: [],
@@ -291,6 +312,14 @@ export class ShotSimulator {
 
   private maxPathPointsFor(maxX: number): number {
     return Math.max(1, Math.ceil(maxX / defaultMatchTuning.sampleStep) + 1);
+  }
+
+  private reachedMaxFunctionLength(
+    maxFunctionLength: number,
+    boundaryDistance: number,
+    worldPath: WorldPoint[]
+  ): boolean {
+    return worldPath.length > 0 && maxFunctionLength <= boundaryDistance + POINT_EPSILON;
   }
 
   private forwardFieldBoundaryDistance(shooterPosition: WorldPoint, aimDirection: AimDirectionId): number {

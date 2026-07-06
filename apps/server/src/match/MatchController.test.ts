@@ -233,9 +233,12 @@ describe("MatchController", () => {
 
     expect(event.type).toBe("shot-resolved");
     if (event.type === "shot-resolved") {
-      expect(event.impact.reason).toBe("miss");
+      expect(event.impact.reason).toBe("path-too-long");
+      expect(event.damage).toEqual([]);
+      expect(event.eliminations).toEqual([]);
       expect(event.path.at(-1)?.x).toBeGreaterThan(0.9);
       expect(event.path.at(-1)?.x).toBeLessThanOrEqual(1);
+      expect(event.snapshot.turn.activePlayerId).toBe("bob-id");
     }
   });
 
