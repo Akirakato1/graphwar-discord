@@ -1,4 +1,11 @@
-import { defaultPlayerColor, playerColorPalette, type ClientCommand, type MatchSnapshot, type ServerEvent } from "@graphwar/shared";
+import {
+  defaultLobbyGameplaySettings,
+  defaultPlayerColor,
+  playerColorPalette,
+  type ClientCommand,
+  type MatchSnapshot,
+  type ServerEvent
+} from "@graphwar/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectGameClient, type ConnectGameClientOptions, type WebSocketConstructor } from "../networking/gameClient";
 import type { LobbyApi } from "../networking/lobbyApi";
@@ -88,6 +95,9 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         occupants: [],
         canStart: false,
         maxFunctionLength: request.maxFunctionLength ?? 50,
+        damagePerHit: request.damagePerHit ?? defaultLobbyGameplaySettings.damagePerHit,
+        uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
+        friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       session: {
@@ -113,6 +123,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         occupants: [],
         canStart: false,
         maxFunctionLength: 50,
+        ...defaultLobbyGameplaySettings,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       session: {
@@ -149,7 +160,8 @@ async function selectLobby(store: ReturnType<typeof createGameStore>): Promise<v
     mode: "team-versus",
     initialSlot: "player",
     color: defaultPlayerColor,
-    maxFunctionLength: 50
+    maxFunctionLength: 50,
+    ...defaultLobbyGameplaySettings
   });
 }
 
@@ -189,6 +201,7 @@ describe("createGameStore", () => {
       occupants: [],
       canStart: false,
       maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings,
       createdAt: "2026-07-05T00:00:00.000Z"
     };
     const selectedLobbySession = {
@@ -251,6 +264,7 @@ describe("createGameStore", () => {
       initialSlot: "player",
       color: defaultPlayerColor,
       maxFunctionLength: 64,
+      ...defaultLobbyGameplaySettings,
       mapSizePreset: "huge"
     });
     onOpen?.();
@@ -268,6 +282,7 @@ describe("createGameStore", () => {
           initialSlot: "player",
           color: defaultPlayerColor,
           maxFunctionLength: 64,
+          ...defaultLobbyGameplaySettings,
           mapSizePreset: "huge"
         }
       }
@@ -348,6 +363,7 @@ describe("createGameStore", () => {
       initialSlot: "player",
       color: defaultPlayerColor,
       maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings,
       mapId: "map-1"
     });
 
@@ -375,10 +391,43 @@ describe("createGameStore", () => {
       initialSlot: "player",
       color: defaultPlayerColor,
       maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings,
       mapSizePreset: "huge"
     });
 
     expect(createLobbyCalls[0]?.[1]).toMatchObject({ mapSizePreset: "huge" });
+  });
+
+  it("passes phase 2 gameplay settings when creating lobbies", async () => {
+    const createLobbyCalls: Array<Parameters<LobbyApi["createLobby"]>> = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: {
+        ...lobbyApiFor("room-rules"),
+        createLobby: async (guildId, request) => {
+          createLobbyCalls.push([guildId, request]);
+          return lobbyApiFor("room-rules").createLobby(guildId, request);
+        }
+      },
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().createLobby({
+      name: "Rules Room",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50,
+      damagePerHit: 80,
+      uniqueFunctionHits: false,
+      friendlyFire: true
+    });
+
+    expect(createLobbyCalls[0]).toEqual([
+      session.guildId,
+      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+    ]);
   });
 
   it("drops map size presets when creating a lobby with a custom map", async () => {
@@ -402,6 +451,7 @@ describe("createGameStore", () => {
       initialSlot: "player",
       color: defaultPlayerColor,
       maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings,
       mapId: "map-1",
       mapSizePreset: "huge"
     });
@@ -492,6 +542,9 @@ describe("createGameStore", () => {
               occupants: [],
               canStart: false,
               maxFunctionLength: request.maxFunctionLength ?? 50,
+              damagePerHit: request.damagePerHit ?? defaultLobbyGameplaySettings.damagePerHit,
+              uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
+              friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
               createdAt: "2026-07-05T00:00:00.000Z"
             },
             session: {
@@ -523,7 +576,8 @@ describe("createGameStore", () => {
       mode: "team-versus",
       initialSlot: "player",
       color: defaultPlayerColor,
-      maxFunctionLength: 50
+      maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings
     });
     onOpen?.();
     await store.getState().createLobby({
@@ -532,7 +586,8 @@ describe("createGameStore", () => {
       mode: "team-versus",
       initialSlot: "player",
       color: defaultPlayerColor,
-      maxFunctionLength: 50
+      maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings
     });
     onOpen?.();
 
@@ -790,6 +845,7 @@ describe("createGameStore", () => {
             leaderDiscordUserId: "alice",
             playerCount: 1,
             spectatorCount: 0,
+            ...defaultLobbyGameplaySettings,
             createdAt: "2026-07-05T00:00:00.000Z"
           }
         ],

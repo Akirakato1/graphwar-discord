@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { MapSizePresetId } from "../maps/types";
 import { defaultMapSizePreset, mapSizePresetSchema } from "../maps/worldBounds";
 import type { MatchModeId } from "../state/types";
+import { damagePerHitBounds, defaultFriendlyFire, defaultUniqueFunctionHits } from "./gameplaySettings";
+import type { LobbyGameplaySettings } from "./gameplaySettings";
 import { defaultMaxFunctionLength, defaultPlayerColor, functionLengthBounds, playerColorPalette } from "./identity";
 import type { PlayerColor } from "./identity";
 import type { CreateLobbyRequest, LobbySlot } from "./types";
@@ -47,7 +49,11 @@ function dropUndefinedProperties<T extends Record<string, unknown>>(value: T): T
   return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)) as T;
 }
 
-type ParsedCreateLobbyRequest = Omit<CreateLobbyRequest, "color" | "maxFunctionLength"> & {
+type ParsedCreateLobbyRequest = Omit<
+  CreateLobbyRequest,
+  "color" | "maxFunctionLength" | "damagePerHit" | "uniqueFunctionHits" | "friendlyFire"
+> &
+  LobbyGameplaySettings & {
   color: PlayerColor;
   mode: MatchModeId;
   initialSlot: LobbySlot;
@@ -70,6 +76,14 @@ export const maxFunctionLengthSchema = z.preprocess((value) => {
 
   return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
 }, z.number().int().min(functionLengthBounds.min).max(functionLengthBounds.max));
+
+export const damagePerHitSchema = z.preprocess((value) => {
+  if (value === undefined) {
+    return damagePerHitBounds.default;
+  }
+
+  return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+}, z.number().int().min(damagePerHitBounds.min).max(damagePerHitBounds.max));
 
 export const guildSettingsSchema = z.object({
   guildId: z.string().min(1),
@@ -97,6 +111,9 @@ export const createLobbyRequestSchema = z.object({
   mode: matchModeSchema,
   initialSlot: lobbySlotSchema,
   maxFunctionLength: maxFunctionLengthSchema,
+  damagePerHit: damagePerHitSchema,
+  uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
+  friendlyFire: z.boolean().default(defaultFriendlyFire),
   mapSizePreset: mapSizePresetSchema.default(defaultMapSizePreset),
   mapId: z.string().trim().min(1).optional()
 }).transform(normalizeCreateLobbyRequest);
@@ -142,6 +159,9 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   canStart: z.boolean(),
   startBlockedReason: z.string().optional(),
   maxFunctionLength: maxFunctionLengthSchema,
+  damagePerHit: damagePerHitSchema,
+  uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
+  friendlyFire: z.boolean().default(defaultFriendlyFire),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),
@@ -159,6 +179,9 @@ export const lobbySummarySchema = z.object({
   leaderDiscordUserId: z.string().min(1),
   playerCount: z.number().int().nonnegative(),
   spectatorCount: z.number().int().nonnegative(),
+  damagePerHit: damagePerHitSchema,
+  uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
+  friendlyFire: z.boolean().default(defaultFriendlyFire),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),

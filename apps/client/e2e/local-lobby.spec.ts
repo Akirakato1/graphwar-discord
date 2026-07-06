@@ -26,13 +26,25 @@ async function createLobby(
   lobbyName: string,
   alias: string,
   options: {
+    damagePerHit?: number;
+    friendlyFire?: boolean;
     maxFunctionLength?: number;
     mapSizePreset?: "small" | "standard" | "large" | "huge";
+    uniqueFunctionHits?: boolean;
   } = {}
 ): Promise<void> {
   await page.getByRole("button", { name: "Create Lobby" }).click();
   await page.getByLabel("Lobby name").fill(lobbyName);
   await page.getByLabel("Alias").fill(alias);
+  if (options.damagePerHit !== undefined) {
+    await page.getByLabel("Damage").fill(String(options.damagePerHit));
+  }
+  if (options.uniqueFunctionHits !== undefined) {
+    await page.getByLabel("Unique function hits").setChecked(options.uniqueFunctionHits);
+  }
+  if (options.friendlyFire !== undefined) {
+    await page.getByLabel("Friendly fire").setChecked(options.friendlyFire);
+  }
   if (options.maxFunctionLength !== undefined) {
     await page.getByLabel("Max function length").fill(String(options.maxFunctionLength));
   }
@@ -253,6 +265,51 @@ test("player damage appears after the shot playback reaches impact", async ({ br
   }
 });
 
+test("create-lobby damage settings apply and duplicate function hits are rejected", async ({ browser }, testInfo) => {
+  const guildId = idFor(testInfo.title, "guild");
+  const lobbyName = idFor(testInfo.title, "lobby");
+  const aliceContext = await browser.newContext();
+  const bobContext = await browser.newContext();
+  const alicePage = await aliceContext.newPage();
+  const bobPage = await bobContext.newPage();
+
+  try {
+    await openLocalMenu(alicePage, alice, guildId);
+    await createLobby(alicePage, lobbyName, "Alice", { damagePerHit: 50, maxFunctionLength: 100 });
+    await expect(alicePage.getByLabel("Match rules")).toContainText("Damage 50");
+    await expect(alicePage.getByLabel("Match rules")).toContainText("Unique hits On");
+
+    await openLocalMenu(bobPage, bob, guildId);
+    await joinLobby(bobPage, lobbyName, "Bob");
+    await expectSetupShowsPlayers([alicePage, bobPage]);
+
+    await alicePage.getByRole("button", { name: "Start Match" }).click();
+    await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+
+    const hitExpression = "0.05x(36-x)";
+    await alicePage.getByLabel("Function Shot").fill(hitExpression);
+    await alicePage.getByRole("button", { name: "Fire" }).click();
+
+    await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
+    await expect(bobPage.getByTestId("own-hp")).toContainText("50 HP");
+
+    await fireMiss(bobPage);
+    await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
+
+    await alicePage.getByLabel("Function Shot").fill(hitExpression);
+    await alicePage.getByRole("button", { name: "Fire" }).click();
+
+    await expect(alicePage.getByText("That function already hit this target. Try a different function.")).toBeVisible();
+    await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
+  } finally {
+    await aliceContext.close();
+    await bobContext.close();
+  }
+});
+
 test("final killing shot plays before the winner dialog returns to menu", async ({ browser }, testInfo) => {
   const guildId = idFor(testInfo.title, "guild");
   const lobbyName = idFor(testInfo.title, "lobby");
@@ -263,7 +320,7 @@ test("final killing shot plays before the winner dialog returns to menu", async 
 
   try {
     await openLocalMenu(alicePage, alice, guildId);
-    await createLobby(alicePage, lobbyName, "Alice", { maxFunctionLength: 100 });
+    await createLobby(alicePage, lobbyName, "Alice", { maxFunctionLength: 100, uniqueFunctionHits: false });
     await openLocalMenu(bobPage, bob, guildId);
     await joinLobby(bobPage, lobbyName, "Bob");
     await expectSetupShowsPlayers([alicePage, bobPage]);

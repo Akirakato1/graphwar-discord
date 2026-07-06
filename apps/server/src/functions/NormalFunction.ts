@@ -23,6 +23,7 @@ export class NormalFunction extends ShotFunction {
 
   private constructor(
     private readonly expressionText: string,
+    readonly canonicalExpression: string,
     private readonly evaluateY: (x: number) => number,
     private readonly offset: number
   ) {
@@ -37,7 +38,12 @@ export class NormalFunction extends ShotFunction {
       throw new Error("Function must be finite at x = 0");
     }
 
-    return new NormalFunction(expressionText, (x) => evaluateFiniteNumber(evaluateExpression, x), -yAtOrigin);
+    return new NormalFunction(
+      expressionText,
+      compiledExpression.canonicalExpression,
+      (x) => evaluateFiniteNumber(evaluateExpression, x),
+      -yAtOrigin
+    );
   }
 
   sample(context: SampleContext): TrajectorySample {

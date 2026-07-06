@@ -208,7 +208,10 @@ export class GameRoom {
         const lobby = context.lobbies.markPlaying(context.guildId, this.roomId);
         const snapshot = this.match.startMatch(lobby.mode, generatedMap, {
           maxFunctionLength: lobby.maxFunctionLength,
-          mapSizePreset: openLobby.mapId ? undefined : lobby.mapSizePreset
+          mapSizePreset: openLobby.mapId ? undefined : lobby.mapSizePreset,
+          damagePerHit: lobby.damagePerHit,
+          uniqueFunctionHits: lobby.uniqueFunctionHits,
+          friendlyFire: lobby.friendlyFire
         });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
         this.broadcast({

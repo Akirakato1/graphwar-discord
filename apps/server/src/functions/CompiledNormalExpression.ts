@@ -1,4 +1,5 @@
 import { Parser } from "expr-eval";
+import { normalizeFunctionHitExpression } from "@graphwar/shared";
 import { beta, digamma, factorial, gamma } from "./specialMath";
 
 const maxAggregateDepth = 3;
@@ -96,6 +97,7 @@ class EvaluationBudget {
 }
 
 export type CompiledNormalExpression = {
+  canonicalExpression: string;
   evaluate(scope: EvaluationScope, budget?: EvaluationBudget): number;
 };
 
@@ -127,6 +129,7 @@ function compileNormalExpressionInternal(
   }
 
   return {
+    canonicalExpression: normalizeFunctionHitExpression(normalizedExpressionText),
     evaluate(scope, budget = new EvaluationBudget()) {
       const placeholderFunctions: Record<string, () => number> = {};
       for (const [name, evaluatePlaceholder] of placeholders) {

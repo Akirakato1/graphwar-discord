@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { playerColorPalette } from "@graphwar/shared";
+import { defaultLobbyGameplaySettings, playerColorPalette } from "@graphwar/shared";
 import {
   availableJoinSlots,
   isAliasConflictError,
@@ -19,6 +19,7 @@ const openLobby = {
   leaderDiscordUserId: "alice-id",
   playerCount: 1,
   spectatorCount: 0,
+  ...defaultLobbyGameplaySettings,
   createdAt: "2026-07-05T00:00:00.000Z"
 };
 

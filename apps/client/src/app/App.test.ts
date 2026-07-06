@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { defaultPlayerColor } from "@graphwar/shared";
+import { defaultLobbyGameplaySettings, defaultPlayerColor } from "@graphwar/shared";
 import { App, GameSessionPill, resolveLocalLobbyIdentity } from "./App";
 import { LobbySetupView } from "../lobby/LobbySetupView";
 
@@ -43,6 +43,7 @@ describe("App", () => {
           canStart: false,
           startBlockedReason: "Need at least two players.",
           maxFunctionLength: 50,
+          ...defaultLobbyGameplaySettings,
           createdAt: "2026-07-05T00:00:00.000Z"
         },
         onAutoAssign: () => {},
@@ -109,6 +110,7 @@ describe("App", () => {
         ],
         canStart: false,
         maxFunctionLength: 50,
+        ...defaultLobbyGameplaySettings,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       selectedLobbySession: {

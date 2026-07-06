@@ -8,12 +8,14 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm --workspace apps/server run dev",
+      command: "node ../../node_modules/tsx/dist/cli.mjs watch src/index.ts",
+      cwd: "apps/server",
       url: "http://127.0.0.1:8787/health",
       reuseExistingServer: true
     },
     {
-      command: "npm --workspace apps/client run dev",
+      command: "node ../../node_modules/vite/bin/vite.js --host 0.0.0.0",
+      cwd: "apps/client",
       url: "http://127.0.0.1:5173",
       reuseExistingServer: true
     }

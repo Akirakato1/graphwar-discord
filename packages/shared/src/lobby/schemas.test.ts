@@ -4,8 +4,15 @@ import {
   createLobbyRequestSchema,
   joinLobbyRequestSchema,
   lobbyJoinResultSchema,
-  lobbyRuntimeSnapshotSchema
+  lobbyRuntimeSnapshotSchema,
+  lobbySummarySchema
 } from "./schemas";
+import {
+  damagePerHitBounds,
+  defaultFriendlyFire,
+  defaultUniqueFunctionHits,
+  normalizeFunctionHitExpression
+} from "./gameplaySettings";
 import { defaultMaxFunctionLength, defaultPlayerColor, playerColorPalette } from "./identity";
 
 type IsOptional<T, K extends keyof T> = Record<string, never> extends Pick<T, K> ? true : false;
@@ -130,6 +137,102 @@ describe("lobby schemas", () => {
     ).toThrow();
   });
 
+  it("defaults phase 2 gameplay settings for backward-compatible create requests", () => {
+    const parsed = createLobbyRequestSchema.parse({
+      name: "Team Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    expect(parsed).toEqual(
+      expect.objectContaining({
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: defaultUniqueFunctionHits,
+        friendlyFire: defaultFriendlyFire
+      })
+    );
+  });
+
+  it("validates damage-per-hit bounds and accepts gameplay setting booleans", () => {
+    expect(
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        damagePerHit: 100,
+        uniqueFunctionHits: false,
+        friendlyFire: true
+      })
+    ).toEqual(expect.objectContaining({ damagePerHit: 100, uniqueFunctionHits: false, friendlyFire: true }));
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        damagePerHit: 34
+      })
+    ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        damagePerHit: 101
+      })
+    ).toThrow();
+  });
+
+  it("parses lobby snapshots and summaries with phase 2 gameplay settings", () => {
+    const lobby = {
+      guildId: "guild-1",
+      roomId: "room-1",
+      name: "Team Room",
+      mode: "team-versus",
+      status: "open",
+      leaderDiscordUserId: "alice-id",
+      occupants: [],
+      canStart: false,
+      maxFunctionLength: defaultMaxFunctionLength,
+      damagePerHit: 80,
+      uniqueFunctionHits: false,
+      friendlyFire: true,
+      createdAt: "2026-07-05T00:00:00.000Z"
+    } as const;
+
+    expect(lobbyRuntimeSnapshotSchema.parse(lobby)).toEqual(lobby);
+    expect(
+      lobbySummarySchema.parse({
+        guildId: "guild-1",
+        roomId: "room-1",
+        name: "Team Room",
+        mode: "team-versus",
+        status: "open",
+        leaderAlias: "Alice",
+        leaderDiscordUserId: "alice-id",
+        playerCount: 1,
+        spectatorCount: 0,
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        createdAt: "2026-07-05T00:00:00.000Z"
+      })
+    ).toEqual(expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true }));
+  });
+
+  it("normalizes duplicate-hit expressions by removing ASCII whitespace only", () => {
+    expect(normalizeFunctionHitExpression(" sin( x ) + 2\tcos(x)\n")).toBe("sin(x)+2cos(x)");
+  });
+
   it("defaults lobby color for join requests", () => {
     expect(
       joinLobbyRequestSchema.parse({
@@ -164,6 +267,9 @@ describe("lobby schemas", () => {
       ],
       canStart: false,
       maxFunctionLength: defaultMaxFunctionLength,
+      damagePerHit: damagePerHitBounds.default,
+      uniqueFunctionHits: defaultUniqueFunctionHits,
+      friendlyFire: defaultFriendlyFire,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 

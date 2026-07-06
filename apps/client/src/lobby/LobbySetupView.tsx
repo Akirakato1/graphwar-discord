@@ -97,6 +97,12 @@ export function LobbySetupView({
         </div>
       </div>
 
+      <div className="rules-summary" aria-label="Match rules">
+        <span>Damage {lobby.damagePerHit}</span>
+        <span>Unique hits {lobby.uniqueFunctionHits ? "On" : "Off"}</span>
+        {lobby.mode === "team-versus" ? <span>Friendly fire {lobby.friendlyFire ? "On" : "Off"}</span> : null}
+      </div>
+
       <div className="setup-grid">
         {boxes.map((box) => (
           <section className="setup-column" key={box.placement} aria-label={box.title}>

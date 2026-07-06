@@ -17,6 +17,7 @@ export type TrajectorySample =
     };
 
 export abstract class ShotFunction {
+  abstract readonly canonicalExpression: string;
   abstract readonly familyId: FunctionFamilyId;
   abstract sample(context: SampleContext): TrajectorySample;
 }

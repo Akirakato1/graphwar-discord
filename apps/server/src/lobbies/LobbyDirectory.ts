@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   aliasesConflict,
+  defaultLobbyGameplaySettings,
   defaultMapSizePreset,
   defaultPlayerColor,
   type CreateLobbyRequest,
@@ -15,6 +16,7 @@ import {
   type LobbyStatus,
   type LobbySummary,
   type MapSizePresetId,
+  normalizeDamagePerHit,
   normalizeMaxFunctionLength,
   normalizePlayerColor,
   type RoomId
@@ -52,6 +54,9 @@ type RuntimeLobby = {
   occupants: Map<DiscordUserId, LobbyOccupant>;
   sessionTokens: Map<DiscordUserId, string>;
   maxFunctionLength: number;
+  damagePerHit: number;
+  uniqueFunctionHits: boolean;
+  friendlyFire: boolean;
   mapSizePreset?: MapSizePresetId;
   createdAt: string;
   startedAt?: string;
@@ -105,6 +110,10 @@ export class LobbyDirectory {
       occupants: new Map(),
       sessionTokens: new Map(),
       maxFunctionLength: normalizeMaxFunctionLength(request.maxFunctionLength),
+      damagePerHit: normalizeDamagePerHit(request.damagePerHit),
+      uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
+      friendlyFire:
+        request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
       mapSizePreset: mapId ? undefined : request.mapSizePreset ?? defaultMapSizePreset,
       createdAt: this.now().toISOString(),
       mapId,
@@ -209,6 +218,9 @@ export class LobbyDirectory {
           leaderDiscordUserId: lobby.leaderDiscordUserId,
           playerCount: occupants.filter((occupant) => occupant.slot === "player").length,
           spectatorCount: occupants.filter((occupant) => occupant.slot === "spectator").length,
+          damagePerHit: lobby.damagePerHit,
+          uniqueFunctionHits: lobby.uniqueFunctionHits,
+          friendlyFire: lobby.friendlyFire,
           ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
           mapId: lobby.mapId,
           mapName: lobby.mapName,
@@ -494,6 +506,9 @@ export class LobbyDirectory {
       canStart: lobby.status === "open" && !startBlockedReason,
       startBlockedReason,
       maxFunctionLength: lobby.maxFunctionLength,
+      damagePerHit: lobby.damagePerHit,
+      uniqueFunctionHits: lobby.uniqueFunctionHits,
+      friendlyFire: lobby.friendlyFire,
       ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
       mapId: lobby.mapId,
       mapName: lobby.mapName,

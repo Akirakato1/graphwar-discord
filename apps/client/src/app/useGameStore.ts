@@ -71,6 +71,9 @@ export type GameStoreState = {
     initialSlot: LobbySlot;
     color: PlayerColor;
     maxFunctionLength: number;
+    damagePerHit: number;
+    uniqueFunctionHits: boolean;
+    friendlyFire: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }): Promise<void>;
@@ -370,6 +373,9 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             initialSlot: form.initialSlot,
             color: form.color,
             maxFunctionLength: form.maxFunctionLength,
+            damagePerHit: form.damagePerHit,
+            uniqueFunctionHits: form.uniqueFunctionHits,
+            friendlyFire: form.friendlyFire,
             ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();

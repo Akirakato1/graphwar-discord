@@ -419,6 +419,19 @@ dd {
   font-weight: 800;
 }
 
+.menu-form .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.menu-form .toggle-row input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
 .menu-form input,
 .menu-form select {
   min-width: 0;
@@ -559,6 +572,23 @@ dd {
   background: #65c18c;
   color: #102016;
   font-weight: 800;
+}
+
+.rules-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.rules-summary span {
+  min-width: 0;
+  border: 1px solid #34342f;
+  border-radius: 999px;
+  color: #d9d3c3;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 8px;
 }
 
 .setup-grid {
@@ -1135,6 +1165,15 @@ dd {
     gap: 3px;
   }
 
+  .menu-form .toggle-row {
+    gap: 6px;
+  }
+
+  .menu-form .toggle-row input {
+    width: 16px;
+    height: 16px;
+  }
+
   .menu-form input,
   .menu-form select {
     padding: 5px 7px;
@@ -1162,6 +1201,16 @@ dd {
 
   .panel-heading {
     margin-bottom: 6px;
+  }
+
+  .rules-summary {
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .rules-summary span {
+    font-size: 11px;
+    padding: 4px 6px;
   }
 
   .panel h2 {

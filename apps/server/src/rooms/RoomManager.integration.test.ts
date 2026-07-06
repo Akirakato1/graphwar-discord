@@ -441,6 +441,109 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(alice);
   });
 
+  it("exposes gameplay settings in lobby websocket snapshots before match start", async () => {
+    const app = await startTestServer();
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Rules Preview",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+
+    send(alice, lobbyJoinCommand(created.session));
+    const event = await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 1
+    );
+
+    expect(event.type).toBe("room-snapshot");
+    if (event.type === "room-snapshot") {
+      expect(event.lobby).toEqual(
+        expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+      );
+    }
+
+    await closeSocket(alice);
+  });
+
+  it("applies the selected damage setting to live websocket match hits", async () => {
+    const app = await startTestServer();
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Damage Rules Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player",
+        damagePerHit: 100
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    expect(joinResponse.statusCode).toBe(200);
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    send(alice, {
+      type: "submit-shot",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      functionFamilyId: "normal",
+      aimDirection: "west",
+      expression: "-0.03*x*(x-32)"
+    });
+
+    const resolved = await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "shot-resolved" && candidate.damage.some((damage) => damage.amount === 100)
+    );
+    expect(resolved.type).toBe("shot-resolved");
+    if (resolved.type === "shot-resolved") {
+      expect(resolved.damage).toEqual([{ playerId: "bob-id", amount: 100, hpAfter: 0 }]);
+    }
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "match-ended" && candidate.winnerIds.includes("alice-id")
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
   it("starts a selected custom-map lobby with custom terrain and spawns", async () => {
     const stateStore = await createTempStateStore();
     const savedMap = await stateStore.saveCustomMap("local-guild", "alice-id", customMap());
@@ -739,7 +842,8 @@ describe("RoomManager WebSocket integration", () => {
         leaderDiscordUserId: "alice-id",
         alias: "Alice",
         mode: "free-for-all",
-        initialSlot: "player"
+        initialSlot: "player",
+        uniqueFunctionHits: false
       }
     });
     const created = JSON.parse(createResponse.body);

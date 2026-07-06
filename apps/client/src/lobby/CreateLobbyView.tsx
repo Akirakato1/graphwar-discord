@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
+  damagePerHitBounds,
   defaultMapSizePreset,
+  defaultLobbyGameplaySettings,
   defaultPlayerColor,
+  normalizeDamagePerHit,
   playerColorPalette,
   type CustomMapSummary,
   type GuildSettings,
@@ -47,6 +50,9 @@ type CreateLobbyViewProps = {
     initialSlot: LobbySlot;
     color: PlayerColor;
     maxFunctionLength: number;
+    damagePerHit: number;
+    uniqueFunctionHits: boolean;
+    friendlyFire: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }) => Promise<void>;
@@ -60,6 +66,9 @@ type CreateLobbyForm = {
   initialSlot: LobbySlot;
   color: PlayerColor;
   maxFunctionLength: number;
+  damagePerHit: number;
+  uniqueFunctionHits: boolean;
+  friendlyFire: boolean;
   mapId?: string;
   mapSizePreset?: MapSizePresetId;
 };
@@ -81,6 +90,9 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       name: form.name.trim(),
       alias: form.alias.trim(),
       maxFunctionLength: boundedFunctionLength(form.maxFunctionLength),
+      damagePerHit: normalizeDamagePerHit(form.damagePerHit),
+      uniqueFunctionHits: form.uniqueFunctionHits,
+      friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
     }
   };
@@ -102,6 +114,9 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     initialSlot: availableInitialSlots(settings)[0],
     color: lobbyDefaultPlayerColor,
     maxFunctionLength: DEFAULT_FUNCTION_LENGTH,
+    damagePerHit: defaultLobbyGameplaySettings.damagePerHit,
+    uniqueFunctionHits: defaultLobbyGameplaySettings.uniqueFunctionHits,
+    friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     mapSizePreset: defaultMapSizePreset
   };
 }
@@ -115,6 +130,9 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [mapId, setMapId] = useState("");
   const [mapSizePreset, setMapSizePreset] = useState<MapSizePresetId>(initialForm.mapSizePreset ?? defaultMapSizePreset);
   const [maxFunctionLength, setMaxFunctionLength] = useState(initialForm.maxFunctionLength);
+  const [damagePerHit, setDamagePerHit] = useState(initialForm.damagePerHit);
+  const [uniqueFunctionHits, setUniqueFunctionHits] = useState(initialForm.uniqueFunctionHits);
+  const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -138,6 +156,9 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           initialSlot,
           color,
           maxFunctionLength,
+          damagePerHit,
+          uniqueFunctionHits,
+          friendlyFire,
           ...(mapId ? { mapId } : { mapSizePreset })
         }).form
       );
@@ -223,6 +244,43 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             }}
           />
         </label>
+        <label>
+          Damage
+          <input
+            max={damagePerHitBounds.max}
+            min={damagePerHitBounds.min}
+            type="number"
+            value={damagePerHit}
+            onChange={(event) => {
+              setDamagePerHit(Number(event.currentTarget.value));
+              setFormError(undefined);
+            }}
+          />
+        </label>
+        <label className="toggle-row">
+          <input
+            checked={uniqueFunctionHits}
+            onChange={(event) => {
+              setUniqueFunctionHits(event.currentTarget.checked);
+              setFormError(undefined);
+            }}
+            type="checkbox"
+          />
+          Unique function hits
+        </label>
+        {mode === "team-versus" ? (
+          <label className="toggle-row">
+            <input
+              checked={friendlyFire}
+              onChange={(event) => {
+                setFriendlyFire(event.currentTarget.checked);
+                setFormError(undefined);
+              }}
+              type="checkbox"
+            />
+            Friendly fire
+          </label>
+        ) : null}
         <label>
           Initial slot
           <select value={initialSlot} onChange={(event) => setInitialSlot(event.currentTarget.value as LobbySlot)}>

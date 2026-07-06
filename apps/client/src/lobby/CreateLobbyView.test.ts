@@ -9,7 +9,7 @@ import {
   createLobbyInitialForm,
   prepareCreateLobbyForm
 } from "./CreateLobbyView";
-import { defaultMapSizePreset, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import { damagePerHitBounds, defaultMapSizePreset, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 
 describe("CreateLobbyView helpers", () => {
   it("trims lobby name and alias before creating", () => {
@@ -21,6 +21,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: playerColorPalette[1],
         maxFunctionLength: 72,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapId: "map-1"
       })
     ).toEqual({
@@ -31,6 +34,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: playerColorPalette[1],
         maxFunctionLength: 72,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapId: "map-1"
       }
     });
@@ -51,6 +57,9 @@ describe("CreateLobbyView helpers", () => {
       initialSlot: "player",
       color: defaultPlayerColor,
       maxFunctionLength: 50,
+      damagePerHit: damagePerHitBounds.default,
+      uniqueFunctionHits: true,
+      friendlyFire: false,
       mapSizePreset: defaultMapSizePreset
     });
     expect(availableInitialSlots(settings)).toEqual(["player"]);
@@ -58,6 +67,46 @@ describe("CreateLobbyView helpers", () => {
 
   it("defaults default-map size to standard", () => {
     expect(createLobbyInitialForm("Alice").mapSizePreset).toBe("standard");
+  });
+
+  it("defaults and prepares phase 2 gameplay settings", () => {
+    expect(createLobbyInitialForm("Alice")).toEqual(
+      expect.objectContaining({
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false
+      })
+    );
+
+    expect(
+      prepareCreateLobbyForm({
+        name: "Arena",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        damagePerHit: 83,
+        uniqueFunctionHits: false,
+        friendlyFire: true
+      }).form
+    ).toEqual(expect.objectContaining({ damagePerHit: 83, uniqueFunctionHits: false, friendlyFire: true }));
+  });
+
+  it("does not submit stale friendly-fire values for free-for-all lobbies", () => {
+    expect(
+      prepareCreateLobbyForm({
+        name: "Arena",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player",
+        color: defaultPlayerColor,
+        maxFunctionLength: 50,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: true
+      }).form
+    ).toEqual(expect.objectContaining({ mode: "free-for-all", friendlyFire: false }));
   });
 
   it("preserves map size presets for the default map", () => {
@@ -69,6 +118,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: defaultPlayerColor,
         maxFunctionLength: 50,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapSizePreset: "huge"
       })
     ).toEqual({
@@ -79,6 +131,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: defaultPlayerColor,
         maxFunctionLength: 50,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapSizePreset: "huge"
       }
     });
@@ -93,6 +148,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: defaultPlayerColor,
         maxFunctionLength: 50,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapId: "map-1",
         mapSizePreset: "huge"
       })
@@ -104,6 +162,9 @@ describe("CreateLobbyView helpers", () => {
         initialSlot: "player",
         color: defaultPlayerColor,
         maxFunctionLength: 50,
+        damagePerHit: damagePerHitBounds.default,
+        uniqueFunctionHits: true,
+        friendlyFire: false,
         mapId: "map-1"
       }
     });
@@ -141,6 +202,22 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Max function length");
     expect(html).toContain('min="20"');
     expect(html).toContain('max="100"');
+  });
+
+  it("renders compact gameplay setting controls", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(CreateLobbyView, {
+        defaultAlias: "Alice",
+        onBack: () => {},
+        onCreate: async () => {}
+      })
+    );
+
+    expect(html).toContain("Damage");
+    expect(html).toContain(`min="${damagePerHitBounds.min}"`);
+    expect(html).toContain(`max="${damagePerHitBounds.max}"`);
+    expect(html).toContain("Unique function hits");
+    expect(html).toContain("Friendly fire");
   });
 
   it("keeps the compact create-lobby layout dense enough for the extra map-size row", () => {

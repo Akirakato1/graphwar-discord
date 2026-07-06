@@ -90,6 +90,49 @@ describe("LobbyDirectory", () => {
     ]);
   });
 
+  it("stores gameplay settings in lobby snapshots and summaries", async () => {
+    const directory = createDirectory();
+
+    const created = await directory.createLobby("guild-1", {
+      name: "Rules Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      damagePerHit: 80,
+      uniqueFunctionHits: false,
+      friendlyFire: true
+    });
+
+    expect(created.lobby).toEqual(
+      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+    );
+    expect(directory.getLobby("guild-1", "room-1")).toEqual(
+      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+    );
+    expect(directory.listLobbies("guild-1")).toEqual([
+      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+    ]);
+  });
+
+  it("ignores friendly-fire requests for free-for-all lobbies", async () => {
+    const directory = createDirectory();
+
+    const created = await directory.createLobby("guild-1", {
+      name: "Free Rules Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "free-for-all",
+      initialSlot: "player",
+      friendlyFire: true
+    });
+
+    expect(created.lobby).toEqual(expect.objectContaining({ mode: "free-for-all", friendlyFire: false }));
+    expect(directory.listLobbies("guild-1")).toEqual([
+      expect.objectContaining({ mode: "free-for-all", friendlyFire: false })
+    ]);
+  });
+
   it("preserves avatar URLs in lobby occupants and sessions", async () => {
     const directory = createDirectory();
 

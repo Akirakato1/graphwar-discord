@@ -1,7 +1,9 @@
 import {
+  defaultLobbyGameplaySettings,
   defaultMatchTuning,
   defaultMaxFunctionLength,
   defaultMapSizePreset,
+  normalizeDamagePerHit,
   type AimDirectionId,
   type FunctionFamilyId,
   type MapSizePresetId,
@@ -18,6 +20,7 @@ import {
   worldBoundsForMapSize
 } from "@graphwar/shared";
 import { FunctionRegistry } from "../functions/FunctionRegistry";
+import type { ShotFunction } from "../functions/ShotFunction";
 import { FreeForAllMapGenerator } from "../maps/FreeForAllMapGenerator";
 import { cloneWorldBounds, type GeneratedMap, type MapGenerator } from "../maps/MapGenerator";
 import { TeamVersusMapGenerator } from "../maps/TeamVersusMapGenerator";
@@ -43,12 +46,23 @@ export type ShotSubmissionEvents =
 export type MatchStartOptions = {
   maxFunctionLength?: number;
   mapSizePreset?: MapSizePresetId;
+  damagePerHit?: number;
+  uniqueFunctionHits?: boolean;
+  friendlyFire?: boolean;
 };
 
 export type LobbySnapshotOptions = {
   mapSizePreset?: MapSizePresetId;
   worldBounds?: WorldBounds;
 };
+
+type MatchRules = {
+  damagePerHit: number;
+  uniqueFunctionHits: boolean;
+  friendlyFire: boolean;
+};
+
+const duplicateHitRejection = "That function already hit this target. Try a different function.";
 
 function cloneSnapshot(snapshot: MatchState): MatchState {
   return structuredClone(snapshot);
@@ -58,6 +72,8 @@ export class MatchController {
   private readonly lobbyPlayers = new Map<PlayerId, LobbyPlayer>();
   private readonly functionRegistry = new FunctionRegistry();
   private readonly shotSimulator = new ShotSimulator();
+  private readonly successfulHitKeys = new Set<string>();
+  private matchRules: MatchRules = { ...defaultLobbyGameplaySettings };
   private maxFunctionLength: number = defaultMaxFunctionLength;
   private lobbyWorldBounds: WorldBounds = worldBoundsForMapSize(defaultMapSizePreset);
   private snapshot: MatchState;
@@ -118,6 +134,12 @@ export class MatchController {
 
     const mode = this.createMode(modeId);
     this.maxFunctionLength = normalizeMaxFunctionLength(options.maxFunctionLength);
+    this.matchRules = {
+      damagePerHit: normalizeDamagePerHit(options.damagePerHit),
+      uniqueFunctionHits: options.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
+      friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire
+    };
+    this.successfulHitKeys.clear();
     const worldBounds = cloneWorldBounds(
       generatedMap?.worldBounds ??
         (options.mapSizePreset ? worldBoundsForMapSize(options.mapSizePreset) : this.lobbyWorldBounds)
@@ -190,8 +212,14 @@ export class MatchController {
       shot,
       aimDirection,
       maxFunctionLength: this.maxFunctionLength,
-      worldBounds: this.snapshot.worldBounds
+      worldBounds: this.snapshot.worldBounds,
+      damagePerHit: this.matchRules.damagePerHit,
+      allowFriendlyFire: this.snapshot.mode !== "team-versus" || this.matchRules.friendlyFire
     });
+    const duplicateHitKey = this.uniqueHitKey(playerId, functionFamilyId, shot, aimDirection, result);
+    if (duplicateHitKey && this.successfulHitKeys.has(duplicateHitKey)) {
+      return [this.rejectShot(playerId, duplicateHitRejection)];
+    }
 
     const nextTurn = this.nextTurn(result.players);
     this.snapshot = {
@@ -200,6 +228,9 @@ export class MatchController {
       terrain: result.terrain,
       turn: nextTurn
     };
+    if (duplicateHitKey) {
+      this.successfulHitKeys.add(duplicateHitKey);
+    }
 
     const shotResolved: ShotResolvedEvent = {
       type: "shot-resolved",
@@ -328,6 +359,26 @@ export class MatchController {
 
   private rejectShot(playerId: PlayerId, reason: string): ShotRejectedEvent {
     return { type: "shot-rejected", roomId: this.roomId, playerId, reason };
+  }
+
+  private uniqueHitKey(
+    shooterId: PlayerId,
+    functionFamilyId: FunctionFamilyId,
+    shot: ShotFunction,
+    aimDirection: AimDirectionId,
+    result: ReturnType<ShotSimulator["simulate"]>
+  ): string | undefined {
+    if (!this.matchRules.uniqueFunctionHits || result.impact.reason !== "player-hit" || !result.impact.targetPlayerId) {
+      return undefined;
+    }
+
+    return [
+      shooterId,
+      result.impact.targetPlayerId,
+      functionFamilyId,
+      aimDirection,
+      shot.canonicalExpression
+    ].join("|");
   }
 
   private getOrderedLobbyPlayers(): LobbyPlayer[] {

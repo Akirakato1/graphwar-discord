@@ -43,6 +43,62 @@ describe("ShotSimulator", () => {
     expect(result.damage).toEqual([{ playerId: "bob", amount: 35, hpAfter: 65 }]);
   });
 
+  it("uses configured damage for player hits", () => {
+    const players: PlayerState[] = [
+      shooter,
+      { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 3, y: 0 }, hp: 100, alive: true }
+    ];
+
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      damagePerHit: 80
+    });
+
+    expect(result.damage).toEqual([{ playerId: "bob", amount: 80, hpAfter: 20 }]);
+    expect(result.players.find((player) => player.id === "bob")).toMatchObject({ hp: 20, alive: true });
+  });
+
+  it("ignores living teammates when friendly fire is disabled", () => {
+    const players: PlayerState[] = [
+      shooter,
+      { id: "ally", displayName: "Ally", teamId: "team-a", position: { x: 1, y: 0 }, hp: 100, alive: true },
+      { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 3, y: 0 }, hp: 100, alive: true }
+    ];
+
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      allowFriendlyFire: false
+    });
+
+    expect(result.impact.reason).toBe("player-hit");
+    expect(result.impact.targetPlayerId).toBe("bob");
+  });
+
+  it("can damage teammates when friendly fire is enabled", () => {
+    const players: PlayerState[] = [
+      shooter,
+      { id: "ally", displayName: "Ally", teamId: "team-a", position: { x: 1, y: 0 }, hp: 100, alive: true },
+      { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 3, y: 0 }, hp: 100, alive: true }
+    ];
+
+    const result = new ShotSimulator().simulate({
+      shooter,
+      players,
+      terrain: { blobs: [] },
+      shot: NormalFunction.parse("0"),
+      allowFriendlyFire: true
+    });
+
+    expect(result.impact.targetPlayerId).toBe("ally");
+    expect(result.damage).toEqual([{ playerId: "ally", amount: 35, hpAfter: 65 }]);
+  });
+
   it("rotates shooter-local functions toward the selected aim direction", () => {
     const bobShooter: PlayerState = {
       id: "bob",

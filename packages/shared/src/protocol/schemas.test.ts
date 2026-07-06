@@ -8,6 +8,7 @@ import {
   lobbyRuntimeSnapshotSchema,
   matchSnapshotSchema,
   defaultMaxFunctionLength,
+  defaultLobbyGameplaySettings,
   defaultPlayerColor,
   serverEventSchema,
   setLobbyPlacementRequestSchema,
@@ -309,6 +310,7 @@ describe("protocol schemas", () => {
         canStart: false,
         startBlockedReason: "Team B needs at least one player.",
         maxFunctionLength: defaultMaxFunctionLength,
+        ...defaultLobbyGameplaySettings,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       snapshot

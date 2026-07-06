@@ -35,6 +35,9 @@ const lobby = {
   canStart: false,
   startBlockedReason: "Team B needs at least one player.",
   maxFunctionLength: 50,
+  damagePerHit: 35,
+  uniqueFunctionHits: true,
+  friendlyFire: false,
   createdAt: "2026-07-05T00:00:00.000Z"
 };
 
@@ -121,5 +124,44 @@ describe("LobbySetupView", () => {
         targetPlacement: "team-b"
       })
     ).toEqual({ label: "Join B", targetPlayerId: "alice-id", placement: "team-b", disabled: false });
+  });
+
+  it("shows read-only gameplay rules before match start", () => {
+    const html = renderToStaticMarkup(
+      <LobbySetupView
+        currentPlayerId="alice-id"
+        lobby={{ ...lobby, damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true }}
+        onAutoAssign={() => undefined}
+        onBack={() => undefined}
+        onMove={() => undefined}
+        onStart={() => undefined}
+      />
+    );
+
+    expect(html).toContain("Damage 80");
+    expect(html).toContain("Unique hits Off");
+    expect(html).toContain("Friendly fire On");
+  });
+
+  it("hides friendly-fire status for free-for-all setup", () => {
+    const html = renderToStaticMarkup(
+      <LobbySetupView
+        currentPlayerId="alice-id"
+        lobby={{
+          ...lobby,
+          mode: "free-for-all",
+          friendlyFire: true,
+          occupants: lobby.occupants.map((occupant) => ({ ...occupant, placement: "players" as const }))
+        }}
+        onAutoAssign={() => undefined}
+        onBack={() => undefined}
+        onMove={() => undefined}
+        onStart={() => undefined}
+      />
+    );
+
+    expect(html).toContain("Damage 35");
+    expect(html).toContain("Unique hits On");
+    expect(html).not.toContain("Friendly fire");
   });
 });

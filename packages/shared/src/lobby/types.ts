@@ -1,6 +1,7 @@
 import type { PersistedCustomMap } from "../maps/types";
 import type { MapSizePresetId } from "../maps/worldBounds";
 import type { MatchModeId, PlayerId, RoomId } from "../state/types";
+import type { LobbyGameplaySettings } from "./gameplaySettings";
 import type { PlayerColor } from "./identity";
 
 export type GuildId = string;
@@ -60,6 +61,9 @@ export type LobbyRuntimeSnapshot = {
   canStart: boolean;
   startBlockedReason?: string;
   maxFunctionLength: number;
+  damagePerHit: number;
+  uniqueFunctionHits: boolean;
+  friendlyFire: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -77,6 +81,9 @@ export type LobbySummary = {
   leaderDiscordUserId: DiscordUserId;
   playerCount: number;
   spectatorCount: number;
+  damagePerHit: number;
+  uniqueFunctionHits: boolean;
+  friendlyFire: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -92,9 +99,14 @@ export type CreateLobbyRequest = {
   mode: MatchModeId;
   initialSlot: LobbySlot;
   maxFunctionLength?: number;
+  damagePerHit?: number;
+  uniqueFunctionHits?: boolean;
+  friendlyFire?: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
 };
+
+export type LobbyGameplaySettingsSnapshot = LobbyGameplaySettings;
 
 export type JoinLobbyRequest = {
   discordUserId: DiscordUserId;

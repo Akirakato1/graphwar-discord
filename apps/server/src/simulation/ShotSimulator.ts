@@ -2,6 +2,7 @@ import {
   defaultMatchTuning,
   isWorldPointInBounds,
   localToWorld,
+  normalizeDamagePerHit,
   worldBoundsForMapSize,
   type AimDirectionId,
   type DamageEvent,
@@ -26,6 +27,8 @@ export type ShotSimulationInput = {
   aimDirection?: AimDirectionId;
   maxFunctionLength?: number;
   worldBounds?: WorldBounds;
+  damagePerHit?: number;
+  allowFriendlyFire?: boolean;
 };
 
 export type ShotSimulationResult = {
@@ -86,7 +89,7 @@ export class ShotSimulator {
     const boundaryHit = this.findFirstBoundaryHit(worldPath, worldBounds);
     const rangeLimitHit = this.findArcLengthLimit(worldPath, maxFunctionLength);
     const terrainHit = this.collisionSystem.findFirstTerrainHit(worldPath, input.terrain);
-    const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, input.players, input.shooter.id);
+    const playerHit = this.collisionSystem.findFirstPlayerHit(worldPath, this.targetPlayersFor(input), input.shooter.id);
     const invalidHit =
       !sample.ok && sample.lastFinitePoint
         ? {
@@ -117,7 +120,7 @@ export class ShotSimulator {
     }
 
     if (impact?.kind === "player-hit") {
-      const damageAmount = this.explosion.damage;
+      const damageAmount = normalizeDamagePerHit(input.damagePerHit);
       const hpAfter = Math.max(0, impact.player.hp - damageAmount);
       const targetAlive = hpAfter > 0;
       const players = input.players.map((player) =>
@@ -191,6 +194,14 @@ export class ShotSimulator {
 
   private applyCrater(terrain: TerrainState, point: WorldPoint): TerrainState {
     return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact").terrain;
+  }
+
+  private targetPlayersFor(input: ShotSimulationInput): PlayerState[] {
+    return input.players.filter((candidate) => {
+      if (candidate.id === input.shooter.id || !candidate.alive) return false;
+      if (input.allowFriendlyFire !== false) return true;
+      return !candidate.teamId || !input.shooter.teamId || candidate.teamId !== input.shooter.teamId;
+    });
   }
 
   private boundaryResult(

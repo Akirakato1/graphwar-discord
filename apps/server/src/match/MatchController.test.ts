@@ -318,6 +318,203 @@ describe("MatchController", () => {
     }
   });
 
+  it("applies configured match damage to player hits", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } }
+        ]
+      },
+      { damagePerHit: 100 }
+    );
+
+    const events = controller.submitShot("alice-id", "normal", "0");
+
+    expect(events[0].type).toBe("shot-resolved");
+    if (events[0].type === "shot-resolved") {
+      expect(events[0].damage).toEqual([{ playerId: "bob-id", amount: 100, hpAfter: 0 }]);
+    }
+  });
+
+  it("passes through teammates when team friendly fire is disabled", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-a" },
+      { id: "ally-id", displayName: "Ally", teamId: "team-a" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-b" }
+    ]);
+    controller.startMatch(
+      "team-versus",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "ally-id", position: { x: 1, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } }
+        ]
+      },
+      { friendlyFire: false }
+    );
+
+    const [event] = controller.submitShot("alice-id", "normal", "0");
+
+    expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.impact).toMatchObject({ reason: "player-hit", targetPlayerId: "bob-id" });
+      expect(event.damage).toEqual([{ playerId: "bob-id", amount: 35, hpAfter: 65 }]);
+    }
+  });
+
+  it("allows teammate damage when team friendly fire is enabled", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("team-versus", [
+      { id: "alice-id", displayName: "Alice", teamId: "team-a" },
+      { id: "ally-id", displayName: "Ally", teamId: "team-a" },
+      { id: "bob-id", displayName: "Bob", teamId: "team-b" }
+    ]);
+    controller.startMatch(
+      "team-versus",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "ally-id", position: { x: 1, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } }
+        ]
+      },
+      { friendlyFire: true }
+    );
+
+    const [event] = controller.submitShot("alice-id", "normal", "0");
+
+    expect(event.type).toBe("shot-resolved");
+    if (event.type === "shot-resolved") {
+      expect(event.impact).toMatchObject({ reason: "player-hit", targetPlayerId: "ally-id" });
+      expect(event.damage).toEqual([{ playerId: "ally-id", amount: 35, hpAfter: 65 }]);
+    }
+  });
+
+  it("rejects duplicate successful function hits from the same shooter without consuming the turn", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" },
+      { id: "charlie-id", displayName: "Charlie" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } },
+          { playerId: "charlie-id", position: { x: -3, y: 0 } }
+        ]
+      },
+      { uniqueFunctionHits: true }
+    );
+
+    const [first] = controller.submitShot("alice-id", "normal", "0", "east");
+    expect(first.type).toBe("shot-resolved");
+    controller.submitShot("bob-id", "normal", "10", "east");
+    controller.submitShot("charlie-id", "normal", "10", "east");
+    const snapshotBeforeDuplicate = controller.getSnapshot();
+
+    const [duplicate] = controller.submitShot("alice-id", "normal", " 0 ", "east");
+
+    expect(duplicate).toEqual({
+      type: "shot-rejected",
+      roomId: "room-1",
+      playerId: "alice-id",
+      reason: "That function already hit this target. Try a different function."
+    });
+    expect(controller.getSnapshot()).toEqual(snapshotBeforeDuplicate);
+    expect(controller.getSnapshot().turn).toEqual(expect.objectContaining({ activePlayerId: "alice-id" }));
+  });
+
+  it("rejects duplicate function hits written with accepted expression aliases", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" },
+      { id: "charlie-id", displayName: "Charlie" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } },
+          { playerId: "charlie-id", position: { x: -3, y: 0 } }
+        ]
+      },
+      { uniqueFunctionHits: true }
+    );
+
+    const [first] = controller.submitShot("alice-id", "normal", "0", "east");
+    expect(first.type).toBe("shot-resolved");
+    controller.submitShot("bob-id", "normal", "10", "east");
+    controller.submitShot("charlie-id", "normal", "10", "east");
+
+    const [duplicate] = controller.submitShot("alice-id", "normal", "y = 0", "east");
+
+    expect(duplicate).toEqual({
+      type: "shot-rejected",
+      roomId: "room-1",
+      playerId: "alice-id",
+      reason: "That function already hit this target. Try a different function."
+    });
+  });
+
+  it("allows repeat successful function hits when uniqueness is disabled", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" },
+      { id: "charlie-id", displayName: "Charlie" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: 3, y: 0 } },
+          { playerId: "charlie-id", position: { x: -3, y: 0 } }
+        ]
+      },
+      { uniqueFunctionHits: false }
+    );
+
+    const [first] = controller.submitShot("alice-id", "normal", "0", "east");
+    expect(first.type).toBe("shot-resolved");
+    controller.submitShot("bob-id", "normal", "10", "east");
+    controller.submitShot("charlie-id", "normal", "10", "east");
+
+    const [repeat] = controller.submitShot("alice-id", "normal", " 0 ", "east");
+
+    expect(repeat.type).toBe("shot-resolved");
+    if (repeat.type === "shot-resolved") {
+      expect(repeat.damage).toEqual([{ playerId: "bob-id", amount: 35, hpAfter: 30 }]);
+      expect(repeat.snapshot.turn.activePlayerId).toBe("bob-id");
+    }
+  });
+
   it("keeps unbalanced explicit team placements on their spawn sides", () => {
     const controller = new MatchController("room-1");
     controller.setLobbyPlayers("team-versus", [
