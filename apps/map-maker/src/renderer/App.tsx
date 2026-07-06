@@ -1,6 +1,14 @@
-import { fieldBounds, type CustomMapTeamId, type WorldPoint } from "@graphwar/shared";
+import {
+  defaultMapSizePreset,
+  mapSizePresets,
+  worldBoundsForMapSize,
+  type CustomMapTeamId,
+  type MapSizePresetId,
+  type WorldPoint
+} from "@graphwar/shared";
 import { useMemo, useState, type MouseEvent, type PointerEvent } from "react";
 import {
+  addDefaultSpawnSet,
   addCircleTerrain,
   addPenPoint,
   addRectangleTerrain,
@@ -19,7 +27,7 @@ import {
 } from "../editor/editorModel";
 import type { Bounds, EditorState } from "../editor/editorTypes";
 import { stringifyEditorMap } from "../editor/mapExport";
-import { screenPointToWorldPoint } from "./viewBoxGeometry";
+import { createViewBoxGeometry, screenPointToWorldPoint } from "./viewBoxGeometry";
 
 type Tool = "select" | "rectangle" | "triangle" | "circle" | "pen" | "spawn" | "team-a" | "team-b";
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
@@ -35,6 +43,11 @@ type DragState =
     }
   | null;
 
+type SetupDraft = {
+  mapName: string;
+  mapSizePreset: MapSizePresetId;
+};
+
 const tools: Array<{ id: Tool; label: string }> = [
   { id: "select", label: "Select" },
   { id: "rectangle", label: "Rect" },
@@ -46,49 +59,108 @@ const tools: Array<{ id: Tool; label: string }> = [
   { id: "team-b", label: "Team B" }
 ];
 
-const worldWidth = fieldBounds.maxX - fieldBounds.minX;
-const worldHeight = fieldBounds.maxY - fieldBounds.minY;
-const svgViewBox = `${fieldBounds.minX} ${-fieldBounds.maxY} ${worldWidth} ${worldHeight}`;
-
 export function App() {
-  const [state, setState] = useState(() => createEmptyEditorState());
+  const [setupDraft, setSetupDraft] = useState<SetupDraft>({
+    mapName: "Custom Arena",
+    mapSizePreset: defaultMapSizePreset
+  });
+  const [state, setState] = useState<EditorState | null>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [drag, setDrag] = useState<DragState>(null);
   const [message, setMessage] = useState("Ready");
 
   const selectedTerrain = useMemo(() => {
-    if (state.selection?.type !== "terrain") {
+    if (state?.selection?.type !== "terrain") {
       return undefined;
     }
     return state.terrainShapes.find((shape) => shape.id === state.selection?.id);
-  }, [state.selection, state.terrainShapes]);
+  }, [state]);
 
   const selectedBounds = selectedTerrain ? getTerrainBounds(selectedTerrain) : undefined;
+  const viewGeometry = state ? createViewBoxGeometry(state.worldBounds) : undefined;
+
+  if (!state || !viewGeometry) {
+    return (
+      <main className="map-maker-setup-screen">
+        <form
+          className="map-maker-setup-panel"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setState(
+              createEmptyEditorState({
+                mapName: setupDraft.mapName,
+                worldBounds: worldBoundsForMapSize(setupDraft.mapSizePreset)
+              })
+            );
+            setMessage("Ready");
+          }}
+        >
+          <h1>Map Maker</h1>
+          <label className="setup-field">
+            <span>Map name</span>
+            <input
+              className="map-name-input"
+              onChange={(event) => setSetupDraft((current) => ({ ...current, mapName: event.currentTarget.value }))}
+              value={setupDraft.mapName}
+            />
+          </label>
+          <div className="setup-field">
+            <span>Map size</span>
+            <div className="size-preset-strip" role="group" aria-label="Map size preset">
+              {mapSizePresets.map((preset) => (
+                <button
+                  className={setupDraft.mapSizePreset === preset.id ? "active" : ""}
+                  key={preset.id}
+                  onClick={() => setSetupDraft((current) => ({ ...current, mapSizePreset: preset.id }))}
+                  type="button"
+                >
+                  {titleCase(preset.id)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="setup-size-readout">
+            {boundsLabel(worldBoundsForMapSize(setupDraft.mapSizePreset))}
+          </p>
+          <button className="primary-action" type="submit">
+            Start Editor
+          </button>
+        </form>
+      </main>
+    );
+  }
+
+  const editorState = state;
+  const editorViewGeometry = viewGeometry;
+
+  function updateState(updater: (current: EditorState) => EditorState) {
+    setState((current) => (current ? updater(current) : current));
+  }
 
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
     if (drag) {
       return;
     }
 
-    const point = eventToWorldPoint(event);
+    const point = eventToWorldPoint(event, editorState.worldBounds);
     if (tool === "rectangle") {
-      setState((current) => addRectangleTerrain(current, point, 7, 3.5));
+      updateState((current) => addRectangleTerrain(current, point, 7, 3.5));
       return;
     }
     if (tool === "triangle") {
-      setState((current) => addTriangleTerrain(current, point, 7, 5));
+      updateState((current) => addTriangleTerrain(current, point, 7, 5));
       return;
     }
     if (tool === "circle") {
-      setState((current) => addCircleTerrain(current, point, 3.5, 28));
+      updateState((current) => addCircleTerrain(current, point, 3.5, 28));
       return;
     }
     if (tool === "spawn") {
-      setState((current) => addSpawnPoint(current, point));
+      updateState((current) => addSpawnPoint(current, point));
       return;
     }
     if (tool === "pen") {
-      setState((current) => {
+      updateState((current) => {
         if (current.penPoints.length >= 3 && distance(current.penPoints[0], point) < 0.9) {
           return closePenShape(current);
         }
@@ -102,8 +174,8 @@ export function App() {
       return;
     }
 
-    const point = eventToWorldPoint(event);
-    const selected = selectAtPoint(state, point);
+    const point = eventToWorldPoint(event, editorState.worldBounds);
+    const selected = selectAtPoint(editorState, point);
     setState(selected);
     if (selected.selection) {
       setDrag({ type: "move", lastPoint: point });
@@ -115,15 +187,15 @@ export function App() {
       return;
     }
 
-    const point = eventToWorldPoint(event);
+    const point = eventToWorldPoint(event, editorState.worldBounds);
     if (drag.type === "move") {
       const delta = { x: point.x - drag.lastPoint.x, y: point.y - drag.lastPoint.y };
-      setState((current) => moveSelected(current, delta));
+      updateState((current) => moveSelected(current, delta));
       setDrag({ type: "move", lastPoint: point });
       return;
     }
 
-    setState((current) => {
+    updateState((current) => {
       const shape = current.terrainShapes.find((item) => item.id === drag.shapeId);
       if (!shape) {
         return current;
@@ -141,31 +213,22 @@ export function App() {
       return;
     }
     event.preventDefault();
-    setState((current) => removeMostRecentPenPoint(current));
+    updateState((current) => removeMostRecentPenPoint(current));
   }
 
   function assignSpawnTeam(spawnId: string, teamId: CustomMapTeamId) {
-    setState((current) => toggleTeamSpawn(current, spawnId, teamId));
+    updateState((current) => toggleTeamSpawn(current, spawnId, teamId));
   }
 
   function addTenSpawns() {
-    setState((current) => {
-      let next = current;
-      for (let index = 0; index < 10; index += 1) {
-        next = addSpawnPoint(next, {
-          x: index < 5 ? -19 : 19,
-          y: -10 + (index % 5) * 5
-        });
-      }
-      return next;
-    });
+    updateState((current) => addDefaultSpawnSet(current));
   }
 
   async function exportMap() {
     try {
-      const contents = stringifyEditorMap(state);
+      const contents = stringifyEditorMap(editorState);
       const result = await window.graphwarMapMaker?.saveMap({
-        defaultPath: `${slugify(state.mapName || "custom-arena")}.graphwar-map.json`,
+        defaultPath: `${slugify(editorState.mapName || "custom-arena")}.graphwar-map.json`,
         contents
       });
       setMessage(result?.canceled ? "Export canceled" : `Saved ${result?.filePath ?? "map file"}`);
@@ -180,8 +243,8 @@ export function App() {
         <input
           aria-label="Map name"
           className="map-name-input"
-          onChange={(event) => setState((current) => ({ ...current, mapName: event.currentTarget.value }))}
-          value={state.mapName}
+          onChange={(event) => updateState((current) => ({ ...current, mapName: event.currentTarget.value }))}
+          value={editorState.mapName}
         />
         <div aria-label="Tools" className="tool-strip">
           {tools.map((item) => (
@@ -195,13 +258,13 @@ export function App() {
             </button>
           ))}
         </div>
-        <button onClick={() => setState((current) => closePenShape(current))} type="button">
+        <button onClick={() => updateState((current) => closePenShape(current))} type="button">
           Close Pen
         </button>
         <button onClick={addTenSpawns} type="button">
           10 Spawns
         </button>
-        <button onClick={() => setState((current) => deleteSelected(current))} type="button">
+        <button onClick={() => updateState((current) => deleteSelected(current))} type="button">
           Delete
         </button>
         <button className="primary-action" onClick={() => void exportMap()} type="button">
@@ -211,10 +274,10 @@ export function App() {
 
       <section className="map-maker-body">
         <aside className="map-maker-sidebar" aria-label="Map status">
-          <Stat label="Terrain" value={state.terrainShapes.length} />
-          <Stat label="Spawns" value={state.spawnPoints.length} />
-          <Stat label="Team A" value={state.teamSpawnPointIds["team-a"].length} />
-          <Stat label="Team B" value={state.teamSpawnPointIds["team-b"].length} />
+          <Stat label="Terrain" value={editorState.terrainShapes.length} />
+          <Stat label="Spawns" value={editorState.spawnPoints.length} />
+          <Stat label="Team A" value={editorState.teamSpawnPointIds["team-a"].length} />
+          <Stat label="Team B" value={editorState.teamSpawnPointIds["team-b"].length} />
           <p className="status-message">{message}</p>
           <p className="compact-help">Left click places with the active tool. In Pen mode, click near the first node to close or right click to undo the latest node.</p>
         </aside>
@@ -228,50 +291,56 @@ export function App() {
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handlePointerEnd}
             role="img"
-            viewBox={svgViewBox}
+            viewBox={editorViewGeometry.viewBox}
           >
-            <rect className="world-bg" height={worldHeight} width={worldWidth} x={fieldBounds.minX} y={-fieldBounds.maxY} />
+            <rect
+              className="world-bg"
+              height={editorViewGeometry.worldHeight}
+              width={editorViewGeometry.worldWidth}
+              x={editorState.worldBounds.minX}
+              y={editorViewGeometry.minSvgY}
+            />
             <g className="grid-lines">
-              {Array.from({ length: worldWidth / 5 + 1 }, (_, index) => {
-                const x = fieldBounds.minX + index * 5;
-                return <line key={`x-${x}`} x1={x} x2={x} y1={-fieldBounds.maxY} y2={-fieldBounds.minY} />;
+              {Array.from({ length: Math.round(editorViewGeometry.worldWidth / 5) + 1 }, (_, index) => {
+                const x = editorState.worldBounds.minX + index * 5;
+                return <line key={`x-${x}`} x1={x} x2={x} y1={editorViewGeometry.minSvgY} y2={editorViewGeometry.maxSvgY} />;
               })}
-              {Array.from({ length: worldHeight / 5 + 1 }, (_, index) => {
-                const y = -fieldBounds.maxY + index * 5;
-                return <line key={`y-${y}`} x1={fieldBounds.minX} x2={fieldBounds.maxX} y1={y} y2={y} />;
+              {Array.from({ length: Math.round(editorViewGeometry.worldHeight / 5) + 1 }, (_, index) => {
+                const y = editorViewGeometry.minSvgY + index * 5;
+                return <line key={`y-${y}`} x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={y} y2={y} />;
               })}
             </g>
-            <line className="axis-line" x1={fieldBounds.minX} x2={fieldBounds.maxX} y1={0} y2={0} />
-            <line className="axis-line" x1={0} x2={0} y1={-fieldBounds.maxY} y2={-fieldBounds.minY} />
+            <line className="axis-line" x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={0} y2={0} />
+            <line className="axis-line" x1={0} x2={0} y1={editorViewGeometry.minSvgY} y2={editorViewGeometry.maxSvgY} />
 
-            {state.terrainShapes.map((shape) => (
+            {editorState.terrainShapes.map((shape) => (
               <path
-                className={state.selection?.type === "terrain" && state.selection.id === shape.id ? "terrain-shape selected" : "terrain-shape"}
+                className={editorState.selection?.type === "terrain" && editorState.selection.id === shape.id ? "terrain-shape selected" : "terrain-shape"}
                 d={shapePath(shape.points)}
                 key={shape.id}
                 onPointerDown={(event) => {
                   if (tool === "select") {
                     event.stopPropagation();
-                    const point = eventToWorldPoint(event);
-                    setState((current) => selectItem(current, { type: "terrain", id: shape.id }));
+                    const point = eventToWorldPoint(event, editorState.worldBounds);
+                    updateState((current) => selectItem(current, { type: "terrain", id: shape.id }));
                     setDrag({ type: "move", lastPoint: point });
                   }
                 }}
               />
             ))}
 
-            {state.penPoints.length > 0 ? (
+            {editorState.penPoints.length > 0 ? (
               <g>
-                <polyline className="pen-line" fill="none" points={state.penPoints.map(svgPoint).join(" ")} />
-                {state.penPoints.map((point, index) => (
+                <polyline className="pen-line" fill="none" points={editorState.penPoints.map(svgPoint).join(" ")} />
+                {editorState.penPoints.map((point, index) => (
                   <circle className="pen-node" cx={point.x} cy={-point.y} key={`${point.x}-${point.y}-${index}`} r="0.28" />
                 ))}
               </g>
             ) : null}
 
-            {state.spawnPoints.map((spawn) => (
+            {editorState.spawnPoints.map((spawn) => (
               <circle
-                className={`spawn ${spawnClass(state, spawn.id)}`}
+                className={`spawn ${spawnClass(editorState, spawn.id)}`}
                 cx={spawn.position.x}
                 cy={-spawn.position.y}
                 key={spawn.id}
@@ -284,8 +353,8 @@ export function App() {
                 onPointerDown={(event) => {
                   if (tool === "select") {
                     event.stopPropagation();
-                    const point = eventToWorldPoint(event);
-                    setState((current) => selectItem(current, { type: "spawn", id: spawn.id }));
+                    const point = eventToWorldPoint(event, editorState.worldBounds);
+                    updateState((current) => selectItem(current, { type: "spawn", id: spawn.id }));
                     setDrag({ type: "move", lastPoint: point });
                   }
                 }}
@@ -353,9 +422,12 @@ function TransformBox({
   );
 }
 
-function eventToWorldPoint(event: MouseEvent<SVGSVGElement | SVGPathElement | SVGCircleElement> | PointerEvent<SVGSVGElement | SVGPathElement | SVGCircleElement>): WorldPoint {
+function eventToWorldPoint(
+  event: MouseEvent<SVGSVGElement | SVGPathElement | SVGCircleElement> | PointerEvent<SVGSVGElement | SVGPathElement | SVGCircleElement>,
+  worldBounds: EditorState["worldBounds"]
+): WorldPoint {
   const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
-  return screenPointToWorldPoint({ x: event.clientX, y: event.clientY }, svg.getBoundingClientRect());
+  return screenPointToWorldPoint({ x: event.clientX, y: event.clientY }, svg.getBoundingClientRect(), worldBounds);
 }
 
 function shapePath(points: WorldPoint[]): string {
@@ -410,6 +482,14 @@ function distance(left: WorldPoint, right: WorldPoint): number {
   return Math.hypot(left.x - right.x, left.y - right.y);
 }
 
+function boundsLabel(bounds: EditorState["worldBounds"]): string {
+  return `${bounds.maxX - bounds.minX} x ${bounds.maxY - bounds.minY}`;
+}
+
 function slugify(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "custom-arena";
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

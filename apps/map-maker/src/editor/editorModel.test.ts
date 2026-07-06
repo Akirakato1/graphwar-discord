@@ -1,5 +1,7 @@
+import { isWorldPointInBounds, worldBoundsForMapSize } from "@graphwar/shared";
 import { describe, expect, it } from "vitest";
 import {
+  addDefaultSpawnSet,
   addCircleTerrain,
   addPenPoint,
   addRectangleTerrain,
@@ -15,6 +17,15 @@ import {
 } from "./editorModel";
 
 describe("editorModel", () => {
+  it("stores custom map name and world bounds when creating an empty editor state", () => {
+    const worldBounds = worldBoundsForMapSize("huge");
+
+    const state = createEmptyEditorState({ mapName: "Huge Arena", worldBounds });
+
+    expect(state.mapName).toBe("Huge Arena");
+    expect(state.worldBounds).toEqual(worldBounds);
+  });
+
   it("adds common terrain shapes and selects the newest shape", () => {
     let state = createEmptyEditorState();
 
@@ -89,5 +100,34 @@ describe("editorModel", () => {
 
     state = selectAtPoint(state, { x: 1.2, y: 1.1 });
     expect(state.selection).toEqual({ type: "spawn", id: state.spawnPoints[0].id });
+  });
+
+  it("adds a default 10-spawn set inside the active bounds with 5v5 team subsets", () => {
+    const state = addDefaultSpawnSet(createEmptyEditorState({ worldBounds: worldBoundsForMapSize("huge") }));
+
+    expect(state.spawnPoints).toHaveLength(10);
+    expect(state.spawnPoints.every((spawn) => isWorldPointInBounds(spawn.position, state.worldBounds))).toBe(true);
+    expect(state.teamSpawnPointIds["team-a"]).toHaveLength(5);
+    expect(state.teamSpawnPointIds["team-b"]).toHaveLength(5);
+    expect(new Set(state.teamSpawnPointIds["team-a"]).size).toBe(5);
+    expect(new Set(state.teamSpawnPointIds["team-b"]).size).toBe(5);
+  });
+
+  it("preserves existing spawns and team assignments when appending the default spawn set", () => {
+    let state = createEmptyEditorState({ worldBounds: worldBoundsForMapSize("huge") });
+    state = addSpawnPoint(state, { x: -3, y: 4 });
+    state = toggleTeamSpawn(state, state.spawnPoints[0].id, "team-a");
+
+    state = addDefaultSpawnSet(state);
+
+    expect(state.spawnPoints).toHaveLength(11);
+    expect(state.spawnPoints[0]).toEqual({
+      id: "spawn-1",
+      position: { x: -3, y: 4 }
+    });
+    expect(new Set(state.spawnPoints.map((spawn) => spawn.id)).size).toBe(11);
+    expect(state.teamSpawnPointIds["team-a"]).toHaveLength(6);
+    expect(state.teamSpawnPointIds["team-a"][0]).toBe("spawn-1");
+    expect(state.teamSpawnPointIds["team-b"]).toHaveLength(5);
   });
 });

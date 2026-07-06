@@ -148,6 +148,39 @@ describe("custom map schemas", () => {
     );
   });
 
+  it("rejects out-of-bounds spawn points when world bounds are present", () => {
+    expect(() =>
+      validateCustomMapImportForSave({
+        ...validMap,
+        worldBounds: worldBoundsForMapSize("small"),
+        spawnPoints: validMap.spawnPoints.map((spawnPoint, index) =>
+          index === 9 ? { ...spawnPoint, position: { x: 21, y: 0 } } : spawnPoint
+        )
+      })
+    ).toThrow("Custom map content must stay inside world bounds.");
+  });
+
+  it("rejects out-of-bounds terrain points when world bounds are present", () => {
+    expect(() =>
+      validateCustomMapImportForSave({
+        ...validMap,
+        worldBounds: worldBoundsForMapSize("small"),
+        terrain: {
+          blobs: [
+            {
+              ...validMap.terrain.blobs[0],
+              outer: [
+                { x: -2, y: -1 },
+                { x: 2, y: -1 },
+                { x: 21, y: 2 }
+              ]
+            }
+          ]
+        }
+      })
+    ).toThrow("Custom map content must stay inside world bounds.");
+  });
+
   it("rejects team spawn ids that do not exist", () => {
     expect(() =>
       validateCustomMapImportForSave({

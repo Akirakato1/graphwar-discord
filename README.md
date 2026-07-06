@@ -175,3 +175,4 @@ Every major implementation task should:
 - Propagated authoritative world bounds server-side for Phase 1 map presentation: default map-size presets feed generated maps and match snapshots, custom maps use explicit/derived/fallback bounds, shot simulation clips against active bounds, lobby summaries store default-map presets only, and `MatchSnapshot.worldBounds` is now required.
 - Added client avatar identity plumbing and default-map size preset selection for create/join lobby flows, including `join-room` avatar forwarding.
 - Added a bounds-aware battlefield camera with fit/zoom/pan helpers, snapshot world-bounds canvas metadata, and clipped avatar rendering with a color fallback.
+- Added map-maker bounds setup with a local start screen, active world-bounds SVG/export plumbing, and 5v5 default spawn generation inside the chosen map size.

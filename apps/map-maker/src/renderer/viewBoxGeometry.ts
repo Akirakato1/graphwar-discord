@@ -1,4 +1,4 @@
-import { fieldBounds, type WorldPoint } from "@graphwar/shared";
+import { boundsHeight, boundsWidth, type WorldBounds, type WorldPoint } from "@graphwar/shared";
 
 type RectLike = {
   left: number;
@@ -7,11 +7,24 @@ type RectLike = {
   height: number;
 };
 
-const worldWidth = fieldBounds.maxX - fieldBounds.minX;
-const worldHeight = fieldBounds.maxY - fieldBounds.minY;
-const worldAspectRatio = worldWidth / worldHeight;
+export function createViewBoxGeometry(worldBounds: WorldBounds) {
+  const worldWidth = boundsWidth(worldBounds);
+  const worldHeight = boundsHeight(worldBounds);
+  const minSvgY = -worldBounds.maxY;
+  const maxSvgY = -worldBounds.minY;
 
-export function screenPointToWorldPoint(clientPoint: WorldPoint, elementRect: RectLike): WorldPoint {
+  return {
+    worldWidth,
+    worldHeight,
+    minSvgY,
+    maxSvgY,
+    viewBox: `${worldBounds.minX} ${minSvgY} ${worldWidth} ${worldHeight}`
+  };
+}
+
+export function screenPointToWorldPoint(clientPoint: WorldPoint, elementRect: RectLike, worldBounds: WorldBounds): WorldPoint {
+  const { worldWidth, worldHeight } = createViewBoxGeometry(worldBounds);
+  const worldAspectRatio = worldWidth / worldHeight;
   const rectAspectRatio = elementRect.width / elementRect.height;
   const renderedWidth = rectAspectRatio > worldAspectRatio ? elementRect.height * worldAspectRatio : elementRect.width;
   const renderedHeight = rectAspectRatio > worldAspectRatio ? elementRect.height : elementRect.width / worldAspectRatio;
@@ -21,8 +34,8 @@ export function screenPointToWorldPoint(clientPoint: WorldPoint, elementRect: Re
   const normalizedY = clamp((clientPoint.y - elementRect.top - offsetY) / renderedHeight);
 
   return {
-    x: roundToTenth(fieldBounds.minX + normalizedX * worldWidth),
-    y: roundToTenth(fieldBounds.maxY - normalizedY * worldHeight)
+    x: roundToTenth(worldBounds.minX + normalizedX * worldWidth),
+    y: roundToTenth(worldBounds.maxY - normalizedY * worldHeight)
   };
 }
 

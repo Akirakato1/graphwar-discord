@@ -1,11 +1,12 @@
-import type { CustomMapTeamId, WorldPoint } from "@graphwar/shared";
+import { defaultMapSizePreset, worldBoundsForMapSize, type CustomMapTeamId, type WorldBounds, type WorldPoint } from "@graphwar/shared";
 import type { Bounds, EditorSelection, EditorState, EditorTerrainShape } from "./editorTypes";
 
 const spawnHitRadius = 1.2;
 
-export function createEmptyEditorState(): EditorState {
+export function createEmptyEditorState(options?: { mapName?: string; worldBounds?: WorldBounds }): EditorState {
   return {
-    mapName: "Custom Arena",
+    mapName: options?.mapName ?? "Custom Arena",
+    worldBounds: cloneWorldBounds(options?.worldBounds ?? worldBoundsForMapSize(defaultMapSizePreset)),
     terrainShapes: [],
     spawnPoints: [],
     teamSpawnPointIds: {
@@ -14,6 +15,40 @@ export function createEmptyEditorState(): EditorState {
     },
     penPoints: [],
     selection: null
+  };
+}
+
+export function addDefaultSpawnSet(state: EditorState): EditorState {
+  const width = state.worldBounds.maxX - state.worldBounds.minX;
+  const height = state.worldBounds.maxY - state.worldBounds.minY;
+  const leftX = roundCoordinate(state.worldBounds.minX + width * 0.22);
+  const rightX = roundCoordinate(state.worldBounds.maxX - width * 0.22);
+  const yPositions = Array.from({ length: 5 }, (_, index) => roundCoordinate(state.worldBounds.minY + height * (0.2 + index * 0.15)));
+  const generatedSpawns: EditorState["spawnPoints"] = [];
+
+  for (const x of [leftX, rightX]) {
+    for (const y of yPositions) {
+      generatedSpawns.push({
+        id: nextId(
+          "spawn",
+          [...state.spawnPoints.map((item) => item.id), ...generatedSpawns.map((item) => item.id)]
+        ),
+        position: { x, y }
+      });
+    }
+  }
+
+  const teamASpawns = generatedSpawns.slice(0, 5);
+  const teamBSpawns = generatedSpawns.slice(5);
+
+  return {
+    ...state,
+    spawnPoints: [...state.spawnPoints, ...generatedSpawns],
+    teamSpawnPointIds: {
+      "team-a": [...state.teamSpawnPointIds["team-a"], ...teamASpawns.map((spawn) => spawn.id)],
+      "team-b": [...state.teamSpawnPointIds["team-b"], ...teamBSpawns.map((spawn) => spawn.id)]
+    },
+    selection: { type: "spawn", id: generatedSpawns[generatedSpawns.length - 1].id }
   };
 }
 
@@ -296,7 +331,15 @@ function isPointInPolygon(point: WorldPoint, polygon: WorldPoint[]): boolean {
 
 function roundPoint(point: WorldPoint): WorldPoint {
   return {
-    x: Math.round(point.x * 100) / 100,
-    y: Math.round(point.y * 100) / 100
+    x: roundCoordinate(point.x),
+    y: roundCoordinate(point.y)
   };
+}
+
+function roundCoordinate(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function cloneWorldBounds(worldBounds: WorldBounds): WorldBounds {
+  return { ...worldBounds };
 }

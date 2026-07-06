@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pointSchema } from "../protocol/schemas";
+import { isWorldPointInBounds } from "./worldBounds";
 import { worldBoundsSchema } from "./worldBounds";
 export { defaultMapSizePreset, mapSizePresetCatalog, mapSizePresetSchema, worldBoundsSchema } from "./worldBounds";
 
@@ -81,6 +82,15 @@ export function validateCustomMapImportForSave(input: unknown) {
       if (!spawnIds.has(spawnPointId)) {
         throw new Error(`Unknown team spawn point id: ${spawnPointId}`);
       }
+    }
+  }
+
+  if (map.worldBounds) {
+    const worldBounds = map.worldBounds;
+    const terrainPoints = map.terrain.blobs.flatMap((blob) => [blob.outer, ...blob.holes]).flat();
+    const contentPoints = [...map.spawnPoints.map((spawnPoint) => spawnPoint.position), ...terrainPoints];
+    if (contentPoints.some((point) => !isWorldPointInBounds(point, worldBounds))) {
+      throw new Error("Custom map content must stay inside world bounds.");
     }
   }
 

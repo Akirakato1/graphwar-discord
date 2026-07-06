@@ -1,4 +1,4 @@
-import type { CustomMapSpawnPoint, CustomMapTeamSpawnPointIds, WorldPoint } from "@graphwar/shared";
+import type { CustomMapSpawnPoint, CustomMapTeamSpawnPointIds, WorldBounds, WorldPoint } from "@graphwar/shared";
 
 export type EditorTerrainShape = {
   id: string;
@@ -21,6 +21,7 @@ export type Bounds = {
 
 export type EditorState = {
   mapName: string;
+  worldBounds: WorldBounds;
   terrainShapes: EditorTerrainShape[];
   spawnPoints: CustomMapSpawnPoint[];
   teamSpawnPointIds: CustomMapTeamSpawnPointIds;
