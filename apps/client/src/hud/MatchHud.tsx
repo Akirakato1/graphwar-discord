@@ -15,6 +15,7 @@ type MatchHudProps = {
   lastRejection?: CommandRejection;
   onAimDirectionChange?: (direction: AimDirectionId) => void;
   onExpressionChange?: (expression: string) => void;
+  onForfeit?: () => void;
   onSubmitShot: (expression: string, aimDirection: AimDirectionId) => void;
   playbackInProgress?: boolean;
   session: ClientSession;
@@ -48,6 +49,7 @@ export function MatchHud({
   lastRejection,
   onAimDirectionChange,
   onExpressionChange,
+  onForfeit,
   onSubmitShot,
   playbackInProgress = false,
   session,
@@ -63,7 +65,23 @@ export function MatchHud({
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
   const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress;
+  const canForfeit = connectionStatus === "open" && isPlaying && !spectator && Boolean(localPlayer?.alive) && !playbackInProgress;
   const notice = lastError ?? lastRejection?.reason;
+
+  function handleForfeit(): void {
+    if (!canForfeit || !onForfeit) {
+      return;
+    }
+
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm("Forfeit this match? You will be marked dead and returned to the main menu.")
+        : false;
+
+    if (confirmed) {
+      onForfeit();
+    }
+  }
 
   if (isPlaying && spectator) {
     return (
@@ -99,6 +117,16 @@ export function MatchHud({
             <span>HP</span>
             <strong>{displayLocalPlayer ? `${displayLocalPlayer.hp} HP` : "-- HP"}</strong>
           </div>
+          <button
+            aria-label="Forfeit match"
+            className="forfeit-action"
+            disabled={!canForfeit}
+            onClick={handleForfeit}
+            title="Forfeit match"
+            type="button"
+          >
+            FF
+          </button>
           <DirectionDial disabled={false} onChange={setAimDirection} value={aimDirection} />
         </div>
 

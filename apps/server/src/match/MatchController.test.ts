@@ -157,6 +157,55 @@ describe("MatchController", () => {
     }
   });
 
+  it("forfeits a living player and advances the turn when the forfeiter was active", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.join("charlie", "Charlie");
+    controller.startMatch("free-for-all");
+
+    const events = controller.forfeitPlayer("alice");
+
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("player-forfeited");
+    if (events[0].type === "player-forfeited") {
+      expect(events[0].playerId).toBe("alice");
+      expect(events[0].snapshot.players.find((player) => player.id === "alice")).toMatchObject({
+        hp: 0,
+        alive: false
+      });
+      expect(events[0].snapshot.turn).toEqual({
+        activePlayerId: "bob",
+        order: ["alice", "bob", "charlie"],
+        turnNumber: 2
+      });
+    }
+  });
+
+  it("ends the match when a forfeit leaves one living player", () => {
+    const controller = new MatchController("room-1");
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.startMatch("free-for-all");
+
+    const events = controller.forfeitPlayer("alice");
+
+    expect(events.map((event) => event.type)).toEqual(["player-forfeited", "match-ended"]);
+    if (events.length !== 2) {
+      throw new Error(`Expected player-forfeited then match-ended, received ${events.map((event) => event.type).join(", ")}`);
+    }
+    const [forfeited, ended] = events;
+    expect(forfeited.type).toBe("player-forfeited");
+    if (forfeited.type === "player-forfeited") {
+      expect(forfeited.snapshot.phase).toBe("playing");
+    }
+    expect(ended.type).toBe("match-ended");
+    if (ended.type === "match-ended") {
+      expect(ended.winnerIds).toEqual(["bob"]);
+      expect(ended.snapshot.phase).toBe("ended");
+    }
+  });
+
   it("throws when starting a match with zero players", () => {
     const controller = new MatchController("room-1");
 

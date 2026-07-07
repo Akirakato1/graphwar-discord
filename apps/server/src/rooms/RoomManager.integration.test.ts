@@ -545,6 +545,72 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(bob);
   });
 
+  it("broadcasts player forfeits as death and then ends the match when one player remains", async () => {
+    const app = await startTestServer();
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Forfeit Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player"
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    expect(joinResponse.statusCode).toBe(200);
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, { type: "start-match", guildId: "local-guild", roomId: created.session.roomId, playerId: "alice-id" });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    send(bob, {
+      type: "forfeit-match",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      sessionToken: joined.session.sessionToken
+    });
+
+    const forfeited = await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "player-forfeited" && candidate.playerId === "bob-id"
+    );
+    expect(forfeited.type).toBe("player-forfeited");
+    if (forfeited.type === "player-forfeited") {
+      expect(forfeited.snapshot.players.find((player) => player.id === "bob-id")).toMatchObject({
+        hp: 0,
+        alive: false
+      });
+    }
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "match-ended" && candidate.winnerIds.includes("alice-id")
+    );
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
   it("applies the selected damage setting to live websocket match hits", async () => {
     const app = await startTestServer();
     const createResponse = await app.inject({

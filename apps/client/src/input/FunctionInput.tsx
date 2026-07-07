@@ -41,15 +41,14 @@ const advancedSnippetButtons: SnippetButton[] = [
   { key: "sum", label: "Σ", snippet: "sum(n,0,x,)", ariaLabel: "Insert summation template" },
   { key: "integral", label: "∫", snippet: "int(t,0,x,)", ariaLabel: "Insert integral template" },
   {
-    key: "second-derivative",
+    key: "derivative",
     label: (
       <>
         D<sub>x</sub>
-        <sup>2</sup>
       </>
     ),
-    snippet: "diff(x,2,)",
-    ariaLabel: "Insert second derivative template"
+    snippet: "diff(x,1,)",
+    ariaLabel: "Insert derivative template"
   },
   { key: "gamma", label: "Γ", snippet: "gamma()", ariaLabel: "Insert gamma function" },
   { key: "factorial", label: "!", snippet: "factorial()", ariaLabel: "Insert continuous factorial function" },

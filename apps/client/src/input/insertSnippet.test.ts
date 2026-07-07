@@ -22,4 +22,11 @@ describe("insertSnippet", () => {
       cursorPosition: 6
     });
   });
+
+  it("places the cursor in the trailing expression slot for operator templates", () => {
+    expect(insertSnippet("", 0, 0, "diff(x,1,)")).toEqual({
+      value: "diff(x,1,)",
+      cursorPosition: 9
+    });
+  });
 });

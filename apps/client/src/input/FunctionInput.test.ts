@@ -39,8 +39,9 @@ describe("FunctionInput", () => {
 
     expect(html).toContain("aria-label=\"Insert summation template\"");
     expect(html).toContain("aria-label=\"Insert integral template\"");
-    expect(html).toContain("aria-label=\"Insert second derivative template\"");
-    expect(html).toContain("<sub>x</sub><sup>2</sup>");
+    expect(html).toContain("aria-label=\"Insert derivative template\"");
+    expect(html).toContain("<sub>x</sub>");
+    expect(html).not.toContain("<sup>2</sup>");
     expect(html).toContain("aria-label=\"Insert gamma function\"");
     expect(html).toContain("aria-label=\"Insert continuous factorial function\"");
     expect(html).toContain("aria-label=\"Insert digamma function\"");

@@ -36,6 +36,20 @@ const snapshot: MatchSnapshot = {
   turn: { activePlayerId: "alice", order: ["alice"], turnNumber: 1 }
 };
 
+const playingSnapshot: MatchSnapshot = {
+  ...snapshot,
+  phase: "playing",
+  players: [
+    { id: "alice", displayName: "Alice", teamId: "team-a", position: { x: 0, y: 0 }, hp: 100, alive: true },
+    { id: "bob", displayName: "Bob", teamId: "team-b", position: { x: 10, y: 0 }, hp: 100, alive: true }
+  ],
+  teams: [
+    { id: "team-a", playerIds: ["alice"] },
+    { id: "team-b", playerIds: ["bob"] }
+  ],
+  turn: { activePlayerId: "alice", order: ["alice", "bob"], turnNumber: 1 }
+};
+
 type Listener = (event: { data?: string }) => void;
 
 class FakeWebSocket {
@@ -710,6 +724,31 @@ describe("createGameStore", () => {
     ]);
   });
 
+  it("sends a forfeit-match command for the selected lobby session", async () => {
+    const commands: ClientCommand[] = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: () => ({
+        send: (command) => commands.push(command),
+        close: () => {}
+      })
+    });
+
+    await selectLobby(store);
+    store.getState().forfeitMatch();
+
+    expect(commands).toEqual([
+      {
+        type: "forfeit-match",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        sessionToken: "session-token"
+      }
+    ]);
+  });
+
   it("returns to the main menu when the selected lobby is cancelled", async () => {
     let closed = false;
     let onEvent: ((event: ServerEvent) => void) | undefined;
@@ -743,6 +782,46 @@ describe("createGameStore", () => {
     expect(store.getState().selectedLobbySession).toBeUndefined();
     expect(store.getState().snapshot).toBeUndefined();
     expect(store.getState().recentEvents.map((event) => event.type)).toEqual(["lobby-cancelled"]);
+  });
+
+  it("returns only the forfeiting local player to the main menu after a forfeit event", async () => {
+    let closed = false;
+    let onEvent: ((event: ServerEvent) => void) | undefined;
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: (options) => {
+        onEvent = options.onEvent;
+        return {
+          send: () => {},
+          close: () => {
+            closed = true;
+          }
+        };
+      }
+    });
+
+    await selectLobby(store);
+    onEvent?.({ type: "match-started", roomId: "local-test", snapshot: playingSnapshot });
+    onEvent?.({
+      type: "player-forfeited",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      snapshot: {
+        ...playingSnapshot,
+        players: playingSnapshot.players.map((player) =>
+          player.id === "alice" ? { ...player, hp: 0, alive: false } : player
+        ),
+        turn: { activePlayerId: "bob", order: ["alice", "bob"], turnNumber: 2 }
+      }
+    });
+
+    expect(closed).toBe(true);
+    expect(store.getState().view).toBe("main-menu");
+    expect(store.getState().selectedLobbySession).toBeUndefined();
+    expect(store.getState().snapshot).toBeUndefined();
+    expect(store.getState().recentEvents.map((event) => event.type)).toEqual(["player-forfeited"]);
   });
 
   it("does not leave an old reconnect timer alive when manually connecting during the reconnect delay", async () => {

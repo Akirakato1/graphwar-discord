@@ -131,6 +131,7 @@ export class GameRoom {
       case "set-team":
       case "auto-assign-teams":
       case "cancel-lobby":
+      case "forfeit-match":
       case "send-chat":
       case "request-rematch":
         this.sendRejection(socket, command.playerId, `Unsupported command: ${command.type}`);
@@ -246,6 +247,18 @@ export class GameRoom {
         await this.handleSubmitShot(socket, { ...command, playerId: session.playerId });
         return;
       }
+      case "forfeit-match": {
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
+        if (this.isSpectator(session.playerId)) {
+          this.sendRejection(socket, command.playerId, "Spectators cannot forfeit.");
+          return;
+        }
+        await this.handleForfeitMatch(socket, session.playerId);
+        return;
+      }
       case "select-mode":
       case "send-chat":
       case "request-rematch":
@@ -349,6 +362,25 @@ export class GameRoom {
     });
   }
 
+  private async handleForfeitMatch(socket: WebSocket, playerId: string): Promise<void> {
+    const events = this.match.forfeitPlayer(playerId);
+    const firstEvent = events[0];
+    if (firstEvent.type === "shot-rejected") {
+      this.sendTo(socket, firstEvent);
+      return;
+    }
+
+    this.broadcast(this.withResolvedLobbyContext(firstEvent));
+
+    const matchEnded = events[1];
+    if (matchEnded) {
+      this.broadcast(this.withResolvedLobbyContext(matchEnded));
+      if (this.lobbyContext) {
+        await this.recordMatchResult(matchEnded.winnerIds, matchEnded.snapshot.players.map((player) => player.id));
+      }
+    }
+  }
+
   private withLobbyContext(event: ServerEvent): ServerEvent {
     if (!this.lobbyContext) {
       return event;
@@ -358,6 +390,7 @@ export class GameRoom {
       event.type === "room-snapshot" ||
       event.type === "match-started" ||
       event.type === "shot-resolved" ||
+      event.type === "player-forfeited" ||
       event.type === "match-ended"
     ) {
       return {

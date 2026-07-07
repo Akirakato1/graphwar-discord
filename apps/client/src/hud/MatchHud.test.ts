@@ -62,6 +62,8 @@ describe("MatchHud", () => {
     expect(html).toContain("100 HP");
     expect(html).toContain("aria-label=\"Aim west\"");
     expect(html).toContain("aria-label=\"Insert sine function\"");
+    expect(html).toContain("aria-label=\"Forfeit match\"");
+    expect(html).toContain(">FF</button>");
     expect(html).toContain(">Fire</button>");
     expect(html).not.toContain("status-grid");
     expect(html).not.toContain("<dt>Phase</dt>");

@@ -829,7 +829,7 @@ dd {
 
 .play-control-strip {
   display: grid;
-  grid-template-columns: minmax(82px, auto) minmax(144px, 1fr);
+  grid-template-columns: minmax(82px, auto) 44px minmax(144px, 1fr);
   gap: 10px;
   align-items: center;
 }
@@ -854,6 +854,25 @@ dd {
 .own-hp strong {
   color: #f3d58f;
   font-size: 18px;
+}
+
+.forfeit-action {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 58px;
+  border: 1px solid #7c3d3d;
+  border-radius: 8px;
+  background: #3a2525;
+  color: #ffd3c7;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0;
+}
+
+.forfeit-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .direction-dial {
@@ -1089,6 +1108,11 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .forfeit-action {
+    min-height: 36px;
+    width: 100%;
+  }
+
   .direction-dial {
     justify-content: start;
   }
@@ -1296,6 +1320,10 @@ dd {
 
   .own-hp strong {
     font-size: 14px;
+  }
+
+  .forfeit-action {
+    min-height: 32px;
   }
 
   .direction-dial {

@@ -191,6 +191,7 @@ function GameActivity() {
   const recentEvents = useGameStore((state) => state.recentEvents);
   const returnToMenu = useGameStore((state) => state.returnToMenu);
   const currentLobby = useGameStore((state) => state.currentLobby);
+  const forfeitMatch = useGameStore((state) => state.forfeitMatch);
   const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
@@ -273,6 +274,7 @@ function GameActivity() {
           lastRejection={lastRejection}
           onAimDirectionChange={setAimDirection}
           onExpressionChange={setDraftExpression}
+          onForfeit={forfeitMatch}
           onSubmitShot={submitShot}
           playbackInProgress={playbackInProgress}
           session={lobbyIdentity.effectiveSession}

@@ -85,6 +85,7 @@ export type GameStoreState = {
   currentLobby?: LobbyRuntimeSnapshot;
   deleteCustomMap(mapId: string): Promise<void>;
   disconnect(): void;
+  forfeitMatch(): void;
   joinRoom(): void;
   joinLobby(roomId: string, form: { alias: string; slot: LobbySlot; color: PlayerColor }): Promise<void>;
   lastError?: string;
@@ -133,6 +134,7 @@ function snapshotFromEvent(event: ServerEvent): MatchSnapshot | undefined {
   switch (event.type) {
     case "room-snapshot":
     case "match-started":
+    case "player-forfeited":
     case "shot-resolved":
     case "match-ended":
       return event.snapshot;
@@ -193,6 +195,8 @@ function describeEvent(event: ServerEvent): string {
       return `Match started in ${event.snapshot.mode}.`;
     case "lobby-cancelled":
       return "Lobby cancelled.";
+    case "player-forfeited":
+      return `${event.playerId} forfeited.`;
     case "turn-started":
       return `Turn ${event.turnNumber}: ${event.playerId} is active.`;
     case "shot-accepted":
@@ -283,6 +287,21 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         return;
       }
 
+      if (event.type === "player-forfeited" && event.playerId === localSelectedPlayerId()) {
+        closeClientForLobbySwitch();
+        set({
+          currentLobby: undefined,
+          lastError: undefined,
+          lastRejection: undefined,
+          recentEvents: [event].slice(-logLimit),
+          selectedLobbySession: undefined,
+          snapshot: undefined,
+          view: "main-menu"
+        });
+        appendLog(describeEvent(event), event.type);
+        return;
+      }
+
       set((state) => ({
         currentLobby: "lobby" in event && event.lobby ? event.lobby : state.currentLobby,
         lastRejection:
@@ -296,6 +315,10 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             : state.view
       }));
       appendLog(describeEvent(event), event.type);
+    }
+
+    function localSelectedPlayerId(): string {
+      return get().selectedLobbySession?.playerId ?? session.playerId;
     }
 
     return {
@@ -454,6 +477,20 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         currentClient?.close();
         set({ connectionStatus: "closed", lastRejection: undefined });
         appendLog("Disconnected.");
+      },
+      forfeitMatch() {
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({
+          type: "forfeit-match",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          sessionToken: selected.sessionToken
+        });
       },
       async joinLobby(roomId, form) {
         try {

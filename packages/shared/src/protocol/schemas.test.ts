@@ -41,6 +41,18 @@ describe("protocol schemas", () => {
     expect(parsed).toMatchObject({ aimDirection: "west" });
   });
 
+  it("accepts a forfeit-match command", () => {
+    const command = {
+      type: "forfeit-match",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      sessionToken: "session-token"
+    } satisfies ClientCommand;
+
+    expect(clientCommandSchema.parse(command)).toEqual(command);
+  });
+
   it("rejects a submit-shot command without expression", () => {
     expect(() =>
       clientCommandSchema.parse({
@@ -93,6 +105,26 @@ describe("protocol schemas", () => {
 
     expect(parsed.type).toBe("shot-resolved");
     expect(parsed).toMatchObject({ aimDirection: "west" });
+  });
+
+  it("accepts a player-forfeited event with an authoritative snapshot", () => {
+    const event = {
+      type: "player-forfeited",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      snapshot: {
+        phase: "playing",
+        mode: "team-versus",
+        worldBounds: standardWorldBounds,
+        players: [{ id: "alice", displayName: "Alice", teamId: "team-a", position: { x: 0, y: 0 }, hp: 0, alive: false }],
+        teams: [{ id: "team-a", playerIds: ["alice"] }],
+        terrain: { blobs: [] },
+        turn: { activePlayerId: "", order: ["alice"], turnNumber: 2 }
+      }
+    } satisfies ServerEvent;
+
+    expect(serverEventSchema.parse(event)).toEqual(event);
   });
 
   it("rejects a shot-resolved event without aim direction", () => {

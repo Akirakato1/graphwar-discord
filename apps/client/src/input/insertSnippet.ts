@@ -18,6 +18,11 @@ function cursorOffsetForSnippet(snippet: string): number {
     return emptyParenthesesIndex + 1;
   }
 
+  const trailingExpressionSlotIndex = snippet.indexOf(",)");
+  if (trailingExpressionSlotIndex >= 0) {
+    return trailingExpressionSlotIndex + 1;
+  }
+
   return snippet.length;
 }
 

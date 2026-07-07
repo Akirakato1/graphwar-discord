@@ -37,12 +37,18 @@ const emptyTerrain: TerrainState = { blobs: [] };
 
 type ShotRejectedEvent = Extract<ServerEvent, { type: "shot-rejected" }>;
 type ShotResolvedEvent = Extract<ServerEvent, { type: "shot-resolved" }>;
+type PlayerForfeitedEvent = Extract<ServerEvent, { type: "player-forfeited" }>;
 type MatchEndedEvent = Extract<ServerEvent, { type: "match-ended" }>;
 
 export type ShotSubmissionEvents =
   | [ShotRejectedEvent]
   | [ShotResolvedEvent]
   | [ShotResolvedEvent, MatchEndedEvent];
+
+export type ForfeitEvents =
+  | [ShotRejectedEvent]
+  | [PlayerForfeitedEvent]
+  | [PlayerForfeitedEvent, MatchEndedEvent];
 
 export type MatchStartOptions = {
   maxFunctionLength?: number;
@@ -268,6 +274,54 @@ export class MatchController {
     }
 
     return [shotResolved];
+  }
+
+  forfeitPlayer(playerId: PlayerId): ForfeitEvents {
+    if (this.snapshot.phase !== "playing") {
+      return [this.rejectShot(playerId, "Match is not playing")];
+    }
+
+    const forfeiter = this.snapshot.players.find((player) => player.id === playerId);
+    if (!forfeiter) {
+      return [this.rejectShot(playerId, "Player is missing")];
+    }
+
+    if (!forfeiter.alive) {
+      return [this.rejectShot(playerId, "Player has already been eliminated")];
+    }
+
+    const players = this.snapshot.players.map((player) =>
+      player.id === playerId ? { ...player, hp: 0, alive: false } : player
+    );
+    const turn =
+      this.snapshot.turn.activePlayerId === playerId
+        ? this.nextTurn(players)
+        : { ...this.snapshot.turn, order: [...this.snapshot.turn.order] };
+
+    this.snapshot = {
+      ...this.snapshot,
+      players,
+      turn
+    };
+
+    const forfeited: PlayerForfeitedEvent = {
+      type: "player-forfeited",
+      roomId: this.roomId,
+      playerId,
+      snapshot: this.getSnapshot()
+    };
+
+    const mode = this.createMode(this.snapshot.mode);
+    const victory = mode.isVictory(this.toTurnPlayers(this.snapshot.players));
+    if (victory.ended) {
+      this.snapshot = { ...this.snapshot, phase: "ended" };
+      return [
+        forfeited,
+        { type: "match-ended", roomId: this.roomId, winnerIds: victory.winnerIds, snapshot: this.getSnapshot() }
+      ];
+    }
+
+    return [forfeited];
   }
 
   forcePlayerHpForTest(playerId: PlayerId, hp: number): void {
