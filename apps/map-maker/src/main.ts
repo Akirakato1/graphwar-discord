@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { createMainWindowOptions, hideApplicationMenu } from "./mainWindowOptions.js";
 
 type SaveMapPayload = {
   contents: string;
@@ -16,19 +17,7 @@ type SavedMapSummary = {
 };
 
 async function createWindow() {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    minWidth: 960,
-    minHeight: 540,
-    title: "Graphwar Map Maker",
-    backgroundColor: "#12151b",
-    webPreferences: {
-      preload: join(app.getAppPath(), "dist/electron/preload.cjs"),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
+  const window = new BrowserWindow(createMainWindowOptions(app.getAppPath()));
 
   await window.loadFile(join(app.getAppPath(), "dist/renderer/index.html"));
 }
@@ -93,6 +82,7 @@ ipcMain.handle("graphwar-map-maker:open-maps-folder", async () => {
 });
 
 app.whenReady().then(() => {
+  hideApplicationMenu(Menu);
   void createWindow();
 
   app.on("activate", () => {

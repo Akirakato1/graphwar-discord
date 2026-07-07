@@ -63,6 +63,7 @@ import {
   type MapMakerTool,
   type PlacementTool
 } from "./mapMakerInteraction";
+import { createReturnToMainMenuReset } from "./mapMakerSession";
 import { isSpawnSelected, spawnClassName } from "./mapMakerSpawnVisuals";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
@@ -555,6 +556,17 @@ export function App() {
     updateState((current) => toggleTeamSpawn(current, spawnId, teamId));
   }
 
+  function returnToMainMenu() {
+    const reset = createReturnToMainMenuReset();
+    setState(reset.state);
+    setCurrentFile(reset.currentFile);
+    setCameraBounds(reset.cameraBounds);
+    setClipboard(reset.clipboard);
+    setDrag(reset.drag);
+    setTool(reset.tool);
+    setMessage(reset.message);
+  }
+
   function addTenSpawns() {
     updateState((current) => addDefaultSpawnSet(current));
   }
@@ -760,6 +772,9 @@ export function App() {
         </button>
         <button className="primary-action" onClick={() => void saveMap()} type="button">
           Save
+        </button>
+        <button onClick={returnToMainMenu} type="button">
+          Main Menu
         </button>
       </header>
 
