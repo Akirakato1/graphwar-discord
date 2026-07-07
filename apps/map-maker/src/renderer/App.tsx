@@ -30,6 +30,16 @@ import {
 import type { Bounds, EditorState } from "../editor/editorTypes";
 import { stringifyEditorMap } from "../editor/mapExport";
 import {
+  currentFileForSavedMap,
+  editorStateFromSavedMap,
+  newMapNameError,
+  parseSavedMapContents,
+  saveMapNameError,
+  saveRequestForEditorState,
+  type CurrentMapFile,
+  type SavedMapSummary
+} from "./mapMakerLibrary";
+import {
   createViewBoxGeometry,
   panViewBoundsByScreenDelta,
   screenPointToWorldPoint,
@@ -90,19 +100,25 @@ const customDimensionLimits = {
 
 export function App() {
   const [setupDraft, setSetupDraft] = useState<SetupDraft>({
-    mapName: "Custom Arena",
+    mapName: "",
     mapSizePreset: defaultMapSizePreset,
     customWidth: String(customDimensionLimits.width.fallback),
     customHeight: String(customDimensionLimits.height.fallback)
   });
   const [state, setState] = useState<EditorState | null>(null);
   const [cameraBounds, setCameraBounds] = useState<WorldBounds | null>(null);
+  const [currentFile, setCurrentFile] = useState<CurrentMapFile | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<SavedMapSummary | null>(null);
+  const [isLibraryVisible, setIsLibraryVisible] = useState(false);
+  const [renameDraft, setRenameDraft] = useState<{ filePath: string; name: string } | null>(null);
+  const [savedMaps, setSavedMaps] = useState<SavedMapSummary[]>([]);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [tool, setTool] = useState<MapMakerTool>("select");
   const [drag, setDrag] = useState<DragState>(null);
   const [message, setMessage] = useState("Ready");
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const messageTimeoutRef = useRef<number | undefined>(undefined);
 
   const selectedTerrain = useMemo(() => {
     if (state?.selection?.type !== "terrain") {
@@ -133,6 +149,19 @@ export function App() {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+
+  useEffect(() => {
+    void refreshSavedMaps();
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (messageTimeoutRef.current) {
+        window.clearTimeout(messageTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   useLayoutEffect(() => {
     const svg = svgRef.current;
@@ -167,6 +196,7 @@ export function App() {
 
   if (!state || !viewGeometry) {
     const setupWorldBounds = setupDraftWorldBounds(setupDraft);
+    const setupNameError = newMapNameError(setupDraft.mapName, savedMaps);
 
     return (
       <main className="map-maker-setup-screen">
@@ -174,10 +204,15 @@ export function App() {
           className="map-maker-setup-panel"
           onSubmit={(event) => {
             event.preventDefault();
+            if (setupNameError) {
+              showMessage(setupNameError);
+              return;
+            }
             const worldBounds = setupWorldBounds;
-            setState(createEmptyEditorState({ mapName: setupDraft.mapName, worldBounds }));
+            setState(createEmptyEditorState({ mapName: setupDraft.mapName.trim(), worldBounds }));
             setCameraBounds(worldBounds);
-            setMessage("Ready");
+            setCurrentFile(null);
+            showMessage("Ready");
           }}
         >
           <h1>Map Maker</h1>
@@ -240,9 +275,34 @@ export function App() {
           <p className="setup-size-readout">
             {boundsLabel(setupWorldBounds)}
           </p>
-          <button className="primary-action" type="submit">
-            Start Editor
-          </button>
+          {setupNameError ? <p className="setup-error">{setupNameError}</p> : null}
+          <div className="setup-actions">
+            <button className="primary-action" disabled={Boolean(setupNameError)} type="submit">
+              Start Editor
+            </button>
+            <button onClick={() => setIsLibraryVisible((current) => !current)} type="button">
+              Browse Existing Maps
+            </button>
+            <button onClick={() => void openMapsFolder()} type="button">
+              Open Folder
+            </button>
+          </div>
+          {isLibraryVisible ? (
+            <SavedMapBrowser
+              deleteCandidate={deleteCandidate}
+              maps={savedMaps}
+              onCancelDelete={() => setDeleteCandidate(null)}
+              onCancelRename={() => setRenameDraft(null)}
+              onConfirmDelete={() => void confirmDeleteSavedMap()}
+              onDelete={(map) => setDeleteCandidate(map)}
+              onEdit={(map) => void openSavedMap(map)}
+              onRename={(map) => setRenameDraft({ filePath: map.filePath, name: map.name })}
+              onRenameDraftChange={(name) => setRenameDraft((current) => (current ? { ...current, name } : current))}
+              onRenameSave={(map) => void renameSavedMap(map)}
+              renameDraft={renameDraft}
+            />
+          ) : null}
+          <p className="status-message">{message}</p>
         </form>
       </main>
     );
@@ -253,6 +313,29 @@ export function App() {
   const mapGeometry = createViewBoxGeometry(editorState.worldBounds);
   const editorViewBounds = cameraBounds ?? editorState.worldBounds;
   const showMinorGrid = shouldShowMinorGrid(editorViewBounds, canvasSize);
+
+  function showMessage(nextMessage: string, options: { transient?: boolean } = {}) {
+    if (messageTimeoutRef.current) {
+      window.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = undefined;
+    }
+    setMessage(nextMessage);
+    if (options.transient) {
+      messageTimeoutRef.current = window.setTimeout(() => {
+        setMessage("Ready");
+        messageTimeoutRef.current = undefined;
+      }, 3500);
+    }
+  }
+
+  async function refreshSavedMaps() {
+    try {
+      const maps = (await window.graphwarMapMaker?.listMaps()) ?? [];
+      setSavedMaps(maps);
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not load saved maps.");
+    }
+  }
 
   function updateState(updater: (current: EditorState) => EditorState) {
     setState((current) => (current ? updater(current) : current));
@@ -364,6 +447,83 @@ export function App() {
     updateState((current) => addDefaultSpawnSet(current));
   }
 
+  async function openMapsFolder() {
+    try {
+      const result = await window.graphwarMapMaker?.openMapsFolder();
+      if (!result?.opened) {
+        showMessage(result?.error ?? "Could not open saved maps folder.");
+      }
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not open saved maps folder.");
+    }
+  }
+
+  async function openSavedMap(savedMap: SavedMapSummary) {
+    try {
+      const result = await window.graphwarMapMaker?.readMap({ filePath: savedMap.filePath });
+      if (!result) {
+        showMessage("Map maker file API unavailable.");
+        return;
+      }
+      const map = parseSavedMapContents(result.contents);
+      const editorState = editorStateFromSavedMap(map);
+      setState(editorState);
+      setCameraBounds(editorState.worldBounds);
+      setCurrentFile(currentFileForSavedMap({ ...savedMap, name: map.name, filePath: result.filePath }));
+      setIsLibraryVisible(false);
+      setRenameDraft(null);
+      setDeleteCandidate(null);
+      showMessage("Ready");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not open saved map.");
+    }
+  }
+
+  async function renameSavedMap(savedMap: SavedMapSummary) {
+    if (!renameDraft || renameDraft.filePath !== savedMap.filePath) {
+      return;
+    }
+
+    const error = saveMapNameError(renameDraft.name, savedMaps, currentFileForSavedMap(savedMap));
+    if (error) {
+      showMessage(error);
+      return;
+    }
+
+    try {
+      const result = await window.graphwarMapMaker?.renameMap({
+        filePath: savedMap.filePath,
+        nextName: renameDraft.name.trim()
+      });
+      setRenameDraft(null);
+      if (currentFile?.filePath === savedMap.filePath && result) {
+        setCurrentFile({ filePath: result.filePath, savedMapName: result.name });
+      }
+      await refreshSavedMaps();
+      showMessage(`Renamed ${result?.name ?? renameDraft.name.trim()}.`, { transient: true });
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not rename saved map.");
+    }
+  }
+
+  async function confirmDeleteSavedMap() {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    try {
+      await window.graphwarMapMaker?.deleteMap({ filePath: deleteCandidate.filePath });
+      if (currentFile?.filePath === deleteCandidate.filePath) {
+        setCurrentFile(null);
+      }
+      setDeleteCandidate(null);
+      await refreshSavedMaps();
+      showMessage(`Deleted ${deleteCandidate.name}.`, { transient: true });
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not delete saved map.");
+    }
+  }
+
   function addPenPointOrClose(current: EditorState, point: WorldPoint): EditorState {
     if (current.penPoints.length >= 3 && distance(current.penPoints[0], point) < 0.9) {
       return closePenShape(current);
@@ -387,16 +547,28 @@ export function App() {
     updateState((current) => addSpawnPoint(current, point));
   }
 
-  async function exportMap() {
+  async function saveMap() {
     try {
+      const nameError = saveMapNameError(editorState.mapName, savedMaps, currentFile);
+      if (nameError) {
+        showMessage(nameError);
+        return;
+      }
+
       const contents = stringifyEditorMap(editorState);
-      const result = await window.graphwarMapMaker?.saveMap({
-        defaultPath: `${slugify(editorState.mapName || "custom-arena")}.graphwar-map.json`,
-        contents
-      });
-      setMessage(result?.canceled ? "Export canceled" : `Saved ${result?.filePath ?? "map file"}`);
+      const request = saveRequestForEditorState(editorState, currentFile, contents);
+      const result = await window.graphwarMapMaker?.saveMap(request);
+      if (!result) {
+        showMessage("Map maker file API unavailable.");
+        return;
+      }
+
+      const savedName = editorState.mapName.trim();
+      setCurrentFile({ filePath: result.filePath, savedMapName: savedName });
+      await refreshSavedMaps();
+      showMessage(`Saved ${savedName}.`, { transient: true });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Export failed");
+      showMessage(error instanceof Error ? error.message : "Save failed.");
     }
   }
 
@@ -430,8 +602,8 @@ export function App() {
         <button onClick={() => updateState((current) => deleteSelected(current))} type="button">
           Delete
         </button>
-        <button className="primary-action" onClick={() => void exportMap()} type="button">
-          Export
+        <button className="primary-action" onClick={() => void saveMap()} type="button">
+          Save
         </button>
       </header>
 
@@ -535,6 +707,94 @@ export function App() {
         </section>
       </section>
     </main>
+  );
+}
+
+function SavedMapBrowser({
+  deleteCandidate,
+  maps,
+  onCancelDelete,
+  onCancelRename,
+  onConfirmDelete,
+  onDelete,
+  onEdit,
+  onRename,
+  onRenameDraftChange,
+  onRenameSave,
+  renameDraft
+}: {
+  deleteCandidate: SavedMapSummary | null;
+  maps: SavedMapSummary[];
+  onCancelDelete: () => void;
+  onCancelRename: () => void;
+  onConfirmDelete: () => void;
+  onDelete: (map: SavedMapSummary) => void;
+  onEdit: (map: SavedMapSummary) => void;
+  onRename: (map: SavedMapSummary) => void;
+  onRenameDraftChange: (name: string) => void;
+  onRenameSave: (map: SavedMapSummary) => void;
+  renameDraft: { filePath: string; name: string } | null;
+}) {
+  return (
+    <section className="saved-map-browser" aria-label="Saved maps">
+      {maps.length === 0 ? (
+        <p className="saved-map-empty">No saved maps yet.</p>
+      ) : (
+        maps.map((map) => {
+          const isRenaming = renameDraft?.filePath === map.filePath;
+          return (
+            <div className="saved-map-row" key={map.filePath}>
+              {isRenaming ? (
+                <input
+                  aria-label={`Rename ${map.name}`}
+                  onChange={(event) => onRenameDraftChange(event.currentTarget.value)}
+                  value={renameDraft.name}
+                />
+              ) : (
+                <span title={map.filePath}>{map.name}</span>
+              )}
+              <div className="saved-map-actions">
+                {isRenaming ? (
+                  <>
+                    <button onClick={() => onRenameSave(map)} type="button">
+                      Save
+                    </button>
+                    <button onClick={onCancelRename} type="button">
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => onEdit(map)} type="button">
+                      Edit
+                    </button>
+                    <button onClick={() => onRename(map)} type="button">
+                      Rename
+                    </button>
+                    <button aria-label={`Delete ${map.name}`} onClick={() => onDelete(map)} type="button">
+                      X
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+      {deleteCandidate ? (
+        <div className="confirm-dialog" role="dialog" aria-modal="true" aria-label="Confirm delete map">
+          <p>Delete {deleteCandidate.name}?</p>
+          <div className="confirm-actions">
+            <button className="primary-action" onClick={onConfirmDelete} type="button">
+              Confirm
+            </button>
+            <button onClick={onCancelDelete} type="button">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -697,10 +957,6 @@ function normalizedDimension(value: string, limits: { min: number; max: number; 
     return limits.fallback;
   }
   return Math.max(limits.min, Math.min(limits.max, parsed));
-}
-
-function slugify(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "custom-arena";
 }
 
 function titleCase(value: string): string {

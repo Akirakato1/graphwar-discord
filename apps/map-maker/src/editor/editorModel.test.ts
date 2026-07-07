@@ -32,6 +32,10 @@ describe("editorModel", () => {
     expect(state.worldBounds).toEqual(worldBounds);
   });
 
+  it("defaults new editor maps to an empty name", () => {
+    expect(createEmptyEditorState().mapName).toBe("");
+  });
+
   it("adds common terrain shapes and selects the newest shape", () => {
     let state = createEmptyEditorState();
 

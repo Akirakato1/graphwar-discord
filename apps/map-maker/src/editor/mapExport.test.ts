@@ -40,7 +40,11 @@ describe("mapExport", () => {
   });
 
   it("blocks export with fewer than ten spawn points", () => {
-    expect(() => exportEditorMap(createEmptyEditorState())).toThrow("at least 10 spawn points");
+    expect(() => exportEditorMap(createEmptyEditorState({ mapName: "Incomplete Arena" }))).toThrow("at least 10 spawn points");
+  });
+
+  it("blocks export with an empty map name", () => {
+    expect(() => exportEditorMap(stateWithTenSpawns({ mapName: "   " }))).toThrow();
   });
 
   it("blocks export when editor content falls outside the selected world bounds", () => {
@@ -64,7 +68,7 @@ describe("mapExport", () => {
 });
 
 function stateWithTenSpawns(options?: { mapName?: string; worldBounds?: ReturnType<typeof worldBoundsForMapSize> }) {
-  let state = createEmptyEditorState(options);
+  let state = createEmptyEditorState({ mapName: options?.mapName ?? "Test Arena", worldBounds: options?.worldBounds });
   for (let index = 0; index < 10; index += 1) {
     state = addSpawnPoint(state, { x: index < 5 ? -18 : 18, y: -8 + (index % 5) * 4 });
   }

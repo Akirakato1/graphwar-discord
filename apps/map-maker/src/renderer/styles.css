@@ -35,6 +35,11 @@ button {
   padding: 0.35rem 0.65rem;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 button:hover {
   border-color: #d6a957;
 }
@@ -78,9 +83,14 @@ button.active,
 }
 
 .setup-field span,
+.setup-error,
 .setup-size-readout {
   color: #aeb8c8;
   font-size: 0.82rem;
+}
+
+.setup-error {
+  color: #ff8989;
 }
 
 .size-preset-strip {
@@ -113,6 +123,81 @@ button.active,
   min-height: 34px;
   min-width: 0;
   padding: 0.35rem 0.6rem;
+}
+
+.setup-actions {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.saved-map-browser {
+  border-top: 1px solid #2f3744;
+  display: grid;
+  gap: 0.45rem;
+  max-height: min(34vh, 260px);
+  overflow: auto;
+  padding-top: 0.6rem;
+}
+
+.saved-map-empty,
+.saved-map-row span,
+.saved-map-row input,
+.confirm-dialog p {
+  font-size: 0.82rem;
+}
+
+.saved-map-empty,
+.confirm-dialog p {
+  color: #aeb8c8;
+  margin: 0;
+}
+
+.saved-map-row {
+  align-items: center;
+  background: #202631;
+  border: 1px solid #323c4b;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.45rem;
+}
+
+.saved-map-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-map-row input {
+  background: #0f1218;
+  border: 1px solid #384252;
+  border-radius: 6px;
+  color: #f5f7fb;
+  min-height: 32px;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+}
+
+.saved-map-actions,
+.confirm-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.saved-map-actions button {
+  min-height: 30px;
+  padding: 0.25rem 0.45rem;
+}
+
+.confirm-dialog {
+  background: #151922;
+  border: 1px solid #d6a957;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.6rem;
 }
 
 .map-maker-shell {

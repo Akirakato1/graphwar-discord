@@ -5,7 +5,7 @@ const spawnHitRadius = 1.2;
 
 export function createEmptyEditorState(options?: { mapName?: string; worldBounds?: WorldBounds }): EditorState {
   return {
-    mapName: options?.mapName ?? "Custom Arena",
+    mapName: options?.mapName ?? "",
     worldBounds: cloneWorldBounds(options?.worldBounds ?? worldBoundsForMapSize(defaultMapSizePreset)),
     terrainShapes: [],
     spawnPoints: [],

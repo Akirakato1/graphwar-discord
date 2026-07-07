@@ -5,7 +5,7 @@ export function exportEditorMap(state: EditorState): CustomMapImport {
   const map: CustomMapImport = {
     format: "graphwar-map",
     version: 1,
-    name: state.mapName.trim() || "Custom Arena",
+    name: state.mapName.trim(),
     worldBounds: { ...state.worldBounds },
     terrain: normalizeTerrainState({
       blobs: state.terrainShapes.map((shape) => ({
