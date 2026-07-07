@@ -1,8 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("graphwarMapMaker", {
+  chooseMapFile: () =>
+    ipcRenderer.invoke("graphwar-map-maker:choose-map-file") as Promise<
+      { canceled: true } | { canceled: false; contents: string; filePath: string }
+    >,
   deleteMap: (payload: { filePath: string }) =>
     ipcRenderer.invoke("graphwar-map-maker:delete-map", payload) as Promise<{ deleted: boolean }>,
+  getMapsDirectory: () =>
+    ipcRenderer.invoke("graphwar-map-maker:get-maps-directory") as Promise<{ directory: string }>,
   listMaps: () =>
     ipcRenderer.invoke("graphwar-map-maker:list-maps") as Promise<
       Array<{ filePath: string; name: string; updatedAt?: string }>

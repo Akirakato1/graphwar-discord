@@ -32,6 +32,8 @@ import { stringifyEditorMap } from "../editor/mapExport";
 import {
   currentFileForSavedMap,
   editorStateFromSavedMap,
+  fileApiUnavailableMessage,
+  importMapFileForSave,
   newMapNameError,
   parseSavedMapContents,
   saveMapNameError,
@@ -112,6 +114,7 @@ export function App() {
   const [isLibraryVisible, setIsLibraryVisible] = useState(false);
   const [renameDraft, setRenameDraft] = useState<{ filePath: string; name: string } | null>(null);
   const [savedMaps, setSavedMaps] = useState<SavedMapSummary[]>([]);
+  const [savedMapsDirectory, setSavedMapsDirectory] = useState<string | null>(null);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [tool, setTool] = useState<MapMakerTool>("select");
@@ -280,7 +283,18 @@ export function App() {
             <button className="primary-action" disabled={Boolean(setupNameError)} type="submit">
               Start Editor
             </button>
-            <button onClick={() => setIsLibraryVisible((current) => !current)} type="button">
+            <button
+              onClick={() => {
+                setIsLibraryVisible((current) => {
+                  const next = !current;
+                  if (next) {
+                    void refreshSavedMaps();
+                  }
+                  return next;
+                });
+              }}
+              type="button"
+            >
               Browse Existing Maps
             </button>
             <button onClick={() => void openMapsFolder()} type="button">
@@ -290,15 +304,18 @@ export function App() {
           {isLibraryVisible ? (
             <SavedMapBrowser
               deleteCandidate={deleteCandidate}
+              directory={savedMapsDirectory}
               maps={savedMaps}
               onCancelDelete={() => setDeleteCandidate(null)}
               onCancelRename={() => setRenameDraft(null)}
               onConfirmDelete={() => void confirmDeleteSavedMap()}
               onDelete={(map) => setDeleteCandidate(map)}
               onEdit={(map) => void openSavedMap(map)}
+              onImport={() => void importMapFile()}
               onRename={(map) => setRenameDraft({ filePath: map.filePath, name: map.name })}
               onRenameDraftChange={(name) => setRenameDraft((current) => (current ? { ...current, name } : current))}
               onRenameSave={(map) => void renameSavedMap(map)}
+              onRefresh={() => void refreshSavedMaps()}
               renameDraft={renameDraft}
             />
           ) : null}
@@ -329,9 +346,20 @@ export function App() {
   }
 
   async function refreshSavedMaps() {
+    if (!window.graphwarMapMaker) {
+      setSavedMaps([]);
+      setSavedMapsDirectory(null);
+      showMessage(fileApiUnavailableMessage);
+      return;
+    }
+
     try {
-      const maps = (await window.graphwarMapMaker?.listMaps()) ?? [];
+      const [maps, directoryResult] = await Promise.all([
+        window.graphwarMapMaker.listMaps(),
+        window.graphwarMapMaker.getMapsDirectory()
+      ]);
       setSavedMaps(maps);
+      setSavedMapsDirectory(directoryResult.directory);
     } catch (error) {
       showMessage(error instanceof Error ? error.message : "Could not load saved maps.");
     }
@@ -448,13 +476,54 @@ export function App() {
   }
 
   async function openMapsFolder() {
+    if (!window.graphwarMapMaker) {
+      showMessage(fileApiUnavailableMessage);
+      return;
+    }
+
     try {
-      const result = await window.graphwarMapMaker?.openMapsFolder();
+      const result = await window.graphwarMapMaker.openMapsFolder();
+      setSavedMapsDirectory(result.directory);
       if (!result?.opened) {
         showMessage(result?.error ?? "Could not open saved maps folder.");
+        return;
       }
+      showMessage(`Opened ${result.directory}.`, { transient: true });
     } catch (error) {
       showMessage(error instanceof Error ? error.message : "Could not open saved maps folder.");
+    }
+  }
+
+  async function importMapFile() {
+    if (!window.graphwarMapMaker) {
+      showMessage(fileApiUnavailableMessage);
+      return;
+    }
+
+    try {
+      const selectedFile = await window.graphwarMapMaker.chooseMapFile();
+      if (selectedFile.canceled) {
+        return;
+      }
+
+      const imported = importMapFileForSave(selectedFile.contents, savedMaps);
+      if ("error" in imported) {
+        showMessage(imported.error);
+        return;
+      }
+
+      const result = await window.graphwarMapMaker.saveMap(imported.request);
+      const editorState = editorStateFromSavedMap(imported.map);
+      setState(editorState);
+      setCameraBounds(editorState.worldBounds);
+      setCurrentFile({ filePath: result.filePath, savedMapName: imported.map.name });
+      setIsLibraryVisible(false);
+      setRenameDraft(null);
+      setDeleteCandidate(null);
+      await refreshSavedMaps();
+      showMessage(`Imported ${imported.map.name}.`, { transient: true });
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not import map file.");
     }
   }
 
@@ -712,31 +781,50 @@ export function App() {
 
 function SavedMapBrowser({
   deleteCandidate,
+  directory,
   maps,
   onCancelDelete,
   onCancelRename,
   onConfirmDelete,
   onDelete,
   onEdit,
+  onImport,
   onRename,
   onRenameDraftChange,
   onRenameSave,
+  onRefresh,
   renameDraft
 }: {
   deleteCandidate: SavedMapSummary | null;
+  directory: string | null;
   maps: SavedMapSummary[];
   onCancelDelete: () => void;
   onCancelRename: () => void;
   onConfirmDelete: () => void;
   onDelete: (map: SavedMapSummary) => void;
   onEdit: (map: SavedMapSummary) => void;
+  onImport: () => void;
   onRename: (map: SavedMapSummary) => void;
   onRenameDraftChange: (name: string) => void;
   onRenameSave: (map: SavedMapSummary) => void;
+  onRefresh: () => void;
   renameDraft: { filePath: string; name: string } | null;
 }) {
   return (
     <section className="saved-map-browser" aria-label="Saved maps">
+      <div className="saved-map-browser-header">
+        <p className="saved-map-directory" title={directory ?? undefined}>
+          {directory ? `Folder: ${directory}` : "Folder unavailable."}
+        </p>
+        <div className="saved-map-actions">
+          <button onClick={onRefresh} type="button">
+            Refresh
+          </button>
+          <button onClick={onImport} type="button">
+            Import Map File
+          </button>
+        </div>
+      </div>
       {maps.length === 0 ? (
         <p className="saved-map-empty">No saved maps yet.</p>
       ) : (

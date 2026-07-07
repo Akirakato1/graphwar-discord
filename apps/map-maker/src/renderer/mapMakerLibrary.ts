@@ -23,6 +23,17 @@ export type SaveMapRequest = {
   mapName: string;
 };
 
+export type ImportMapFileResult =
+  | {
+      error: string;
+    }
+  | {
+      map: CustomMapImport;
+      request: SaveMapRequest;
+    };
+
+export const fileApiUnavailableMessage = "Map maker file API unavailable. Launch with npm run dev:map-maker.";
+
 export function normalizeMapName(name: string): string {
   return name.trim().toLocaleLowerCase();
 }
@@ -81,6 +92,22 @@ export function saveRequestForEditorState(
 
 export function parseSavedMapContents(contents: string): CustomMapImport {
   return validateCustomMapImportForSave(JSON.parse(contents));
+}
+
+export function importMapFileForSave(contents: string, savedMaps: SavedMapSummary[]): ImportMapFileResult {
+  const map = parseSavedMapContents(contents);
+  const error = newMapNameError(map.name, savedMaps);
+  if (error) {
+    return { error };
+  }
+
+  return {
+    map,
+    request: {
+      contents: `${JSON.stringify(map, null, 2)}\n`,
+      mapName: map.name
+    }
+  };
 }
 
 export function editorStateFromSavedMap(map: CustomMapImport): EditorState {

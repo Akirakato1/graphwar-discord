@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -34,6 +34,29 @@ async function createWindow() {
 }
 
 ipcMain.handle("graphwar-map-maker:list-maps", async () => listSavedMaps());
+
+ipcMain.handle("graphwar-map-maker:get-maps-directory", async () => ({
+  directory: await savedMapsDirectory()
+}));
+
+ipcMain.handle("graphwar-map-maker:choose-map-file", async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: "Graphwar map JSON", extensions: ["json"] }],
+    properties: ["openFile"],
+    title: "Import Graphwar Map"
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+
+  const filePath = result.filePaths[0];
+  return {
+    canceled: false,
+    contents: await readFile(filePath, "utf8"),
+    filePath
+  };
+});
 
 ipcMain.handle("graphwar-map-maker:read-map", async (_event, payload: { filePath: string }) => ({
   contents: await readFile(payload.filePath, "utf8"),

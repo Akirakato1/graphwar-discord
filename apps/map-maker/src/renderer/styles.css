@@ -140,6 +140,19 @@ button.active,
   padding-top: 0.6rem;
 }
 
+.saved-map-browser-header {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.saved-map-directory {
+  color: #aeb8c8;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .saved-map-empty,
 .saved-map-row span,
 .saved-map-row input,

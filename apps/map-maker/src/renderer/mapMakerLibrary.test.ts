@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentFileForSavedMap,
   editorStateFromSavedMap,
+  importMapFileForSave,
   newMapNameError,
   saveMapNameError,
   saveRequestForEditorState,
@@ -78,5 +79,55 @@ describe("mapMakerLibrary", () => {
     expect(state.terrainShapes).toEqual([{ id: "rock", points: map.terrain.blobs[0].outer }]);
     expect(state.spawnPoints).toHaveLength(10);
     expect(state.teamSpawnPointIds).toEqual(map.teamSpawnPointIds);
+  });
+
+  it("prepares an imported map file for saving into the managed library", () => {
+    const map: CustomMapImport = {
+      format: "graphwar-map",
+      version: 1,
+      name: "Imported Arena",
+      worldBounds: worldBoundsForMapSize("standard"),
+      terrain: { blobs: [] },
+      spawnPoints: Array.from({ length: 10 }, (_, index) => ({
+        id: `spawn-${index}`,
+        position: { x: index, y: 0 }
+      })),
+      teamSpawnPointIds: {
+        "team-a": [],
+        "team-b": []
+      }
+    };
+
+    const imported = importMapFileForSave(JSON.stringify(map), savedMaps);
+
+    expect(imported).toEqual({
+      map,
+      request: {
+        contents: `${JSON.stringify(map, null, 2)}\n`,
+        mapName: "Imported Arena"
+      }
+    });
+  });
+
+  it("blocks imported map files when their map name already exists", () => {
+    const map: CustomMapImport = {
+      format: "graphwar-map",
+      version: 1,
+      name: "Moon Arena",
+      worldBounds: worldBoundsForMapSize("standard"),
+      terrain: { blobs: [] },
+      spawnPoints: Array.from({ length: 10 }, (_, index) => ({
+        id: `spawn-${index}`,
+        position: { x: index, y: 0 }
+      })),
+      teamSpawnPointIds: {
+        "team-a": [],
+        "team-b": []
+      }
+    };
+
+    expect(importMapFileForSave(JSON.stringify(map), savedMaps)).toEqual({
+      error: "A saved map already uses this name."
+    });
   });
 });
