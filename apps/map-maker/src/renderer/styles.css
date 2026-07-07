@@ -183,13 +183,22 @@ button.active,
   width: 100%;
 }
 
+.map-maker-canvas svg.panning {
+  cursor: grabbing;
+}
+
 .world-bg {
   fill: #10141b;
 }
 
-.grid-lines line {
-  stroke: #252c38;
+.major-grid-lines line {
+  stroke: rgba(174, 184, 200, 0.22);
   stroke-width: 0.05;
+}
+
+.minor-grid-lines line {
+  stroke: rgba(174, 184, 200, 0.11);
+  stroke-width: 0.025;
 }
 
 .axis-line {

@@ -1,6 +1,6 @@
 import type { MatchSnapshot, ServerEvent } from "@graphwar/shared";
 import { describe, expect, it } from "vitest";
-import { fitCameraToBounds } from "./camera";
+import { fitCameraToBounds, zoomCameraAtCanvasPoint } from "./camera";
 import {
   findLatestShotResolvedEvent,
   findSnapshotBeforeLatestShot,
@@ -463,6 +463,34 @@ describe("renderWorld", () => {
         (call) => call.name === "arc" && call.args[0] === 960 && call.args[1] === 576 && Number(call.args[2]) > 0
       )
     ).toBe(true);
+  });
+
+  it("draws a subtle 1-unit minor grid only when zoomed in far enough", () => {
+    const fitContext = new RecordingCanvasContext();
+    const zoomContext = new RecordingCanvasContext();
+    const fittedCamera = fitCameraToBounds(snapshot.worldBounds, { width: 1000, height: 600 });
+    const zoomedCamera = zoomCameraAtCanvasPoint(fittedCamera, { x: 500, y: 300 }, 3);
+
+    renderWorld(fitContext as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      snapshot,
+      camera: fittedCamera
+    });
+    renderWorld(zoomContext as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      snapshot,
+      camera: zoomedCamera
+    });
+
+    const fitStrokeStyles = fitContext.calls
+      .filter((call) => call.name === "setStrokeStyle")
+      .map((call) => String(call.args[0]));
+    const zoomStrokeStyles = zoomContext.calls
+      .filter((call) => call.name === "setStrokeStyle")
+      .map((call) => String(call.args[0]));
+
+    expect(fitStrokeStyles).toContain("rgba(218, 210, 188, 0.12)");
+    expect(fitStrokeStyles).not.toContain("rgba(218, 210, 188, 0.045)");
+    expect(zoomStrokeStyles).toContain("rgba(218, 210, 188, 0.12)");
+    expect(zoomStrokeStyles).toContain("rgba(218, 210, 188, 0.045)");
   });
 
   it("draws loaded avatar images inside the player marker when available", () => {

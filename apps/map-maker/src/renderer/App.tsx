@@ -4,9 +4,10 @@ import {
   worldBoundsForMapSize,
   type CustomMapTeamId,
   type MapSizePresetId,
+  type WorldBounds,
   type WorldPoint
 } from "@graphwar/shared";
-import { useMemo, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from "react";
 import {
   addDefaultSpawnSet,
   addCircleTerrain,
@@ -27,7 +28,13 @@ import {
 } from "../editor/editorModel";
 import type { Bounds, EditorState } from "../editor/editorTypes";
 import { stringifyEditorMap } from "../editor/mapExport";
-import { createViewBoxGeometry, screenPointToWorldPoint } from "./viewBoxGeometry";
+import {
+  createViewBoxGeometry,
+  panViewBoundsByScreenDelta,
+  screenPointToWorldPoint,
+  shouldShowMinorGrid,
+  zoomViewBoundsAtScreenPoint
+} from "./viewBoxGeometry";
 
 type Tool = "select" | "rectangle" | "triangle" | "circle" | "pen" | "spawn" | "team-a" | "team-b";
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
@@ -40,6 +47,10 @@ type DragState =
       type: "resize";
       handle: ResizeHandle;
       shapeId: string;
+    }
+  | {
+      type: "pan";
+      lastClientPoint: WorldPoint;
     }
   | null;
 
@@ -59,15 +70,24 @@ const tools: Array<{ id: Tool; label: string }> = [
   { id: "team-b", label: "Team B" }
 ];
 
+const defaultCanvasSize = { width: 1000, height: 600 };
+const majorGridStep = 5;
+const minorGridStep = 1;
+
 export function App() {
   const [setupDraft, setSetupDraft] = useState<SetupDraft>({
     mapName: "Custom Arena",
     mapSizePreset: defaultMapSizePreset
   });
   const [state, setState] = useState<EditorState | null>(null);
+  const [cameraBounds, setCameraBounds] = useState<WorldBounds | null>(null);
+  const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
+  const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [drag, setDrag] = useState<DragState>(null);
   const [message, setMessage] = useState("Ready");
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const suppressNextClickRef = useRef(false);
 
   const selectedTerrain = useMemo(() => {
     if (state?.selection?.type !== "terrain") {
@@ -77,7 +97,58 @@ export function App() {
   }, [state]);
 
   const selectedBounds = selectedTerrain ? getTerrainBounds(selectedTerrain) : undefined;
-  const viewGeometry = state ? createViewBoxGeometry(state.worldBounds) : undefined;
+  const viewGeometry = state ? createViewBoxGeometry(cameraBounds ?? state.worldBounds) : undefined;
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === "Space" && !isTypingTarget(event.target)) {
+        setIsSpaceDown(true);
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        setIsSpaceDown(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) {
+      return undefined;
+    }
+
+    const syncSize = () => {
+      const rect = svg.getBoundingClientRect();
+      const nextSize = {
+        width: Math.max(1, Math.round(rect.width || defaultCanvasSize.width)),
+        height: Math.max(1, Math.round(rect.height || defaultCanvasSize.height))
+      };
+      setCanvasSize((currentSize) =>
+        currentSize.width === nextSize.width && currentSize.height === nextSize.height ? currentSize : nextSize
+      );
+    };
+
+    let resizeObserver: ResizeObserver | undefined;
+    syncSize();
+    window.addEventListener("resize", syncSize);
+    if ("ResizeObserver" in window) {
+      resizeObserver = new window.ResizeObserver(syncSize);
+      resizeObserver.observe(svg);
+    }
+
+    return () => {
+      window.removeEventListener("resize", syncSize);
+      resizeObserver?.disconnect();
+    };
+  }, [state]);
 
   if (!state || !viewGeometry) {
     return (
@@ -86,12 +157,9 @@ export function App() {
           className="map-maker-setup-panel"
           onSubmit={(event) => {
             event.preventDefault();
-            setState(
-              createEmptyEditorState({
-                mapName: setupDraft.mapName,
-                worldBounds: worldBoundsForMapSize(setupDraft.mapSizePreset)
-              })
-            );
+            const worldBounds = worldBoundsForMapSize(setupDraft.mapSizePreset);
+            setState(createEmptyEditorState({ mapName: setupDraft.mapName, worldBounds }));
+            setCameraBounds(worldBounds);
             setMessage("Ready");
           }}
         >
@@ -132,17 +200,25 @@ export function App() {
 
   const editorState = state;
   const editorViewGeometry = viewGeometry;
+  const mapGeometry = createViewBoxGeometry(editorState.worldBounds);
+  const editorViewBounds = cameraBounds ?? editorState.worldBounds;
+  const showMinorGrid = shouldShowMinorGrid(editorViewBounds, canvasSize);
 
   function updateState(updater: (current: EditorState) => EditorState) {
     setState((current) => (current ? updater(current) : current));
   }
 
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+
     if (drag) {
       return;
     }
 
-    const point = eventToWorldPoint(event, editorState.worldBounds);
+    const point = eventToWorldPoint(event, editorViewBounds);
     if (tool === "rectangle") {
       updateState((current) => addRectangleTerrain(current, point, 7, 3.5));
       return;
@@ -169,12 +245,35 @@ export function App() {
     }
   }
 
+  function handleCanvasWheel(event: WheelEvent<SVGSVGElement>) {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+    setCameraBounds((currentBounds) =>
+      zoomViewBoundsAtScreenPoint(
+        editorState.worldBounds,
+        currentBounds ?? editorState.worldBounds,
+        rect,
+        { x: event.clientX, y: event.clientY },
+        factor
+      )
+    );
+  }
+
   function handleCanvasPointerDown(event: PointerEvent<SVGSVGElement>) {
+    if (shouldStartPan(event, isSpaceDown)) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      suppressNextClickRef.current = true;
+      setDrag({ type: "pan", lastClientPoint: { x: event.clientX, y: event.clientY } });
+      event.preventDefault();
+      return;
+    }
+
     if (tool !== "select") {
       return;
     }
 
-    const point = eventToWorldPoint(event, editorState.worldBounds);
+    const point = eventToWorldPoint(event, editorViewBounds);
     const selected = selectAtPoint(editorState, point);
     setState(selected);
     if (selected.selection) {
@@ -187,7 +286,19 @@ export function App() {
       return;
     }
 
-    const point = eventToWorldPoint(event, editorState.worldBounds);
+    if (drag.type === "pan") {
+      const delta = {
+        x: event.clientX - drag.lastClientPoint.x,
+        y: event.clientY - drag.lastClientPoint.y
+      };
+      const rect = event.currentTarget.getBoundingClientRect();
+      setCameraBounds((currentBounds) => panViewBoundsByScreenDelta(currentBounds ?? editorState.worldBounds, rect, delta));
+      setDrag({ type: "pan", lastClientPoint: { x: event.clientX, y: event.clientY } });
+      event.preventDefault();
+      return;
+    }
+
+    const point = eventToWorldPoint(event, editorViewBounds);
     if (drag.type === "move") {
       const delta = { x: point.x - drag.lastPoint.x, y: point.y - drag.lastPoint.y };
       updateState((current) => moveSelected(current, delta));
@@ -284,34 +395,49 @@ export function App() {
 
         <section className="map-maker-canvas" aria-label="Map canvas">
           <svg
+            className={drag?.type === "pan" ? "panning" : undefined}
             onClick={handleCanvasClick}
             onContextMenu={handleContextMenu}
             onPointerDown={handleCanvasPointerDown}
             onPointerLeave={handlePointerEnd}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handlePointerEnd}
+            onWheel={handleCanvasWheel}
+            ref={svgRef}
             role="img"
             viewBox={editorViewGeometry.viewBox}
           >
             <rect
               className="world-bg"
-              height={editorViewGeometry.worldHeight}
-              width={editorViewGeometry.worldWidth}
+              height={mapGeometry.worldHeight}
+              width={mapGeometry.worldWidth}
               x={editorState.worldBounds.minX}
-              y={editorViewGeometry.minSvgY}
+              y={mapGeometry.minSvgY}
             />
-            <g className="grid-lines">
-              {Array.from({ length: Math.round(editorViewGeometry.worldWidth / 5) + 1 }, (_, index) => {
-                const x = editorState.worldBounds.minX + index * 5;
-                return <line key={`x-${x}`} x1={x} x2={x} y1={editorViewGeometry.minSvgY} y2={editorViewGeometry.maxSvgY} />;
-              })}
-              {Array.from({ length: Math.round(editorViewGeometry.worldHeight / 5) + 1 }, (_, index) => {
-                const y = editorViewGeometry.minSvgY + index * 5;
-                return <line key={`y-${y}`} x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={y} y2={y} />;
-              })}
+            {showMinorGrid ? (
+              <g className="grid-lines minor-grid-lines">
+                {gridValues(editorState.worldBounds.minX, editorState.worldBounds.maxX, minorGridStep)
+                  .filter((x) => !isGridMultiple(x, majorGridStep))
+                  .map((x) => (
+                    <line key={`minor-x-${x}`} x1={x} x2={x} y1={mapGeometry.minSvgY} y2={mapGeometry.maxSvgY} />
+                  ))}
+                {gridValues(editorState.worldBounds.minY, editorState.worldBounds.maxY, minorGridStep)
+                  .filter((y) => !isGridMultiple(y, majorGridStep))
+                  .map((y) => (
+                    <line key={`minor-y-${y}`} x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={-y} y2={-y} />
+                  ))}
+              </g>
+            ) : null}
+            <g className="grid-lines major-grid-lines">
+              {gridValues(editorState.worldBounds.minX, editorState.worldBounds.maxX, majorGridStep).map((x) => (
+                <line key={`major-x-${x}`} x1={x} x2={x} y1={mapGeometry.minSvgY} y2={mapGeometry.maxSvgY} />
+              ))}
+              {gridValues(editorState.worldBounds.minY, editorState.worldBounds.maxY, majorGridStep).map((y) => (
+                <line key={`major-y-${y}`} x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={-y} y2={-y} />
+              ))}
             </g>
             <line className="axis-line" x1={editorState.worldBounds.minX} x2={editorState.worldBounds.maxX} y1={0} y2={0} />
-            <line className="axis-line" x1={0} x2={0} y1={editorViewGeometry.minSvgY} y2={editorViewGeometry.maxSvgY} />
+            <line className="axis-line" x1={0} x2={0} y1={mapGeometry.minSvgY} y2={mapGeometry.maxSvgY} />
 
             {editorState.terrainShapes.map((shape) => (
               <path
@@ -319,9 +445,12 @@ export function App() {
                 d={shapePath(shape.points)}
                 key={shape.id}
                 onPointerDown={(event) => {
+                  if (shouldStartPan(event, isSpaceDown)) {
+                    return;
+                  }
                   if (tool === "select") {
                     event.stopPropagation();
-                    const point = eventToWorldPoint(event, editorState.worldBounds);
+                    const point = eventToWorldPoint(event, editorViewBounds);
                     updateState((current) => selectItem(current, { type: "terrain", id: shape.id }));
                     setDrag({ type: "move", lastPoint: point });
                   }
@@ -351,9 +480,12 @@ export function App() {
                   }
                 }}
                 onPointerDown={(event) => {
+                  if (shouldStartPan(event, isSpaceDown)) {
+                    return;
+                  }
                   if (tool === "select") {
                     event.stopPropagation();
-                    const point = eventToWorldPoint(event, editorState.worldBounds);
+                    const point = eventToWorldPoint(event, editorViewBounds);
                     updateState((current) => selectItem(current, { type: "spawn", id: spawn.id }));
                     setDrag({ type: "move", lastPoint: point });
                   }
@@ -365,6 +497,7 @@ export function App() {
             {selectedBounds && selectedTerrain ? (
               <TransformBox
                 bounds={selectedBounds}
+                isSpaceDown={isSpaceDown}
                 onHandlePointerDown={(handle) => setDrag({ type: "resize", handle, shapeId: selectedTerrain.id })}
               />
             ) : null}
@@ -386,9 +519,11 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 function TransformBox({
   bounds,
+  isSpaceDown,
   onHandlePointerDown
 }: {
   bounds: Bounds;
+  isSpaceDown: boolean;
   onHandlePointerDown: (handle: ResizeHandle) => void;
 }) {
   const handles: Array<{ handle: ResizeHandle; point: WorldPoint }> = [
@@ -412,6 +547,9 @@ function TransformBox({
           cy={-point.y}
           key={handle}
           onPointerDown={(event) => {
+            if (isSpaceDown) {
+              return;
+            }
             event.stopPropagation();
             onHandlePointerDown(handle);
           }}
@@ -428,6 +566,31 @@ function eventToWorldPoint(
 ): WorldPoint {
   const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
   return screenPointToWorldPoint({ x: event.clientX, y: event.clientY }, svg.getBoundingClientRect(), worldBounds);
+}
+
+function shouldStartPan(event: PointerEvent<SVGElement>, isSpaceDown: boolean): boolean {
+  return event.button === 1 || (event.button === 0 && isSpaceDown);
+}
+
+function gridValues(min: number, max: number, step: number): number[] {
+  const values: number[] = [];
+  for (let value = Math.ceil(min / step) * step; value <= max; value += step) {
+    values.push(roundToTenth(value));
+  }
+  return values;
+}
+
+function isGridMultiple(value: number, multiple: number): boolean {
+  const ratio = value / multiple;
+  return Math.abs(ratio - Math.round(ratio)) < 1e-6;
+}
+
+function roundToTenth(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
 }
 
 function shapePath(points: WorldPoint[]): string {

@@ -28,7 +28,11 @@ export type RenderWorldOptions = {
   snapshot?: MatchSnapshot;
 };
 
-const GRID_STEP = 5;
+const MAJOR_GRID_STEP = 5;
+const MINOR_GRID_STEP = 1;
+const MINOR_GRID_PIXEL_THRESHOLD = 32;
+const MAJOR_GRID_STROKE = "rgba(218, 210, 188, 0.12)";
+const MINOR_GRID_STROKE = "rgba(218, 210, 188, 0.045)";
 const TEAM_COLORS = ["#ef6f6c", "#5fb3f9", "#f5c542", "#7bd88f", "#c084fc", "#f59f5f"];
 
 export function worldToCanvas(point: WorldPoint, size: CanvasSize) {
@@ -124,18 +128,50 @@ function drawBackground(ctx: CanvasRenderingContext2D, size: CanvasSize): void {
 
 function drawGrid(ctx: CanvasRenderingContext2D, bounds: WorldBounds, camera: Camera): void {
   ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(218, 210, 188, 0.1)";
+  if (shouldShowMinorGrid(camera)) {
+    ctx.lineWidth = 0.55;
+    ctx.strokeStyle = MINOR_GRID_STROKE;
+    drawGridLines(ctx, bounds, camera, MINOR_GRID_STEP, MAJOR_GRID_STEP);
+  }
 
-  for (let x = Math.ceil(bounds.minX / GRID_STEP) * GRID_STEP; x <= bounds.maxX; x += GRID_STEP) {
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = MAJOR_GRID_STROKE;
+  drawGridLines(ctx, bounds, camera, MAJOR_GRID_STEP);
+  ctx.restore();
+}
+
+function drawGridLines(
+  ctx: CanvasRenderingContext2D,
+  bounds: WorldBounds,
+  camera: Camera,
+  step: number,
+  skipEvery?: number
+): void {
+  const startX = Math.ceil(bounds.minX / step) * step;
+  const startY = Math.ceil(bounds.minY / step) * step;
+
+  for (let x = startX; x <= bounds.maxX; x += step) {
+    if (skipEvery && isGridMultiple(x, skipEvery)) {
+      continue;
+    }
     drawWorldLine(ctx, camera, { x, y: bounds.minY }, { x, y: bounds.maxY });
   }
 
-  for (let y = Math.ceil(bounds.minY / GRID_STEP) * GRID_STEP; y <= bounds.maxY; y += GRID_STEP) {
+  for (let y = startY; y <= bounds.maxY; y += step) {
+    if (skipEvery && isGridMultiple(y, skipEvery)) {
+      continue;
+    }
     drawWorldLine(ctx, camera, { x: bounds.minX, y }, { x: bounds.maxX, y });
   }
+}
 
-  ctx.restore();
+function shouldShowMinorGrid(camera: Camera): boolean {
+  return camera.scale >= MINOR_GRID_PIXEL_THRESHOLD;
+}
+
+function isGridMultiple(value: number, multiple: number): boolean {
+  const ratio = value / multiple;
+  return Math.abs(ratio - Math.round(ratio)) < 1e-6;
 }
 
 function drawAxes(ctx: CanvasRenderingContext2D, bounds: WorldBounds, camera: Camera): void {

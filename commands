@@ -1,0 +1,45 @@
+Graphwar local game
+===================
+
+Start server + client:
+npm run dev
+
+Open two or more browser tabs:
+http://localhost:5173/?guild=local-guild&user=alice
+http://localhost:5173/?guild=local-guild&user=bob
+http://localhost:5173/?guild=local-guild&user=charlie
+
+Optional avatar URL example:
+http://localhost:5173/?guild=local-guild&user=alice&displayName=Alice&avatar=https%3A%2F%2Fcdn.example%2Falice.png
+
+Flow:
+1. Alice creates a lobby from the main menu.
+2. Bob opens the second tab, joins Alice's lobby, picks an alias/color, and joins a team or player slot.
+3. Alice starts the match from the lobby setup screen.
+
+
+Map maker
+=========
+
+Build and launch in one command:
+npm run dev:map-maker
+
+Alternative explicit commands:
+npm --workspace apps/map-maker run build
+npm --workspace apps/map-maker run start
+
+
+Verification commands
+=====================
+
+Run unit/integration tests:
+npm test
+
+Run typecheck:
+npm run check
+
+Run browser e2e tests:
+npm run test:e2e
+
+Build map maker:
+npm run build:map-maker
