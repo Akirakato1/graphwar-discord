@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { craterRadiusBounds, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
-import { groupMoveAction, LobbySetupView } from "./LobbySetupView";
+import { groupMoveAction, LobbySetupView, shouldConfirmLobbyCancellation } from "./LobbySetupView";
 
 const lobby = {
   guildId: "local-guild",
@@ -127,6 +127,32 @@ describe("LobbySetupView", () => {
         targetPlacement: "team-b"
       })
     ).toEqual({ label: "Join B", targetPlayerId: "alice-id", placement: "team-b", disabled: false });
+  });
+
+  it("only asks for lobby deletion confirmation when the open lobby owner returns to menu", () => {
+    expect(
+      shouldConfirmLobbyCancellation({
+        currentDiscordUserId: "alice-id",
+        currentPlayerId: "alice-id",
+        lobby
+      })
+    ).toBe(true);
+
+    expect(
+      shouldConfirmLobbyCancellation({
+        currentDiscordUserId: "bob-id",
+        currentPlayerId: "bob-id",
+        lobby
+      })
+    ).toBe(false);
+
+    expect(
+      shouldConfirmLobbyCancellation({
+        currentDiscordUserId: "alice-id",
+        currentPlayerId: "alice-id",
+        lobby: { ...lobby, status: "playing", canStart: false, startBlockedReason: "Match has already started." }
+      })
+    ).toBe(false);
   });
 
   it("shows read-only gameplay rules before match start", () => {

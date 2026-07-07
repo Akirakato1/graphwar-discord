@@ -45,6 +45,13 @@ export type AutoAssignTeamsCommand = {
   playerId: PlayerId;
   sessionToken?: string;
 };
+export type CancelLobbyCommand = {
+  type: "cancel-lobby";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  sessionToken?: string;
+};
 export type StartMatchCommand = {
   type: "start-match";
   guildId?: GuildId;
@@ -83,6 +90,7 @@ export type ClientCommand =
   | SelectModeCommand
   | SetTeamCommand
   | AutoAssignTeamsCommand
+  | CancelLobbyCommand
   | StartMatchCommand
   | SubmitShotCommand
   | SendChatCommand

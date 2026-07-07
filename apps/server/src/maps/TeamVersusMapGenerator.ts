@@ -16,6 +16,7 @@ import {
   type TeamVersusTeamId
 } from "../modes/TeamAssignment";
 import { cloneWorldBounds, MapGenerator, type GeneratedMap, type SpawnPoint } from "./MapGenerator";
+import { ensureSpawnsOutsideTerrain } from "./SpawnSafety";
 
 const spawnXByTeamId: Record<TeamVersusTeamId, number> = {
   "team-a": -18,
@@ -80,19 +81,23 @@ function teamVersusTerrain(): TerrainState {
 
 export class TeamVersusMapGenerator extends MapGenerator {
   generate(_seed: string, playerIds: PlayerId[], worldBounds = worldBoundsForMapSize("standard")): GeneratedMap {
-    return {
-      spawns: playerIds.map((playerId, index) => {
-        const teamId = assignTeamIdByPlayerIndex(index);
-        const teamIndex = playerTeamIndexByPlayerIndex(index);
+    const terrain = scaleTerrain(teamVersusTerrain(), worldBounds);
+    const spawns = playerIds.map((playerId, index) => {
+      const teamId = assignTeamIdByPlayerIndex(index);
+      const teamIndex = playerTeamIndexByPlayerIndex(index);
 
-        return spawnForTeam(playerId, teamId, teamIndex, worldBounds);
-      }),
-      terrain: scaleTerrain(teamVersusTerrain(), worldBounds),
+      return spawnForTeam(playerId, teamId, teamIndex, worldBounds);
+    });
+
+    return {
+      spawns: ensureSpawnsOutsideTerrain(spawns, terrain, worldBounds),
+      terrain,
       worldBounds: cloneWorldBounds(worldBounds)
     };
   }
 
   generateForTeams(_seed: string, teams: TeamState[], worldBounds = worldBoundsForMapSize("standard")): GeneratedMap {
+    const terrain = scaleTerrain(teamVersusTerrain(), worldBounds);
     const spawns = teamVersusTeamIds.flatMap((teamId) => {
       const team = teams.find((candidate) => candidate.id === teamId);
       return (team?.playerIds ?? []).map((playerId, teamIndex) =>
@@ -101,8 +106,8 @@ export class TeamVersusMapGenerator extends MapGenerator {
     });
 
     return {
-      spawns,
-      terrain: scaleTerrain(teamVersusTerrain(), worldBounds),
+      spawns: ensureSpawnsOutsideTerrain(spawns, terrain, worldBounds),
+      terrain,
       worldBounds: cloneWorldBounds(worldBounds)
     };
   }

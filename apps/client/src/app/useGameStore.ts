@@ -61,6 +61,7 @@ export type GameClientFactory = (options: ConnectGameClientOptions) => GameClien
 
 export type GameStoreState = {
   autoAssignTeams(): void;
+  cancelLobby(): void;
   clearLog(): void;
   connect(): void;
   connectionStatus: ConnectionStatus;
@@ -190,6 +191,8 @@ function describeEvent(event: ServerEvent): string {
       return `${event.playerId} left the room.`;
     case "match-started":
       return `Match started in ${event.snapshot.mode}.`;
+    case "lobby-cancelled":
+      return "Lobby cancelled.";
     case "turn-started":
       return `Turn ${event.turnNumber}: ${event.playerId} is active.`;
     case "shot-accepted":
@@ -265,6 +268,21 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
     }
 
     function handleEvent(event: ServerEvent): void {
+      if (event.type === "lobby-cancelled") {
+        closeClientForLobbySwitch();
+        set({
+          currentLobby: undefined,
+          lastError: undefined,
+          lastRejection: undefined,
+          recentEvents: [event].slice(-logLimit),
+          selectedLobbySession: undefined,
+          snapshot: undefined,
+          view: "main-menu"
+        });
+        appendLog(describeEvent(event), event.type);
+        return;
+      }
+
       set((state) => ({
         currentLobby: "lobby" in event && event.lobby ? event.lobby : state.currentLobby,
         lastRejection:
@@ -289,6 +307,20 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
 
         sendCommand({
           type: "auto-assign-teams",
+          guildId: selected.guildId,
+          roomId: selected.roomId,
+          playerId: selected.playerId,
+          sessionToken: selected.sessionToken
+        });
+      },
+      cancelLobby() {
+        const selected = selectedRoom();
+        if (!selected) {
+          return;
+        }
+
+        sendCommand({
+          type: "cancel-lobby",
           guildId: selected.guildId,
           roomId: selected.roomId,
           playerId: selected.playerId,

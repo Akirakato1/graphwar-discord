@@ -78,8 +78,9 @@ export function App({ viewOverride }: AppProps = {}) {
   const settings = useGameStore((state) => state.settings);
   const setView = useGameStore((state) => state.setView);
   const storeView = useGameStore((state) => state.view);
-  const disconnect = useGameStore((state) => state.disconnect);
+  const cancelLobby = useGameStore((state) => state.cancelLobby);
   const joinLobby = useGameStore((state) => state.joinLobby);
+  const returnToMenu = useGameStore((state) => state.returnToMenu);
   const selectedLobbySession = useGameStore((state) => state.selectedLobbySession);
   const session = useGameStore((state) => state.session);
   const setTeam = useGameStore((state) => state.setTeam);
@@ -172,10 +173,8 @@ export function App({ viewOverride }: AppProps = {}) {
         currentPlayerId={lobbyIdentity.effectiveSession.playerId}
         lobby={currentLobby}
         onAutoAssign={autoAssignTeams}
-        onBack={() => {
-          disconnect();
-          setView("main-menu");
-        }}
+        onBack={returnToMenu}
+        onCancelLobby={cancelLobby}
         onMove={setTeam}
         onStart={startMatch}
       />

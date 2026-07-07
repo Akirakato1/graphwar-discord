@@ -479,6 +479,72 @@ describe("RoomManager WebSocket integration", () => {
     await closeSocket(alice);
   });
 
+  it("broadcasts leader lobby cancellation and hides the lobby from guild listings", async () => {
+    const app = await startTestServer();
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Cancel Socket Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    expect(joinResponse.statusCode).toBe(200);
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, {
+      type: "cancel-lobby",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      sessionToken: created.session.sessionToken
+    });
+
+    const aliceCancelled = await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "lobby-cancelled" && candidate.roomId === created.session.roomId
+    );
+    const bobCancelled = await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "lobby-cancelled" && candidate.roomId === created.session.roomId
+    );
+    expect(aliceCancelled.type).toBe("lobby-cancelled");
+    expect(bobCancelled.type).toBe("lobby-cancelled");
+    if (aliceCancelled.type === "lobby-cancelled") {
+      expect(aliceCancelled.lobby.status).toBe("ended");
+      expect(aliceCancelled.lobby.canStart).toBe(false);
+    }
+
+    const listResponse = await app.inject({ method: "GET", url: "/guilds/local-guild/lobbies" });
+    expect(listResponse.statusCode).toBe(200);
+    expect(JSON.parse(listResponse.body)).toEqual([]);
+
+    await closeSocket(alice);
+    await closeSocket(bob);
+  });
+
   it("applies the selected damage setting to live websocket match hits", async () => {
     const app = await startTestServer();
     const createResponse = await app.inject({

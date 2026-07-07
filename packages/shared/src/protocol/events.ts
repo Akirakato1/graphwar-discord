@@ -33,6 +33,13 @@ export type MatchStartedEvent = {
   lobby?: LobbyRuntimeSnapshot;
 };
 
+export type LobbyCancelledEvent = {
+  type: "lobby-cancelled";
+  guildId?: GuildId;
+  roomId: RoomId;
+  lobby: LobbyRuntimeSnapshot;
+};
+
 export type ShotResolvedEvent = {
   type: "shot-resolved";
   guildId?: GuildId;
@@ -64,6 +71,7 @@ export type ServerEvent =
   | { type: "player-joined"; roomId: RoomId; playerId: PlayerId }
   | { type: "player-left"; roomId: RoomId; playerId: PlayerId }
   | MatchStartedEvent
+  | LobbyCancelledEvent
   | { type: "turn-started"; roomId: RoomId; playerId: PlayerId; turnNumber: number }
   | { type: "shot-accepted"; roomId: RoomId; playerId: PlayerId }
   | { type: "shot-rejected"; roomId: RoomId; playerId: PlayerId; reason: string }

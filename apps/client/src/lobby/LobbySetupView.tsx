@@ -6,6 +6,7 @@ type LobbySetupViewProps = {
   lobby: LobbyRuntimeSnapshot;
   onAutoAssign: () => void;
   onBack: () => void;
+  onCancelLobby?: () => void;
   onMove: (targetPlayerId: string, placement: LobbyPlacementId) => void;
   onStart: () => void;
 };
@@ -47,12 +48,33 @@ export function groupMoveAction({
   };
 }
 
+export function shouldConfirmLobbyCancellation({
+  currentDiscordUserId,
+  currentPlayerId,
+  lobby
+}: {
+  currentDiscordUserId?: string;
+  currentPlayerId: string;
+  lobby: LobbyRuntimeSnapshot;
+}): boolean {
+  if (lobby.status !== "open") {
+    return false;
+  }
+
+  const currentOccupant = lobby.occupants.find(
+    (occupant) => occupant.playerId === currentPlayerId || occupant.discordUserId === currentDiscordUserId
+  );
+
+  return currentOccupant?.isLeader ?? lobby.leaderDiscordUserId === currentDiscordUserId;
+}
+
 export function LobbySetupView({
   currentDiscordUserId,
   currentPlayerId,
   lobby,
   onAutoAssign,
   onBack,
+  onCancelLobby,
   onMove,
   onStart
 }: LobbySetupViewProps) {
@@ -63,6 +85,7 @@ export function LobbySetupView({
   const currentOccupantPlayerId = currentOccupant?.playerId ?? currentPlayerId;
   const currentPlacement = currentOccupant?.placement;
   const canMoveCurrentOccupant = Boolean(currentOccupant) && (isLeader || currentOccupant?.playerId === currentOccupantPlayerId);
+  const backDeletesLobby = shouldConfirmLobbyCancellation({ currentDiscordUserId, currentPlayerId, lobby });
   const boxes: Array<{ placement: LobbyPlacementId; title: string }> =
     lobby.mode === "team-versus"
       ? [
@@ -74,6 +97,21 @@ export function LobbySetupView({
           { placement: "players", title: "Players" },
           { placement: "spectator", title: "Spectators" }
         ];
+  const handleBack = () => {
+    if (!backDeletesLobby) {
+      onBack();
+      return;
+    }
+
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm("Leaving will delete this lobby for everyone. Return to main menu and delete lobby?")
+        : false;
+
+    if (confirmed) {
+      onCancelLobby?.();
+    }
+  };
 
   return (
     <section className="lobby-setup-screen" aria-labelledby="lobby-setup-title">
@@ -91,7 +129,7 @@ export function LobbySetupView({
           <button className="primary-action" disabled={!isLeader || !lobby.canStart} onClick={onStart} type="button">
             Start Match
           </button>
-          <button className="secondary-action" onClick={onBack} type="button">
+          <button className="secondary-action" onClick={handleBack} type="button">
             Main Menu
           </button>
         </div>

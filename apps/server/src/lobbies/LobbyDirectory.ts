@@ -330,6 +330,22 @@ export class LobbyDirectory {
     return this.snapshot(lobby);
   }
 
+  cancelLobby(guildId: string, roomId: string, actorId: string): LobbyRuntimeSnapshot {
+    const lobby = this.requireLobby(guildId, roomId);
+
+    if (actorId !== lobby.leaderDiscordUserId) {
+      throw new Error("Only the lobby leader can cancel.");
+    }
+
+    if (lobby.status !== "open") {
+      throw new Error("Only open lobbies can be cancelled.");
+    }
+
+    lobby.status = "ended";
+
+    return this.snapshot(lobby);
+  }
+
   playerOccupants(guildId: string, roomId: string): LobbyOccupant[] {
     return Array.from(this.requireLobby(guildId, roomId).occupants.values())
       .filter((occupant) => occupant.slot === "player")
@@ -472,6 +488,10 @@ export class LobbyDirectory {
   }
 
   private startBlockedReason(lobby: RuntimeLobby): string | undefined {
+    if (lobby.status === "ended") {
+      return "Lobby has ended.";
+    }
+
     if (lobby.status === "playing") {
       return "Match has already started.";
     }

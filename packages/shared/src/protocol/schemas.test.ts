@@ -266,6 +266,21 @@ describe("protocol schemas", () => {
     };
 
     expect(clientCommandSchema.parse(joinCommand)).toEqual(joinCommand);
+    expect(
+      clientCommandSchema.parse({
+        type: "cancel-lobby",
+        guildId: "local-guild",
+        roomId: "room-1",
+        playerId: "alice-id",
+        sessionToken: "session-token"
+      } satisfies ClientCommand)
+    ).toEqual({
+      type: "cancel-lobby",
+      guildId: "local-guild",
+      roomId: "room-1",
+      playerId: "alice-id",
+      sessionToken: "session-token"
+    });
 
     expect(
       clientCommandSchema.parse({
@@ -318,6 +333,19 @@ describe("protocol schemas", () => {
 
     expect(serverEventSchema.parse(event)).toEqual(event);
     expect(lobbyRuntimeSnapshotSchema.parse(event.lobby)).toEqual(event.lobby);
+    expect(
+      serverEventSchema.parse({
+        type: "lobby-cancelled",
+        guildId: "local-guild",
+        roomId: "room-1",
+        lobby: { ...event.lobby!, status: "ended", canStart: false, startBlockedReason: "Lobby has ended." }
+      } satisfies ServerEvent)
+    ).toEqual({
+      type: "lobby-cancelled",
+      guildId: "local-guild",
+      roomId: "room-1",
+      lobby: { ...event.lobby!, status: "ended", canStart: false, startBlockedReason: "Lobby has ended." }
+    });
   });
 
   it("keeps world bounds and player avatar URLs on match snapshots", () => {

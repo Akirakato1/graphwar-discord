@@ -130,6 +130,7 @@ export class GameRoom {
       }
       case "set-team":
       case "auto-assign-teams":
+      case "cancel-lobby":
       case "send-chat":
       case "request-rematch":
         this.sendRejection(socket, command.playerId, `Unsupported command: ${command.type}`);
@@ -186,6 +187,15 @@ export class GameRoom {
         context.lobbies.autoAssignTeams(context.guildId, this.roomId, session.discordUserId);
         this.syncLobbySnapshot();
         this.broadcastRoomSnapshot();
+        return;
+      }
+      case "cancel-lobby": {
+        const session = this.requireLobbySession(socket, command);
+        if (!session) {
+          return;
+        }
+        const lobby = context.lobbies.cancelLobby(context.guildId, this.roomId, session.discordUserId);
+        this.broadcast({ type: "lobby-cancelled", guildId: context.guildId, roomId: this.roomId, lobby });
         return;
       }
       case "start-match": {

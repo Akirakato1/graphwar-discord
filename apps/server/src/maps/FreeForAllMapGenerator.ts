@@ -8,7 +8,8 @@ import {
   type WorldBounds,
   type WorldPoint
 } from "@graphwar/shared";
-import { cloneWorldBounds, MapGenerator, type GeneratedMap } from "./MapGenerator";
+import { cloneWorldBounds, MapGenerator, type GeneratedMap, type SpawnPoint } from "./MapGenerator";
+import { ensureSpawnsOutsideTerrain } from "./SpawnSafety";
 
 function roundToTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
@@ -69,23 +70,25 @@ export class FreeForAllMapGenerator extends MapGenerator {
         ])
       ]
     };
+    const scaledTerrain = scaleTerrain(terrain, worldBounds);
+    const spawns: SpawnPoint[] = playerIds.map((playerId, index) => {
+      const angle = (2 * Math.PI * index) / playerIds.length;
+
+      return {
+        playerId,
+        position: scalePoint(
+          {
+            x: roundToTwoDecimals(Math.cos(angle) * 16),
+            y: roundToTwoDecimals(Math.sin(angle) * 9)
+          },
+          worldBounds
+        )
+      };
+    });
 
     return {
-      spawns: playerIds.map((playerId, index) => {
-        const angle = (2 * Math.PI * index) / playerIds.length;
-
-        return {
-          playerId,
-          position: scalePoint(
-            {
-              x: roundToTwoDecimals(Math.cos(angle) * 16),
-              y: roundToTwoDecimals(Math.sin(angle) * 9)
-            },
-            worldBounds
-          )
-        };
-      }),
-      terrain: scaleTerrain(terrain, worldBounds),
+      spawns: ensureSpawnsOutsideTerrain(spawns, scaledTerrain, worldBounds),
+      terrain: scaledTerrain,
       worldBounds: cloneWorldBounds(worldBounds)
     };
   }

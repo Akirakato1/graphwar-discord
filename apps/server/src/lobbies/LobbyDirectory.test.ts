@@ -159,6 +159,25 @@ describe("LobbyDirectory", () => {
     ]);
   });
 
+  it("lets the leader cancel an open lobby and hides it from listings", async () => {
+    const directory = createDirectory();
+
+    await directory.createLobby("guild-1", {
+      name: "Cancel Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    expect(() => directory.cancelLobby("guild-1", "room-1", "bob-id")).toThrow("Only the lobby leader can cancel.");
+
+    const cancelled = directory.cancelLobby("guild-1", "room-1", "alice-id");
+
+    expect(cancelled).toEqual(expect.objectContaining({ status: "ended", canStart: false }));
+    expect(directory.listLobbies("guild-1")).toEqual([]);
+  });
+
   it("preserves avatar URLs in lobby occupants and sessions", async () => {
     const directory = createDirectory();
 

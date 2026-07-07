@@ -94,6 +94,13 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     sessionToken: optionalSessionTokenSchema
   }),
   z.object({
+    type: z.literal("cancel-lobby"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    sessionToken: optionalSessionTokenSchema
+  }),
+  z.object({
     type: z.literal("start-match"),
     guildId: optionalGuildIdSchema,
     roomId: z.string(),
@@ -162,6 +169,12 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     roomId: z.string(),
     snapshot: matchSnapshotSchema,
     lobby: lobbyRuntimeSnapshotSchema.optional()
+  }),
+  z.object({
+    type: z.literal("lobby-cancelled"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    lobby: lobbyRuntimeSnapshotSchema
   }),
   z.object({ type: z.literal("turn-started"), roomId: z.string(), playerId: z.string(), turnNumber: positiveIntegerSchema }),
   z.object({ type: z.literal("shot-accepted"), roomId: z.string(), playerId: z.string() }),

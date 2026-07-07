@@ -685,6 +685,66 @@ describe("createGameStore", () => {
     ]);
   });
 
+  it("sends a cancel-lobby command for the selected lobby", async () => {
+    const commands: ClientCommand[] = [];
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: () => ({
+        send: (command) => commands.push(command),
+        close: () => {}
+      })
+    });
+
+    await selectLobby(store);
+    store.getState().cancelLobby();
+
+    expect(commands).toEqual([
+      {
+        type: "cancel-lobby",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        sessionToken: "session-token"
+      }
+    ]);
+  });
+
+  it("returns to the main menu when the selected lobby is cancelled", async () => {
+    let closed = false;
+    let onEvent: ((event: ServerEvent) => void) | undefined;
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: (options) => {
+        onEvent = options.onEvent;
+        return {
+          send: () => {},
+          close: () => {
+            closed = true;
+          }
+        };
+      }
+    });
+
+    await selectLobby(store);
+    const cancelledLobby = {
+      ...store.getState().currentLobby!,
+      status: "ended" as const,
+      canStart: false,
+      startBlockedReason: "Lobby has ended."
+    };
+
+    onEvent?.({ type: "lobby-cancelled", guildId: "local-guild", roomId: "local-test", lobby: cancelledLobby });
+
+    expect(closed).toBe(true);
+    expect(store.getState().view).toBe("main-menu");
+    expect(store.getState().currentLobby).toBeUndefined();
+    expect(store.getState().selectedLobbySession).toBeUndefined();
+    expect(store.getState().snapshot).toBeUndefined();
+    expect(store.getState().recentEvents.map((event) => event.type)).toEqual(["lobby-cancelled"]);
+  });
+
   it("does not leave an old reconnect timer alive when manually connecting during the reconnect delay", async () => {
     vi.useFakeTimers();
     const store = createGameStore({

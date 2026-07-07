@@ -1,7 +1,57 @@
 import { describe, expect, it } from "vitest";
-import { fieldBounds, isWorldPointInBounds, worldBoundsForMapSize } from "@graphwar/shared";
+import {
+  fieldBounds,
+  isWorldPointInBounds,
+  mapSizePresetIds,
+  worldBoundsForMapSize,
+  type TerrainBlob,
+  type TerrainState,
+  type WorldPoint
+} from "@graphwar/shared";
 import { FreeForAllMapGenerator } from "./FreeForAllMapGenerator";
 import { TeamVersusMapGenerator } from "./TeamVersusMapGenerator";
+
+function pointOnSegment(point: WorldPoint, start: WorldPoint, end: WorldPoint): boolean {
+  const cross = (point.y - start.y) * (end.x - start.x) - (point.x - start.x) * (end.y - start.y);
+  if (Math.abs(cross) > 1e-9) return false;
+
+  return (
+    point.x >= Math.min(start.x, end.x) - 1e-9 &&
+    point.x <= Math.max(start.x, end.x) + 1e-9 &&
+    point.y >= Math.min(start.y, end.y) - 1e-9 &&
+    point.y <= Math.max(start.y, end.y) + 1e-9
+  );
+}
+
+function pointInRing(point: WorldPoint, ring: WorldPoint[]): boolean {
+  let inside = false;
+  for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index, index += 1) {
+    const current = ring[index];
+    const previous = ring[previousIndex];
+
+    if (pointOnSegment(point, previous, current)) {
+      return true;
+    }
+
+    const crossesY = current.y > point.y !== previous.y > point.y;
+    if (!crossesY) continue;
+
+    const intersectionX = ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x;
+    if (point.x < intersectionX) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function pointInBlob(point: WorldPoint, blob: TerrainBlob): boolean {
+  return pointInRing(point, blob.outer) && !blob.holes.some((hole) => pointInRing(point, hole));
+}
+
+function terrainAtPoint(point: WorldPoint, terrain: TerrainState): string | undefined {
+  return terrain.blobs.find((blob) => pointInBlob(point, blob))?.id;
+}
 
 describe("map generators", () => {
   it("creates deterministic team-versus spawns and terrain", () => {
@@ -112,5 +162,32 @@ describe("map generators", () => {
 
     expect(map.spawns).toEqual([]);
     expect(map.terrain.blobs.length).toBeGreaterThan(0);
+  });
+
+  it("keeps generated default-map spawn points out of terrain", () => {
+    const freeForAll = new FreeForAllMapGenerator();
+    const teamVersus = new TeamVersusMapGenerator();
+
+    for (const presetId of mapSizePresetIds) {
+      const bounds = worldBoundsForMapSize(presetId);
+      for (let playerCount = 1; playerCount <= 10; playerCount += 1) {
+        const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index}`);
+        const maps = [
+          { mode: "free-for-all", map: freeForAll.generate("seed", playerIds, bounds) },
+          { mode: "team-versus", map: teamVersus.generate("seed", playerIds, bounds) }
+        ];
+
+        for (const generated of maps) {
+          const blocked = generated.map.spawns.flatMap((spawn) => {
+            const terrainId = terrainAtPoint(spawn.position, generated.map.terrain);
+            return terrainId
+              ? [{ presetId, playerCount, mode: generated.mode, playerId: spawn.playerId, terrainId }]
+              : [];
+          });
+
+          expect(blocked).toEqual([]);
+        }
+      }
+    }
   });
 });
