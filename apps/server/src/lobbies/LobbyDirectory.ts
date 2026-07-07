@@ -16,6 +16,7 @@ import {
   type LobbyStatus,
   type LobbySummary,
   type MapSizePresetId,
+  normalizeCraterRadius,
   normalizeDamagePerHit,
   normalizeMaxFunctionLength,
   normalizePlayerColor,
@@ -55,6 +56,7 @@ type RuntimeLobby = {
   sessionTokens: Map<DiscordUserId, string>;
   maxFunctionLength: number;
   damagePerHit: number;
+  craterRadius: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
@@ -113,6 +115,7 @@ export class LobbyDirectory {
       sessionTokens: new Map(),
       maxFunctionLength: normalizeMaxFunctionLength(request.maxFunctionLength),
       damagePerHit: normalizeDamagePerHit(request.damagePerHit),
+      craterRadius: normalizeCraterRadius(request.craterRadius),
       uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
       friendlyFire:
         request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
@@ -223,6 +226,7 @@ export class LobbyDirectory {
           playerCount: occupants.filter((occupant) => occupant.slot === "player").length,
           spectatorCount: occupants.filter((occupant) => occupant.slot === "spectator").length,
           damagePerHit: lobby.damagePerHit,
+          craterRadius: lobby.craterRadius,
           uniqueFunctionHits: lobby.uniqueFunctionHits,
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions,
@@ -513,6 +517,7 @@ export class LobbyDirectory {
       startBlockedReason,
       maxFunctionLength: lobby.maxFunctionLength,
       damagePerHit: lobby.damagePerHit,
+      craterRadius: lobby.craterRadius,
       uniqueFunctionHits: lobby.uniqueFunctionHits,
       friendlyFire: lobby.friendlyFire,
       advancedFunctions: lobby.advancedFunctions,

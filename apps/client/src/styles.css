@@ -452,6 +452,24 @@ dd {
   height: 18px;
 }
 
+.menu-form .slider-setting span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.menu-form .slider-setting strong {
+  color: #ffd166;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.menu-form input[type="range"] {
+  padding: 0;
+}
+
 .menu-form input,
 .menu-form select {
   min-width: 0;

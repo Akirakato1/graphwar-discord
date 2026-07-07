@@ -3,6 +3,7 @@ import {
   defaultMatchTuning,
   defaultMaxFunctionLength,
   defaultMapSizePreset,
+  normalizeCraterRadius,
   normalizeDamagePerHit,
   type AimDirectionId,
   type FunctionFamilyId,
@@ -47,6 +48,7 @@ export type MatchStartOptions = {
   maxFunctionLength?: number;
   mapSizePreset?: MapSizePresetId;
   damagePerHit?: number;
+  craterRadius?: number;
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
@@ -59,6 +61,7 @@ export type LobbySnapshotOptions = {
 
 type MatchRules = {
   damagePerHit: number;
+  craterRadius: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
@@ -138,6 +141,7 @@ export class MatchController {
     this.maxFunctionLength = normalizeMaxFunctionLength(options.maxFunctionLength);
     this.matchRules = {
       damagePerHit: normalizeDamagePerHit(options.damagePerHit),
+      craterRadius: normalizeCraterRadius(options.craterRadius),
       uniqueFunctionHits: options.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
       friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
       advancedFunctions: options.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions
@@ -219,6 +223,7 @@ export class MatchController {
       maxFunctionLength: this.maxFunctionLength,
       worldBounds: this.snapshot.worldBounds,
       damagePerHit: this.matchRules.damagePerHit,
+      craterRadius: this.matchRules.craterRadius,
       allowFriendlyFire: this.snapshot.mode !== "team-versus" || this.matchRules.friendlyFire
     });
     const duplicateHitKey = this.uniqueHitKey(playerId, functionFamilyId, shot, aimDirection, result);

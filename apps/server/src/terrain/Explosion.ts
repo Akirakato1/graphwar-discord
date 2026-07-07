@@ -2,6 +2,7 @@ import type { TerrainState, WorldPoint } from "@graphwar/shared";
 import { TerrainSystem } from "./TerrainSystem";
 
 export type ExplosionApplyOptions = {
+  baseRadius?: number;
   radiusMultiplier?: number;
 };
 
@@ -37,7 +38,8 @@ export class CircleCraterExplosion extends Explosion {
     idPrefix: string,
     options: ExplosionApplyOptions = {}
   ): ExplosionResult {
-    const radius = this.radius * Math.max(0, options.radiusMultiplier ?? 1);
+    const baseRadius = options.baseRadius ?? this.radius;
+    const radius = baseRadius * Math.max(0, options.radiusMultiplier ?? 1);
     return { terrain: terrainSystem.applyCircleCrater(terrain, center, radius, idPrefix), radius };
   }
 }

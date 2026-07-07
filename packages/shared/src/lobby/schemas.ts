@@ -3,6 +3,7 @@ import type { MapSizePresetId } from "../maps/types";
 import { defaultMapSizePreset, mapSizePresetSchema } from "../maps/worldBounds";
 import type { MatchModeId } from "../state/types";
 import {
+  craterRadiusBounds,
   damagePerHitBounds,
   defaultAdvancedFunctions,
   defaultFunctionPreview,
@@ -60,6 +61,7 @@ type ParsedCreateLobbyRequest = Omit<
   | "color"
   | "maxFunctionLength"
   | "damagePerHit"
+  | "craterRadius"
   | "uniqueFunctionHits"
   | "friendlyFire"
   | "advancedFunctions"
@@ -97,6 +99,14 @@ export const damagePerHitSchema = z.preprocess((value) => {
   return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
 }, z.number().int().min(damagePerHitBounds.min).max(damagePerHitBounds.max));
 
+export const craterRadiusSchema = z.preprocess((value) => {
+  if (value === undefined) {
+    return craterRadiusBounds.default;
+  }
+
+  return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+}, z.number().finite().min(craterRadiusBounds.min).max(craterRadiusBounds.max));
+
 export const guildSettingsSchema = z.object({
   guildId: z.string().min(1),
   defaultMode: matchModeSchema,
@@ -124,6 +134,7 @@ export const createLobbyRequestSchema = z.object({
   initialSlot: lobbySlotSchema,
   maxFunctionLength: maxFunctionLengthSchema,
   damagePerHit: damagePerHitSchema,
+  craterRadius: craterRadiusSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
@@ -174,6 +185,7 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   startBlockedReason: z.string().optional(),
   maxFunctionLength: maxFunctionLengthSchema,
   damagePerHit: damagePerHitSchema,
+  craterRadius: craterRadiusSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
@@ -196,6 +208,7 @@ export const lobbySummarySchema = z.object({
   playerCount: z.number().int().nonnegative(),
   spectatorCount: z.number().int().nonnegative(),
   damagePerHit: damagePerHitSchema,
+  craterRadius: craterRadiusSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),

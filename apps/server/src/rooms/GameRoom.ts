@@ -210,6 +210,7 @@ export class GameRoom {
           maxFunctionLength: lobby.maxFunctionLength,
           mapSizePreset: openLobby.mapId ? undefined : lobby.mapSizePreset,
           damagePerHit: lobby.damagePerHit,
+          craterRadius: lobby.craterRadius,
           uniqueFunctionHits: lobby.uniqueFunctionHits,
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions

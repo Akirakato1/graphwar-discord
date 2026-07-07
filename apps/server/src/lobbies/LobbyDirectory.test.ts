@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import { craterRadiusBounds, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 import { LobbyDirectory, type LobbyDirectoryOptions } from "./LobbyDirectory";
 
 type Deferred = {
@@ -100,6 +100,7 @@ describe("LobbyDirectory", () => {
       mode: "team-versus",
       initialSlot: "player",
       damagePerHit: 80,
+      craterRadius: 2.5,
       uniqueFunctionHits: false,
       friendlyFire: true,
       advancedFunctions: true,
@@ -109,6 +110,7 @@ describe("LobbyDirectory", () => {
     expect(created.lobby).toEqual(
       expect.objectContaining({
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -118,6 +120,7 @@ describe("LobbyDirectory", () => {
     expect(directory.getLobby("guild-1", "room-1")).toEqual(
       expect.objectContaining({
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -127,6 +130,7 @@ describe("LobbyDirectory", () => {
     expect(directory.listLobbies("guild-1")).toEqual([
       expect.objectContaining({
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -147,7 +151,9 @@ describe("LobbyDirectory", () => {
       friendlyFire: true
     });
 
-    expect(created.lobby).toEqual(expect.objectContaining({ mode: "free-for-all", friendlyFire: false }));
+    expect(created.lobby).toEqual(
+      expect.objectContaining({ mode: "free-for-all", craterRadius: craterRadiusBounds.default, friendlyFire: false })
+    );
     expect(directory.listLobbies("guild-1")).toEqual([
       expect.objectContaining({ mode: "free-for-all", friendlyFire: false })
     ]);

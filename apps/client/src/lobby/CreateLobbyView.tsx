@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
+  craterRadiusBounds,
   damagePerHitBounds,
   defaultMapSizePreset,
   defaultLobbyGameplaySettings,
   defaultPlayerColor,
+  normalizeCraterRadius,
   normalizeDamagePerHit,
   playerColorPalette,
   type CustomMapSummary,
@@ -51,6 +53,7 @@ type CreateLobbyViewProps = {
     color: PlayerColor;
     maxFunctionLength: number;
     damagePerHit: number;
+    craterRadius: number;
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
     advancedFunctions: boolean;
@@ -69,6 +72,7 @@ type CreateLobbyForm = {
   color: PlayerColor;
   maxFunctionLength: number;
   damagePerHit: number;
+  craterRadius: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
@@ -95,6 +99,7 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       alias: form.alias.trim(),
       maxFunctionLength: boundedFunctionLength(form.maxFunctionLength),
       damagePerHit: normalizeDamagePerHit(form.damagePerHit),
+      craterRadius: normalizeCraterRadius(form.craterRadius),
       uniqueFunctionHits: form.uniqueFunctionHits,
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       advancedFunctions: form.advancedFunctions,
@@ -121,6 +126,7 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     color: lobbyDefaultPlayerColor,
     maxFunctionLength: DEFAULT_FUNCTION_LENGTH,
     damagePerHit: defaultLobbyGameplaySettings.damagePerHit,
+    craterRadius: defaultLobbyGameplaySettings.craterRadius,
     uniqueFunctionHits: defaultLobbyGameplaySettings.uniqueFunctionHits,
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
@@ -139,6 +145,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [mapSizePreset, setMapSizePreset] = useState<MapSizePresetId>(initialForm.mapSizePreset ?? defaultMapSizePreset);
   const [maxFunctionLength, setMaxFunctionLength] = useState(initialForm.maxFunctionLength);
   const [damagePerHit, setDamagePerHit] = useState(initialForm.damagePerHit);
+  const [craterRadius, setCraterRadius] = useState(initialForm.craterRadius);
   const [uniqueFunctionHits, setUniqueFunctionHits] = useState(initialForm.uniqueFunctionHits);
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
@@ -167,6 +174,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           color,
           maxFunctionLength,
           damagePerHit,
+          craterRadius,
           uniqueFunctionHits,
           friendlyFire,
           advancedFunctions,
@@ -256,15 +264,33 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             }}
           />
         </label>
-        <label>
-          Damage
+        <label className="slider-setting">
+          <span>
+            Damage <strong>{damagePerHit}</strong>
+          </span>
           <input
             max={damagePerHitBounds.max}
             min={damagePerHitBounds.min}
-            type="number"
+            type="range"
             value={damagePerHit}
             onChange={(event) => {
               setDamagePerHit(Number(event.currentTarget.value));
+              setFormError(undefined);
+            }}
+          />
+        </label>
+        <label className="slider-setting">
+          <span>
+            Crater radius <strong>{craterRadius}</strong>
+          </span>
+          <input
+            max={craterRadiusBounds.max}
+            min={craterRadiusBounds.min}
+            step={craterRadiusBounds.step}
+            type="range"
+            value={craterRadius}
+            onChange={(event) => {
+              setCraterRadius(Number(event.currentTarget.value));
               setFormError(undefined);
             }}
           />

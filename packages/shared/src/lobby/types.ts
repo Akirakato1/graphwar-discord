@@ -62,6 +62,7 @@ export type LobbyRuntimeSnapshot = {
   startBlockedReason?: string;
   maxFunctionLength: number;
   damagePerHit: number;
+  craterRadius: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
@@ -84,6 +85,7 @@ export type LobbySummary = {
   playerCount: number;
   spectatorCount: number;
   damagePerHit: number;
+  craterRadius: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
@@ -104,6 +106,7 @@ export type CreateLobbyRequest = {
   initialSlot: LobbySlot;
   maxFunctionLength?: number;
   damagePerHit?: number;
+  craterRadius?: number;
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
   advancedFunctions?: boolean;

@@ -72,6 +72,7 @@ export type GameStoreState = {
     color: PlayerColor;
     maxFunctionLength: number;
     damagePerHit: number;
+    craterRadius: number;
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
     advancedFunctions: boolean;
@@ -376,6 +377,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             color: form.color,
             maxFunctionLength: form.maxFunctionLength,
             damagePerHit: form.damagePerHit,
+            craterRadius: form.craterRadius,
             uniqueFunctionHits: form.uniqueFunctionHits,
             friendlyFire: form.friendlyFire,
             advancedFunctions: form.advancedFunctions,

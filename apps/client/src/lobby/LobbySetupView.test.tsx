@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import { craterRadiusBounds, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
 import { groupMoveAction, LobbySetupView } from "./LobbySetupView";
 
 const lobby = {
@@ -36,6 +36,7 @@ const lobby = {
   startBlockedReason: "Team B needs at least one player.",
   maxFunctionLength: 50,
   damagePerHit: 35,
+  craterRadius: craterRadiusBounds.default,
   uniqueFunctionHits: true,
   friendlyFire: false,
   advancedFunctions: false,
@@ -135,6 +136,7 @@ describe("LobbySetupView", () => {
         lobby={{
           ...lobby,
           damagePerHit: 80,
+          craterRadius: 2.5,
           uniqueFunctionHits: false,
           friendlyFire: true,
           advancedFunctions: true,
@@ -148,6 +150,7 @@ describe("LobbySetupView", () => {
     );
 
     expect(html).toContain("Damage 80");
+    expect(html).toContain("Crater 2.5");
     expect(html).toContain("Unique hits Off");
     expect(html).toContain("Friendly fire On");
     expect(html).toContain("Advanced functions On");

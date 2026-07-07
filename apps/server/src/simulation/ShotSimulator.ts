@@ -2,6 +2,7 @@ import {
   defaultMatchTuning,
   isWorldPointInBounds,
   localToWorld,
+  normalizeCraterRadius,
   normalizeDamagePerHit,
   worldBoundsForMapSize,
   type AimDirectionId,
@@ -29,6 +30,7 @@ export type ShotSimulationInput = {
   maxFunctionLength?: number;
   worldBounds?: WorldBounds;
   damagePerHit?: number;
+  craterRadius?: number;
   allowFriendlyFire?: boolean;
 };
 
@@ -84,6 +86,7 @@ export class ShotSimulator {
     const aimDirection = input.aimDirection ?? "east";
     const worldBounds = input.worldBounds ?? worldBoundsForMapSize("standard");
     const maxFunctionLength = this.resolveMaxFunctionLength(input.maxFunctionLength);
+    const craterRadius = normalizeCraterRadius(input.craterRadius);
     const sample = input.shot.sample({
       minX: 0,
       maxX: maxFunctionLength,
@@ -117,6 +120,7 @@ export class ShotSimulator {
       const crater = this.applyCrater(
         input.terrain,
         impact.point,
+        craterRadius,
         this.impactRadiusMultiplier(worldPath, impact, maxFunctionLength)
       );
       return {
@@ -156,6 +160,7 @@ export class ShotSimulator {
       const crater = this.applyCrater(
         input.terrain,
         impact.point,
+        craterRadius,
         this.impactRadiusMultiplier(worldPath, impact, maxFunctionLength)
       );
       return {
@@ -207,8 +212,16 @@ export class ShotSimulator {
     };
   }
 
-  private applyCrater(terrain: TerrainState, point: WorldPoint, radiusMultiplier: number): ExplosionResult {
-    return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact", { radiusMultiplier });
+  private applyCrater(
+    terrain: TerrainState,
+    point: WorldPoint,
+    baseRadius: number,
+    radiusMultiplier: number
+  ): ExplosionResult {
+    return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact", {
+      baseRadius,
+      radiusMultiplier
+    });
   }
 
   private impactRadiusMultiplier(worldPath: WorldPoint[], hit: CollisionHit, maxFunctionLength: number): number {

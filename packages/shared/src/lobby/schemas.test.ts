@@ -8,6 +8,7 @@ import {
   lobbySummarySchema
 } from "./schemas";
 import {
+  craterRadiusBounds,
   damagePerHitBounds,
   defaultAdvancedFunctions,
   defaultFriendlyFire,
@@ -151,6 +152,7 @@ describe("lobby schemas", () => {
     expect(parsed).toEqual(
       expect.objectContaining({
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: defaultUniqueFunctionHits,
         friendlyFire: defaultFriendlyFire,
         advancedFunctions: defaultAdvancedFunctions,
@@ -159,7 +161,7 @@ describe("lobby schemas", () => {
     );
   });
 
-  it("validates damage-per-hit bounds and accepts gameplay setting booleans", () => {
+  it("validates damage and crater radius bounds and accepts gameplay setting booleans", () => {
     expect(
       createLobbyRequestSchema.parse({
         name: "Team Room",
@@ -168,6 +170,7 @@ describe("lobby schemas", () => {
         mode: "team-versus",
         initialSlot: "player",
         damagePerHit: 100,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -176,6 +179,7 @@ describe("lobby schemas", () => {
     ).toEqual(
       expect.objectContaining({
         damagePerHit: 100,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -204,6 +208,28 @@ describe("lobby schemas", () => {
         damagePerHit: 101
       })
     ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        craterRadius: craterRadiusBounds.min - 0.25
+      })
+    ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        craterRadius: craterRadiusBounds.max + 0.25
+      })
+    ).toThrow();
   });
 
   it("parses lobby snapshots and summaries with phase 2 gameplay settings", () => {
@@ -218,6 +244,7 @@ describe("lobby schemas", () => {
       canStart: false,
       maxFunctionLength: defaultMaxFunctionLength,
       damagePerHit: 80,
+      craterRadius: 2.5,
       uniqueFunctionHits: false,
       friendlyFire: true,
       advancedFunctions: true,
@@ -238,6 +265,7 @@ describe("lobby schemas", () => {
         playerCount: 1,
         spectatorCount: 0,
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -247,6 +275,7 @@ describe("lobby schemas", () => {
     ).toEqual(
       expect.objectContaining({
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -294,6 +323,7 @@ describe("lobby schemas", () => {
       canStart: false,
       maxFunctionLength: defaultMaxFunctionLength,
       damagePerHit: damagePerHitBounds.default,
+      craterRadius: craterRadiusBounds.default,
       uniqueFunctionHits: defaultUniqueFunctionHits,
       friendlyFire: defaultFriendlyFire,
       advancedFunctions: defaultAdvancedFunctions,

@@ -9,7 +9,13 @@ import {
   createLobbyInitialForm,
   prepareCreateLobbyForm
 } from "./CreateLobbyView";
-import { damagePerHitBounds, defaultMapSizePreset, defaultPlayerColor, playerColorPalette } from "@graphwar/shared";
+import {
+  craterRadiusBounds,
+  damagePerHitBounds,
+  defaultMapSizePreset,
+  defaultPlayerColor,
+  playerColorPalette
+} from "@graphwar/shared";
 
 describe("CreateLobbyView helpers", () => {
   it("trims lobby name and alias before creating", () => {
@@ -22,6 +28,7 @@ describe("CreateLobbyView helpers", () => {
         color: playerColorPalette[1],
         maxFunctionLength: 72,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: true,
@@ -37,6 +44,7 @@ describe("CreateLobbyView helpers", () => {
         color: playerColorPalette[1],
         maxFunctionLength: 72,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: true,
@@ -62,6 +70,7 @@ describe("CreateLobbyView helpers", () => {
       color: defaultPlayerColor,
       maxFunctionLength: 50,
       damagePerHit: damagePerHitBounds.default,
+      craterRadius: craterRadiusBounds.default,
       uniqueFunctionHits: true,
       friendlyFire: false,
       advancedFunctions: false,
@@ -79,6 +88,7 @@ describe("CreateLobbyView helpers", () => {
     expect(createLobbyInitialForm("Alice")).toEqual(
       expect.objectContaining({
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
@@ -95,6 +105,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: 83,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -103,6 +114,7 @@ describe("CreateLobbyView helpers", () => {
     ).toEqual(
       expect.objectContaining({
         damagePerHit: 83,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
@@ -121,6 +133,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: true,
         advancedFunctions: true,
@@ -141,6 +154,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
@@ -156,6 +170,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
@@ -175,6 +190,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
@@ -191,6 +207,7 @@ describe("CreateLobbyView helpers", () => {
         color: defaultPlayerColor,
         maxFunctionLength: 50,
         damagePerHit: damagePerHitBounds.default,
+        craterRadius: craterRadiusBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
@@ -244,8 +261,13 @@ describe("CreateLobbyView helpers", () => {
     );
 
     expect(html).toContain("Damage");
+    expect(html).toContain('type="range"');
     expect(html).toContain(`min="${damagePerHitBounds.min}"`);
     expect(html).toContain(`max="${damagePerHitBounds.max}"`);
+    expect(html).toContain("Crater radius");
+    expect(html).toContain(`min="${craterRadiusBounds.min}"`);
+    expect(html).toContain(`max="${craterRadiusBounds.max}"`);
+    expect(html).toContain(`step="${craterRadiusBounds.step}"`);
     expect(html).toContain("Unique function hits");
     expect(html).toContain("Advanced functions");
     expect(html).toContain("Function preview");

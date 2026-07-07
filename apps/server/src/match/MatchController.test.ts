@@ -392,6 +392,47 @@ describe("MatchController", () => {
     }
   });
 
+  it("applies configured crater radius to terrain hits", () => {
+    const controller = new MatchController("room-1");
+    controller.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+    controller.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: {
+          blobs: [
+            {
+              id: "wide-wall",
+              outer: [
+                { x: 1, y: -5 },
+                { x: 10, y: -5 },
+                { x: 10, y: 5 },
+                { x: 1, y: 5 }
+              ],
+              holes: []
+            }
+          ]
+        },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: -10, y: 0 } }
+        ]
+      },
+      { maxFunctionLength: 10, craterRadius: 2.5 }
+    );
+
+    const events = controller.submitShot("alice-id", "normal", "0");
+
+    expect(events[0].type).toBe("shot-resolved");
+    if (events[0].type === "shot-resolved") {
+      expect(events[0].impact.reason).toBe("terrain-hit");
+      expect(events[0].impact.craterRadius).toBeCloseTo(2.5 * 1.95, 1);
+    }
+  });
+
   it("passes through teammates when team friendly fire is disabled", () => {
     const controller = new MatchController("room-1");
     controller.setLobbyPlayers("team-versus", [

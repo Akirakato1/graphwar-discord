@@ -261,12 +261,23 @@ describe("ShotSimulator", () => {
       shot: NormalFunction.parse("0"),
       maxFunctionLength: 1.05
     });
+    const configuredBaseImpact = simulator.simulate({
+      shooter,
+      players: [shooter],
+      terrain,
+      shot: NormalFunction.parse("0"),
+      maxFunctionLength: 10,
+      craterRadius: 2.5
+    });
 
     expect(earlyImpact.impact.reason).toBe("terrain-hit");
     expect(lateImpact.impact.reason).toBe("terrain-hit");
+    expect(configuredBaseImpact.impact.reason).toBe("terrain-hit");
     expect(earlyImpact.impact.craterRadius).toBeCloseTo(defaultMatchTuning.circleCraterRadius * 1.9, 1);
     expect(lateImpact.impact.craterRadius).toBeCloseTo(defaultMatchTuning.circleCraterRadius * (1 + 0.05 / 1.05), 1);
+    expect(configuredBaseImpact.impact.craterRadius).toBeCloseTo(2.5 * 1.9, 1);
     expect(terrainArea(earlyImpact.terrain)).toBeLessThan(terrainArea(lateImpact.terrain));
+    expect(terrainArea(configuredBaseImpact.terrain)).toBeLessThan(terrainArea(earlyImpact.terrain));
   });
 
   it("resolves a player before terrain as a player hit", () => {

@@ -99,6 +99,7 @@ export function LobbySetupView({
 
       <div className="rules-summary" aria-label="Match rules">
         <span>Damage {lobby.damagePerHit}</span>
+        <span>Crater {lobby.craterRadius}</span>
         <span>Unique hits {lobby.uniqueFunctionHits ? "On" : "Off"}</span>
         <span>Advanced functions {lobby.advancedFunctions ? "On" : "Off"}</span>
         <span>Preview {lobby.functionPreview ? "On" : "Off"}</span>

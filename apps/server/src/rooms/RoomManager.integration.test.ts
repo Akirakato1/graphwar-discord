@@ -453,6 +453,7 @@ describe("RoomManager WebSocket integration", () => {
         mode: "team-versus",
         initialSlot: "player",
         damagePerHit: 80,
+        craterRadius: 2.5,
         uniqueFunctionHits: false,
         friendlyFire: true
       }
@@ -471,7 +472,7 @@ describe("RoomManager WebSocket integration", () => {
     expect(event.type).toBe("room-snapshot");
     if (event.type === "room-snapshot") {
       expect(event.lobby).toEqual(
-        expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true })
+        expect.objectContaining({ damagePerHit: 80, craterRadius: 2.5, uniqueFunctionHits: false, friendlyFire: true })
       );
     }
 
