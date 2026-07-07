@@ -9,6 +9,7 @@ import {
 } from "./schemas";
 import {
   damagePerHitBounds,
+  defaultAdvancedFunctions,
   defaultFriendlyFire,
   defaultUniqueFunctionHits,
   normalizeFunctionHitExpression
@@ -150,7 +151,8 @@ describe("lobby schemas", () => {
       expect.objectContaining({
         damagePerHit: damagePerHitBounds.default,
         uniqueFunctionHits: defaultUniqueFunctionHits,
-        friendlyFire: defaultFriendlyFire
+        friendlyFire: defaultFriendlyFire,
+        advancedFunctions: defaultAdvancedFunctions
       })
     );
   });
@@ -165,9 +167,12 @@ describe("lobby schemas", () => {
         initialSlot: "player",
         damagePerHit: 100,
         uniqueFunctionHits: false,
-        friendlyFire: true
+        friendlyFire: true,
+        advancedFunctions: true
       })
-    ).toEqual(expect.objectContaining({ damagePerHit: 100, uniqueFunctionHits: false, friendlyFire: true }));
+    ).toEqual(
+      expect.objectContaining({ damagePerHit: 100, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+    );
 
     expect(() =>
       createLobbyRequestSchema.parse({
@@ -206,6 +211,7 @@ describe("lobby schemas", () => {
       damagePerHit: 80,
       uniqueFunctionHits: false,
       friendlyFire: true,
+      advancedFunctions: true,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 
@@ -224,9 +230,12 @@ describe("lobby schemas", () => {
         damagePerHit: 80,
         uniqueFunctionHits: false,
         friendlyFire: true,
+        advancedFunctions: true,
         createdAt: "2026-07-05T00:00:00.000Z"
       })
-    ).toEqual(expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true }));
+    ).toEqual(
+      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+    );
   });
 
   it("normalizes duplicate-hit expressions by removing ASCII whitespace only", () => {
@@ -270,6 +279,7 @@ describe("lobby schemas", () => {
       damagePerHit: damagePerHitBounds.default,
       uniqueFunctionHits: defaultUniqueFunctionHits,
       friendlyFire: defaultFriendlyFire,
+      advancedFunctions: defaultAdvancedFunctions,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 

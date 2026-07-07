@@ -1,6 +1,6 @@
 import { Parser } from "expr-eval";
 import { normalizeFunctionHitExpression } from "@graphwar/shared";
-import { beta, digamma, factorial, gamma } from "./specialMath";
+import { beta, digamma, factorial, gamma, zeta } from "./specialMath";
 
 const maxAggregateDepth = 3;
 const maxSumTerms = 1024;
@@ -31,9 +31,10 @@ parser.functions.gamma = gamma;
 parser.functions.factorial = factorial;
 parser.functions.digamma = digamma;
 parser.functions.beta = beta;
+parser.functions.zeta = zeta;
 parser.functions.ceiling = Math.ceil;
 
-const baseFunctionSymbols = new Set([
+const normalFunctionSymbols = new Set([
   "abs",
   "acos",
   "acosh",
@@ -42,18 +43,14 @@ const baseFunctionSymbols = new Set([
   "atan",
   "atan2",
   "atanh",
-  "beta",
   "cbrt",
   "ceil",
   "ceiling",
   "cos",
   "cosh",
-  "digamma",
   "exp",
   "expm1",
-  "factorial",
   "floor",
-  "gamma",
   "hypot",
   "log",
   "log1p",
@@ -72,6 +69,8 @@ const baseFunctionSymbols = new Set([
   "trunc"
 ]);
 
+const advancedFunctionSymbols = new Set(["beta", "digamma", "factorial", "gamma", "zeta"]);
+const baseFunctionSymbols = new Set([...normalFunctionSymbols, ...advancedFunctionSymbols]);
 const baseValueSymbols = new Set(["x", "E", "PI"]);
 const specialFormSymbols = new Set(["sum", "int", "diff"]);
 
@@ -101,6 +100,10 @@ export type CompiledNormalExpression = {
   evaluate(scope: EvaluationScope, budget?: EvaluationBudget): number;
 };
 
+export type CompileNormalExpressionOptions = {
+  advancedFunctions?: boolean;
+};
+
 type ExpressionToken = {
   kind: "closeParen" | "identifier" | "number" | "openParen" | "other" | "space";
   text: string;
@@ -108,19 +111,25 @@ type ExpressionToken = {
 
 type PlaceholderEvaluator = (scope: EvaluationScope, budget: EvaluationBudget) => number;
 
-export function compileNormalExpression(expressionText: string): CompiledNormalExpression {
-  return compileNormalExpressionInternal(expressionText, new Set(baseValueSymbols), 0);
+export function compileNormalExpression(
+  expressionText: string,
+  options: CompileNormalExpressionOptions = {}
+): CompiledNormalExpression {
+  return compileNormalExpressionInternal(expressionText, new Set(baseValueSymbols), 0, options);
 }
 
 function compileNormalExpressionInternal(
   expressionText: string,
   valueSymbols: Set<string>,
-  aggregateDepth: number
+  aggregateDepth: number,
+  options: CompileNormalExpressionOptions
 ): CompiledNormalExpression {
+  assertAdvancedFunctionsAllowed(expressionText, options);
   const placeholders = new Map<string, PlaceholderEvaluator>();
-  const rewritten = rewriteSpecialForms(expressionText, valueSymbols, aggregateDepth, placeholders);
-  const functionSymbols = new Set([...baseFunctionSymbols, ...placeholders.keys()]);
-  const allowedSymbols = new Set([...baseValueSymbols, ...valueSymbols, ...baseFunctionSymbols, ...placeholders.keys()]);
+  const rewritten = rewriteSpecialForms(expressionText, valueSymbols, aggregateDepth, placeholders, options);
+  const allowedFunctionSymbols = options.advancedFunctions ? baseFunctionSymbols : normalFunctionSymbols;
+  const functionSymbols = new Set([...allowedFunctionSymbols, ...placeholders.keys()]);
+  const allowedSymbols = new Set([...baseValueSymbols, ...valueSymbols, ...allowedFunctionSymbols, ...placeholders.keys()]);
   const normalizedExpressionText = normalizeImplicitMultiplication(rewritten, valueSymbols, functionSymbols);
   const expression = parser.parse(normalizedExpressionText);
   const invalidSymbol = expression.symbols().find((name) => !allowedSymbols.has(name));
@@ -144,7 +153,8 @@ function rewriteSpecialForms(
   expressionText: string,
   valueSymbols: Set<string>,
   aggregateDepth: number,
-  placeholders: Map<string, PlaceholderEvaluator>
+  placeholders: Map<string, PlaceholderEvaluator>,
+  options: CompileNormalExpressionOptions
 ): string {
   let rewritten = "";
   let index = 0;
@@ -176,10 +186,7 @@ function rewriteSpecialForms(
     const closeParenIndex = findMatchingParen(expressionText, openParenIndex);
     const args = splitTopLevelArguments(expressionText.slice(openParenIndex + 1, closeParenIndex));
     const placeholderName = `__normal_special_${placeholders.size}`;
-    placeholders.set(
-      placeholderName,
-      compileSpecialForm(identifier, args, valueSymbols, aggregateDepth + 1)
-    );
+    placeholders.set(placeholderName, compileSpecialForm(identifier, args, valueSymbols, aggregateDepth + 1, options));
     rewritten += `${placeholderName}()`;
     index = closeParenIndex + 1;
   }
@@ -191,27 +198,33 @@ function compileSpecialForm(
   name: string,
   args: string[],
   valueSymbols: Set<string>,
-  aggregateDepth: number
+  aggregateDepth: number,
+  options: CompileNormalExpressionOptions
 ): PlaceholderEvaluator {
   if (name === "sum") {
-    return compileSum(args, valueSymbols, aggregateDepth);
+    return compileSum(args, valueSymbols, aggregateDepth, options);
   }
   if (name === "int") {
-    return compileIntegral(args, valueSymbols, aggregateDepth);
+    return compileIntegral(args, valueSymbols, aggregateDepth, options);
   }
-  return compileDerivative(args, valueSymbols, aggregateDepth);
+  return compileDerivative(args, valueSymbols, aggregateDepth, options);
 }
 
-function compileSum(args: string[], valueSymbols: Set<string>, aggregateDepth: number): PlaceholderEvaluator {
+function compileSum(
+  args: string[],
+  valueSymbols: Set<string>,
+  aggregateDepth: number,
+  options: CompileNormalExpressionOptions
+): PlaceholderEvaluator {
   if (args.length !== 4) {
     throw new Error("sum(index, lower, upper, body) requires four arguments");
   }
 
   const indexName = requireIdentifier(args[0], "sum index");
-  const lower = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth);
-  const upper = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth);
+  const lower = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth, options);
+  const upper = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth, options);
   const bodyValueSymbols = new Set([...valueSymbols, indexName]);
-  const body = compileNormalExpressionInternal(args[3], bodyValueSymbols, aggregateDepth);
+  const body = compileNormalExpressionInternal(args[3], bodyValueSymbols, aggregateDepth, options);
 
   return (scope, budget) => {
     const first = Math.ceil(evaluateFinite(lower, scope, budget));
@@ -227,16 +240,21 @@ function compileSum(args: string[], valueSymbols: Set<string>, aggregateDepth: n
   };
 }
 
-function compileIntegral(args: string[], valueSymbols: Set<string>, aggregateDepth: number): PlaceholderEvaluator {
+function compileIntegral(
+  args: string[],
+  valueSymbols: Set<string>,
+  aggregateDepth: number,
+  options: CompileNormalExpressionOptions
+): PlaceholderEvaluator {
   if (args.length !== 4) {
     throw new Error("int(variable, lower, upper, body) requires four arguments");
   }
 
   const variableName = requireIdentifier(args[0], "integration variable");
-  const lower = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth);
-  const upper = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth);
+  const lower = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth, options);
+  const upper = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth, options);
   const bodyValueSymbols = new Set([...valueSymbols, variableName]);
-  const body = compileNormalExpressionInternal(args[3], bodyValueSymbols, aggregateDepth);
+  const body = compileNormalExpressionInternal(args[3], bodyValueSymbols, aggregateDepth, options);
 
   return (scope, budget) =>
     integrate(
@@ -249,7 +267,12 @@ function compileIntegral(args: string[], valueSymbols: Set<string>, aggregateDep
     );
 }
 
-function compileDerivative(args: string[], valueSymbols: Set<string>, aggregateDepth: number): PlaceholderEvaluator {
+function compileDerivative(
+  args: string[],
+  valueSymbols: Set<string>,
+  aggregateDepth: number,
+  options: CompileNormalExpressionOptions
+): PlaceholderEvaluator {
   if (args.length !== 3) {
     throw new Error("diff(variable, order, body) requires three arguments");
   }
@@ -259,8 +282,8 @@ function compileDerivative(args: string[], valueSymbols: Set<string>, aggregateD
     throw new Error("diff only supports x as the derivative variable");
   }
 
-  const orderExpression = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth);
-  const body = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth);
+  const orderExpression = compileNormalExpressionInternal(args[1], valueSymbols, aggregateDepth, options);
+  const body = compileNormalExpressionInternal(args[2], valueSymbols, aggregateDepth, options);
 
   return (scope, budget) => {
     const order = evaluateFinite(orderExpression, scope, budget);
@@ -325,6 +348,35 @@ function evaluateFinite(
     throw new Error("Function must evaluate to a finite number");
   }
   return value;
+}
+
+function assertAdvancedFunctionsAllowed(
+  expressionText: string,
+  options: CompileNormalExpressionOptions
+): void {
+  if (options.advancedFunctions) {
+    return;
+  }
+
+  const tokens = tokenizeExpression(expressionText);
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (
+      token.kind !== "identifier" ||
+      (!advancedFunctionSymbols.has(token.text) && !specialFormSymbols.has(token.text))
+    ) {
+      continue;
+    }
+
+    let nextIndex = index + 1;
+    while (tokens[nextIndex]?.kind === "space") {
+      nextIndex += 1;
+    }
+
+    if (tokens[nextIndex]?.kind === "openParen") {
+      throw new Error("Advanced functions are disabled for this lobby.");
+    }
+  }
 }
 
 function normalizeImplicitMultiplication(

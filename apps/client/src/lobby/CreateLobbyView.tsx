@@ -53,6 +53,7 @@ type CreateLobbyViewProps = {
     damagePerHit: number;
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
+    advancedFunctions: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }) => Promise<void>;
@@ -69,6 +70,7 @@ type CreateLobbyForm = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
   mapId?: string;
   mapSizePreset?: MapSizePresetId;
 };
@@ -93,6 +95,7 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       damagePerHit: normalizeDamagePerHit(form.damagePerHit),
       uniqueFunctionHits: form.uniqueFunctionHits,
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
+      advancedFunctions: form.advancedFunctions,
       ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
     }
   };
@@ -117,6 +120,7 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     damagePerHit: defaultLobbyGameplaySettings.damagePerHit,
     uniqueFunctionHits: defaultLobbyGameplaySettings.uniqueFunctionHits,
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
+    advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
     mapSizePreset: defaultMapSizePreset
   };
 }
@@ -133,6 +137,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [damagePerHit, setDamagePerHit] = useState(initialForm.damagePerHit);
   const [uniqueFunctionHits, setUniqueFunctionHits] = useState(initialForm.uniqueFunctionHits);
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
+  const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -159,6 +164,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           damagePerHit,
           uniqueFunctionHits,
           friendlyFire,
+          advancedFunctions,
           ...(mapId ? { mapId } : { mapSizePreset })
         }).form
       );
@@ -267,6 +273,17 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             type="checkbox"
           />
           Unique function hits
+        </label>
+        <label className="toggle-row">
+          <input
+            checked={advancedFunctions}
+            onChange={(event) => {
+              setAdvancedFunctions(event.currentTarget.checked);
+              setFormError(undefined);
+            }}
+            type="checkbox"
+          />
+          Advanced functions
         </label>
         {mode === "team-versus" ? (
           <label className="toggle-row">

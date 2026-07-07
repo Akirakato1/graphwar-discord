@@ -74,6 +74,7 @@ export type GameStoreState = {
     damagePerHit: number;
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
+    advancedFunctions: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }): Promise<void>;
@@ -376,6 +377,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             damagePerHit: form.damagePerHit,
             uniqueFunctionHits: form.uniqueFunctionHits,
             friendlyFire: form.friendlyFire,
+            advancedFunctions: form.advancedFunctions,
             ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();

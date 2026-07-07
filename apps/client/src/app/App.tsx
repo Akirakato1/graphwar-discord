@@ -239,6 +239,7 @@ function GameActivity() {
       <div className="app-grid playing-grid">
         <GameCanvas events={canvasEvents} snapshot={displaySnapshot} />
         <MatchHud
+          advancedFunctionsEnabled={currentLobby?.advancedFunctions ?? false}
           connectionStatus={connectionStatus}
           displaySnapshot={displaySnapshot}
           lastError={lastError}

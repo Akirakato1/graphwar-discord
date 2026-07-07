@@ -57,6 +57,7 @@ type RuntimeLobby = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
   mapSizePreset?: MapSizePresetId;
   createdAt: string;
   startedAt?: string;
@@ -114,6 +115,7 @@ export class LobbyDirectory {
       uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
       friendlyFire:
         request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
+      advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
       mapSizePreset: mapId ? undefined : request.mapSizePreset ?? defaultMapSizePreset,
       createdAt: this.now().toISOString(),
       mapId,
@@ -221,6 +223,7 @@ export class LobbyDirectory {
           damagePerHit: lobby.damagePerHit,
           uniqueFunctionHits: lobby.uniqueFunctionHits,
           friendlyFire: lobby.friendlyFire,
+          advancedFunctions: lobby.advancedFunctions,
           ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
           mapId: lobby.mapId,
           mapName: lobby.mapName,
@@ -509,6 +512,7 @@ export class LobbyDirectory {
       damagePerHit: lobby.damagePerHit,
       uniqueFunctionHits: lobby.uniqueFunctionHits,
       friendlyFire: lobby.friendlyFire,
+      advancedFunctions: lobby.advancedFunctions,
       ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
       mapId: lobby.mapId,
       mapName: lobby.mapName,

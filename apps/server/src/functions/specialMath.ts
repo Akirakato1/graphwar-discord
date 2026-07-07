@@ -59,3 +59,18 @@ export function digamma(value: number): number {
   result += Math.log(x) - 0.5 * inverse - inverseSquared / 12 + (inverseSquared * inverseSquared) / 120;
   return assertFinite(result);
 }
+
+export function zeta(value: number): number {
+  if (!Number.isFinite(value) || value <= 1) {
+    throw new Error("zeta requires a finite input greater than 1");
+  }
+
+  const terms = 4096;
+  let total = 0;
+  for (let n = 1; n <= terms; n += 1) {
+    total += 1 / Math.pow(n, value);
+  }
+
+  const integralRemainder = Math.pow(terms, 1 - value) / (value - 1);
+  return assertFinite(total + integralRemainder);
+}

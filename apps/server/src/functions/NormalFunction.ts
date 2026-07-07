@@ -1,6 +1,6 @@
 import type { LocalPoint } from "@graphwar/shared";
 import { ShotFunction, type SampleContext, type TrajectorySample } from "./ShotFunction";
-import { compileNormalExpression } from "./CompiledNormalExpression";
+import { compileNormalExpression, type CompileNormalExpressionOptions } from "./CompiledNormalExpression";
 
 function evaluateNumber(evaluateY: (x: number) => unknown, x: number): number {
   const value = evaluateY(x);
@@ -30,8 +30,8 @@ export class NormalFunction extends ShotFunction {
     super();
   }
 
-  static parse(expressionText: string): NormalFunction {
-    const compiledExpression = compileNormalExpression(expressionText.replace(/^y\s*=\s*/i, ""));
+  static parse(expressionText: string, options: CompileNormalExpressionOptions = {}): NormalFunction {
+    const compiledExpression = compileNormalExpression(expressionText.replace(/^y\s*=\s*/i, ""), options);
     const evaluateExpression = (x: number) => compiledExpression.evaluate({ x });
     const yAtOrigin = evaluateNumber(evaluateExpression, 0);
     if (!Number.isFinite(yAtOrigin)) {

@@ -8,17 +8,20 @@ export const damagePerHitBounds = {
 
 export const defaultUniqueFunctionHits = true;
 export const defaultFriendlyFire = false;
+export const defaultAdvancedFunctions = false;
 
 export type LobbyGameplaySettings = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
 };
 
 export const defaultLobbyGameplaySettings: LobbyGameplaySettings = {
   damagePerHit: damagePerHitBounds.default,
   uniqueFunctionHits: defaultUniqueFunctionHits,
-  friendlyFire: defaultFriendlyFire
+  friendlyFire: defaultFriendlyFire,
+  advancedFunctions: defaultAdvancedFunctions
 };
 
 export function normalizeDamagePerHit(value: number | undefined): number {

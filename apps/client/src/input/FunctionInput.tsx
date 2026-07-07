@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { insertSnippet } from "./insertSnippet";
 
 type FunctionInputProps = {
+  advancedFunctionsEnabled?: boolean;
   canSubmit: boolean;
   disabled: boolean;
   initialExpression?: string;
@@ -15,7 +16,7 @@ type SnippetButton = {
   ariaLabel: string;
 };
 
-const snippetButtons: SnippetButton[] = [
+const normalSnippetButtons: SnippetButton[] = [
   { key: "sin", label: "sin", snippet: "sin()", ariaLabel: "Insert sine function" },
   { key: "cos", label: "cos", snippet: "cos()", ariaLabel: "Insert cosine function" },
   { key: "tan", label: "tan", snippet: "tan()", ariaLabel: "Insert tangent function" },
@@ -30,6 +31,11 @@ const snippetButtons: SnippetButton[] = [
   { key: "parentheses", label: "()", snippet: "()", ariaLabel: "Insert parentheses" },
   { key: "x-squared", label: "x^2", snippet: "x^2", ariaLabel: "Insert x squared template" },
   { key: "wave", label: "wave", snippet: "sin(x) + cos(x)", ariaLabel: "Insert wave template" },
+  { key: "floor", label: "⌊x⌋", snippet: "floor()", ariaLabel: "Insert floor function" },
+  { key: "ceil", label: "⌈x⌉", snippet: "ceil()", ariaLabel: "Insert ceiling function" }
+];
+
+const advancedSnippetButtons: SnippetButton[] = [
   { key: "sum", label: "Σ", snippet: "sum(n,0,x,)", ariaLabel: "Insert summation template" },
   { key: "integral", label: "∫", snippet: "int(t,0,x,)", ariaLabel: "Insert integral template" },
   {
@@ -47,11 +53,11 @@ const snippetButtons: SnippetButton[] = [
   { key: "factorial", label: "!", snippet: "factorial()", ariaLabel: "Insert continuous factorial function" },
   { key: "digamma", label: "ψ", snippet: "digamma()", ariaLabel: "Insert digamma function" },
   { key: "beta", label: "Β", snippet: "beta(,)", ariaLabel: "Insert beta function" },
-  { key: "floor", label: "⌊x⌋", snippet: "floor()", ariaLabel: "Insert floor function" },
-  { key: "ceil", label: "⌈x⌉", snippet: "ceil()", ariaLabel: "Insert ceiling function" }
+  { key: "zeta", label: "ζ", snippet: "zeta()", ariaLabel: "Insert zeta function" }
 ];
 
 export function FunctionInput({
+  advancedFunctionsEnabled = false,
   canSubmit,
   disabled,
   initialExpression = "sin(x)",
@@ -60,6 +66,9 @@ export function FunctionInput({
   const [expression, setExpression] = useState(initialExpression);
   const inputRef = useRef<HTMLInputElement>(null);
   const fireDisabled = disabled || !canSubmit || expression.trim().length === 0;
+  const snippetButtons = advancedFunctionsEnabled
+    ? [...normalSnippetButtons, ...advancedSnippetButtons]
+    : normalSnippetButtons;
 
   function restoreCursor(cursorPosition: number): void {
     const input = inputRef.current;

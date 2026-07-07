@@ -211,7 +211,8 @@ export class GameRoom {
           mapSizePreset: openLobby.mapId ? undefined : lobby.mapSizePreset,
           damagePerHit: lobby.damagePerHit,
           uniqueFunctionHits: lobby.uniqueFunctionHits,
-          friendlyFire: lobby.friendlyFire
+          friendlyFire: lobby.friendlyFire,
+          advancedFunctions: lobby.advancedFunctions
         });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
         this.broadcast({

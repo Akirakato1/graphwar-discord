@@ -49,6 +49,7 @@ export type MatchStartOptions = {
   damagePerHit?: number;
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
+  advancedFunctions?: boolean;
 };
 
 export type LobbySnapshotOptions = {
@@ -60,6 +61,7 @@ type MatchRules = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
 };
 
 const duplicateHitRejection = "That function already hit this target. Try a different function.";
@@ -137,7 +139,8 @@ export class MatchController {
     this.matchRules = {
       damagePerHit: normalizeDamagePerHit(options.damagePerHit),
       uniqueFunctionHits: options.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
-      friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire
+      friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
+      advancedFunctions: options.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions
     };
     this.successfulHitKeys.clear();
     const worldBounds = cloneWorldBounds(
@@ -200,7 +203,9 @@ export class MatchController {
 
     let shot;
     try {
-      shot = this.functionRegistry.create(functionFamilyId, expression);
+      shot = this.functionRegistry.create(functionFamilyId, expression, {
+        advancedFunctions: this.matchRules.advancedFunctions
+      });
     } catch (error) {
       return [this.rejectShot(playerId, error instanceof Error ? error.message : "Invalid function expression")];
     }

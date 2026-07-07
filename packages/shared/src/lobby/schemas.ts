@@ -2,7 +2,12 @@ import { z } from "zod";
 import type { MapSizePresetId } from "../maps/types";
 import { defaultMapSizePreset, mapSizePresetSchema } from "../maps/worldBounds";
 import type { MatchModeId } from "../state/types";
-import { damagePerHitBounds, defaultFriendlyFire, defaultUniqueFunctionHits } from "./gameplaySettings";
+import {
+  damagePerHitBounds,
+  defaultAdvancedFunctions,
+  defaultFriendlyFire,
+  defaultUniqueFunctionHits
+} from "./gameplaySettings";
 import type { LobbyGameplaySettings } from "./gameplaySettings";
 import { defaultMaxFunctionLength, defaultPlayerColor, functionLengthBounds, playerColorPalette } from "./identity";
 import type { PlayerColor } from "./identity";
@@ -51,7 +56,7 @@ function dropUndefinedProperties<T extends Record<string, unknown>>(value: T): T
 
 type ParsedCreateLobbyRequest = Omit<
   CreateLobbyRequest,
-  "color" | "maxFunctionLength" | "damagePerHit" | "uniqueFunctionHits" | "friendlyFire"
+  "color" | "maxFunctionLength" | "damagePerHit" | "uniqueFunctionHits" | "friendlyFire" | "advancedFunctions"
 > &
   LobbyGameplaySettings & {
   color: PlayerColor;
@@ -114,6 +119,7 @@ export const createLobbyRequestSchema = z.object({
   damagePerHit: damagePerHitSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
+  advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   mapSizePreset: mapSizePresetSchema.default(defaultMapSizePreset),
   mapId: z.string().trim().min(1).optional()
 }).transform(normalizeCreateLobbyRequest);
@@ -162,6 +168,7 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   damagePerHit: damagePerHitSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
+  advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),
@@ -182,6 +189,7 @@ export const lobbySummarySchema = z.object({
   damagePerHit: damagePerHitSchema,
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
+  advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),

@@ -121,8 +121,15 @@ describe("NormalFunction", () => {
     }
   });
 
-  it("evaluates sums with sampled x in bounds and body", () => {
-    const shot = NormalFunction.parse("sum(n, 0, x, n*cos(x))");
+  it.each(["sum(n, 0, x, n)", "int(t, 0, x, t)", "diff(x, 1, x^2)", "gamma(x + 1)", "factorial(x)", "digamma(x + 1)", "beta(x + 1, 2)", "zeta(x + 2)"])(
+    "rejects advanced helper %s when advanced functions are disabled",
+    (expression) => {
+      expect(() => NormalFunction.parse(expression)).toThrow(/Advanced functions/i);
+    }
+  );
+
+  it("evaluates sums with sampled x in bounds and body when advanced functions are enabled", () => {
+    const shot = NormalFunction.parse("sum(n, 0, x, n*cos(x))", { advancedFunctions: true });
     const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
 
     expect(sample.ok).toBe(true);
@@ -133,8 +140,8 @@ describe("NormalFunction", () => {
     }
   });
 
-  it("evaluates numeric integrals with sampled x in bounds and integrand", () => {
-    const shot = NormalFunction.parse("int(t, 0, x, t*x)");
+  it("evaluates numeric integrals with sampled x in bounds and integrand when advanced functions are enabled", () => {
+    const shot = NormalFunction.parse("int(t, 0, x, t*x)", { advancedFunctions: true });
     const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
 
     expect(sample.ok).toBe(true);
@@ -145,8 +152,8 @@ describe("NormalFunction", () => {
     }
   });
 
-  it("evaluates finite-difference derivatives with respect to x", () => {
-    const shot = NormalFunction.parse("diff(x, 2, x^3)");
+  it("evaluates finite-difference derivatives with respect to x when advanced functions are enabled", () => {
+    const shot = NormalFunction.parse("diff(x, 2, x^3)", { advancedFunctions: true });
     const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
 
     expect(sample.ok).toBe(true);
@@ -157,30 +164,34 @@ describe("NormalFunction", () => {
     }
   });
 
-  it("evaluates gamma-family helpers and continuous factorial", () => {
-    const gammaShot = NormalFunction.parse("gamma(x + 1)");
-    const factorialShot = NormalFunction.parse("factorial(x)");
-    const digammaShot = NormalFunction.parse("digamma(x + 1)");
-    const betaShot = NormalFunction.parse("beta(x + 1, 2)");
+  it("evaluates gamma-family helpers, continuous factorial, and zeta when advanced functions are enabled", () => {
+    const gammaShot = NormalFunction.parse("gamma(x + 1)", { advancedFunctions: true });
+    const factorialShot = NormalFunction.parse("factorial(x)", { advancedFunctions: true });
+    const digammaShot = NormalFunction.parse("digamma(x + 1)", { advancedFunctions: true });
+    const betaShot = NormalFunction.parse("beta(x + 1, 2)", { advancedFunctions: true });
+    const zetaShot = NormalFunction.parse("zeta(x + 2)", { advancedFunctions: true });
     const gammaSample = gammaShot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });
     const factorialSample = factorialShot.sample({ minX: 0, maxX: 3, step: 1, maxPathPoints: 10 });
     const digammaSample = digammaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
     const betaSample = betaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
+    const zetaSample = zetaShot.sample({ minX: 0, maxX: 1, step: 1, maxPathPoints: 10 });
 
     expect(gammaSample.ok).toBe(true);
     expect(factorialSample.ok).toBe(true);
     expect(digammaSample.ok).toBe(true);
     expect(betaSample.ok).toBe(true);
-    if (gammaSample.ok && factorialSample.ok && digammaSample.ok && betaSample.ok) {
+    expect(zetaSample.ok).toBe(true);
+    if (gammaSample.ok && factorialSample.ok && digammaSample.ok && betaSample.ok && zetaSample.ok) {
       expect(gammaSample.points[3]?.y).toBeCloseTo(5);
       expect(factorialSample.points[3]?.y).toBeCloseTo(5);
       expect(digammaSample.points[1]?.y).toBeCloseTo(1, 5);
       expect(betaSample.points[1]?.y).toBeCloseTo(-1 / 3, 5);
+      expect(zetaSample.points[1]?.y).toBeCloseTo(-0.44288, 3);
     }
   });
 
   it("preserves implicit multiplication and unary negatives with advanced helpers", () => {
-    const shot = NormalFunction.parse("3gamma(x + 1) + cos(x)(-sin(x))");
+    const shot = NormalFunction.parse("3gamma(x + 1) + cos(x)(-sin(x))", { advancedFunctions: true });
     const sample = shot.sample({ minX: 0, maxX: 2, step: 1, maxPathPoints: 10 });
 
     expect(sample.ok).toBe(true);
@@ -209,9 +220,13 @@ describe("NormalFunction", () => {
       "int(z, 0, 1, z)"
     ].join(" + ");
 
-    expect(() => NormalFunction.parse("sum(n, 0, 2000, n)")).toThrow(/evaluation limit/i);
-    expect(() => NormalFunction.parse(excessiveIntegrals)).toThrow(/evaluation limit/i);
-    expect(() => NormalFunction.parse("diff(x, 5, sin(x))")).toThrow(/derivative order/i);
-    expect(() => NormalFunction.parse("diff(t, 1, sin(t))")).toThrow(/only supports x/i);
+    expect(() => NormalFunction.parse("sum(n, 0, 2000, n)", { advancedFunctions: true })).toThrow(
+      /evaluation limit/i
+    );
+    expect(() => NormalFunction.parse(excessiveIntegrals, { advancedFunctions: true })).toThrow(/evaluation limit/i);
+    expect(() => NormalFunction.parse("diff(x, 5, sin(x))", { advancedFunctions: true })).toThrow(
+      /derivative order/i
+    );
+    expect(() => NormalFunction.parse("diff(t, 1, sin(t))", { advancedFunctions: true })).toThrow(/only supports x/i);
   });
 });

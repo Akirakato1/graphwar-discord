@@ -183,6 +183,53 @@ describe("MatchController", () => {
     expect(event.type).toBe("shot-rejected");
   });
 
+  it("gates advanced functions behind match settings", () => {
+    const rejectedController = new MatchController("room-normal");
+    rejectedController.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+    rejectedController.startMatch("free-for-all", {
+      worldBounds: worldBoundsForMapSize("standard"),
+      terrain: { blobs: [] },
+      spawns: [
+        { playerId: "alice-id", position: { x: 0, y: 0 } },
+        { playerId: "bob-id", position: { x: 10, y: 0 } }
+      ]
+    });
+
+    const [rejected] = rejectedController.submitShot("alice-id", "normal", "gamma(x + 1)");
+
+    expect(rejected).toEqual({
+      type: "shot-rejected",
+      roomId: "room-normal",
+      playerId: "alice-id",
+      reason: "Advanced functions are disabled for this lobby."
+    });
+
+    const enabledController = new MatchController("room-advanced");
+    enabledController.setLobbyPlayers("free-for-all", [
+      { id: "alice-id", displayName: "Alice" },
+      { id: "bob-id", displayName: "Bob" }
+    ]);
+    enabledController.startMatch(
+      "free-for-all",
+      {
+        worldBounds: worldBoundsForMapSize("standard"),
+        terrain: { blobs: [] },
+        spawns: [
+          { playerId: "alice-id", position: { x: 0, y: 0 } },
+          { playerId: "bob-id", position: { x: 10, y: 0 } }
+        ]
+      },
+      { advancedFunctions: true }
+    );
+
+    const [resolved] = enabledController.submitShot("alice-id", "normal", "zeta(2)");
+
+    expect(resolved.type).toBe("shot-resolved");
+  });
+
   it("throws instead of restarting a playing match", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");

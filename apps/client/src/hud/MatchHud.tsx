@@ -6,6 +6,7 @@ import { FunctionInput } from "../input/FunctionInput";
 import type { ClientSession } from "../sessions/localSession";
 
 type MatchHudProps = {
+  advancedFunctionsEnabled?: boolean;
   connectionStatus: ConnectionStatus;
   displaySnapshot?: MatchSnapshot;
   lastError?: string;
@@ -34,6 +35,7 @@ function phaseLabel(snapshot: MatchSnapshot | undefined): string {
 }
 
 export function MatchHud({
+  advancedFunctionsEnabled = false,
   connectionStatus,
   displaySnapshot,
   lastError,
@@ -91,6 +93,7 @@ export function MatchHud({
         </div>
 
         <FunctionInput
+          advancedFunctionsEnabled={advancedFunctionsEnabled}
           canSubmit={canSubmitShot}
           disabled={!isMyTurn || playbackInProgress}
           onSubmitShot={(expression) => onSubmitShot(expression, aimDirection)}

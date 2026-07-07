@@ -64,6 +64,7 @@ export type LobbyRuntimeSnapshot = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -84,6 +85,7 @@ export type LobbySummary = {
   damagePerHit: number;
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
+  advancedFunctions: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -102,6 +104,7 @@ export type CreateLobbyRequest = {
   damagePerHit?: number;
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
+  advancedFunctions?: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
 };
