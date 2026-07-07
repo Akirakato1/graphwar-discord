@@ -368,8 +368,11 @@ button.active,
   fill: #ff8989;
 }
 
-.spawn.selected {
-  fill: #e7c77d;
+.spawn-selection-ring {
+  fill: none;
+  pointer-events: none;
+  stroke: #f5f7fb;
+  stroke-width: 0.16;
 }
 
 .transform-box rect {

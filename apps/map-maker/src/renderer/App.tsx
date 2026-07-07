@@ -56,6 +56,7 @@ import {
   type MapMakerTool,
   type PlacementTool
 } from "./mapMakerInteraction";
+import { isSpawnSelected, spawnClassName } from "./mapMakerSpawnVisuals";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type DragState =
@@ -761,20 +762,24 @@ export function App() {
             ) : null}
 
             {editorState.spawnPoints.map((spawn) => (
-              <circle
-                className={`spawn ${spawnClass(editorState, spawn.id)}`}
-                cx={spawn.position.x}
-                cy={-spawn.position.y}
-                key={spawn.id}
-                onPointerDown={(event) => {
-                  if (shouldAssignTeamFromPointer(tool, event.button)) {
-                    event.stopPropagation();
-                    assignSpawnTeam(spawn.id, tool);
-                    event.preventDefault();
-                  }
-                }}
-                r="0.55"
-              />
+              <g key={spawn.id}>
+                <circle
+                  className={`spawn ${spawnClassName(editorState, spawn.id)}`}
+                  cx={spawn.position.x}
+                  cy={-spawn.position.y}
+                  onPointerDown={(event) => {
+                    if (shouldAssignTeamFromPointer(tool, event.button)) {
+                      event.stopPropagation();
+                      assignSpawnTeam(spawn.id, tool);
+                      event.preventDefault();
+                    }
+                  }}
+                  r="0.55"
+                />
+                {isSpawnSelected(editorState, spawn.id) ? (
+                  <circle className="spawn-selection-ring" cx={spawn.position.x} cy={-spawn.position.y} r="0.78" />
+                ) : null}
+              </g>
             ))}
 
             {selectedBounds && selectedTerrain ? (
@@ -990,19 +995,6 @@ function shapePath(points: WorldPoint[]): string {
 
 function svgPoint(point: WorldPoint): string {
   return `${point.x},${-point.y}`;
-}
-
-function spawnClass(state: EditorState, spawnId: string): string {
-  if (state.selection?.type === "spawn" && state.selection.id === spawnId) {
-    return "selected";
-  }
-  if (state.teamSpawnPointIds["team-a"].includes(spawnId)) {
-    return "team-a";
-  }
-  if (state.teamSpawnPointIds["team-b"].includes(spawnId)) {
-    return "team-b";
-  }
-  return "";
 }
 
 function boundsFromHandle(shape: Parameters<typeof getTerrainBounds>[0], handle: ResizeHandle, point: WorldPoint): Bounds {
