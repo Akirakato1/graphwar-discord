@@ -366,6 +366,16 @@ dd {
   margin: auto;
 }
 
+.create-lobby-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.create-lobby-panel .panel-heading,
+.create-lobby-panel .notice {
+  flex: 0 0 auto;
+}
+
 .settings-screen .menu-panel,
 .leaderboard-screen .menu-panel {
   width: min(560px, 100%);
@@ -410,6 +420,16 @@ dd {
   gap: 10px;
   min-height: 0;
   overflow: auto;
+}
+
+.create-lobby-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .menu-form label {
@@ -1150,6 +1170,7 @@ dd {
 
   .create-lobby-form {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-y: auto;
   }
 
   .create-lobby-form .color-selector {

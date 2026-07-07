@@ -171,7 +171,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
 
   return (
     <div className="menu-screen">
-      <section className="panel menu-panel" aria-labelledby="create-lobby-title">
+      <section className="panel menu-panel create-lobby-panel" aria-labelledby="create-lobby-title">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">New lobby</p>

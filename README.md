@@ -194,3 +194,4 @@ Every major implementation task should:
 - Changed selected map-maker spawn points to keep their normal fill color and show selection with a separate white outline ring instead of a yellow fill.
 - Added map-maker marquee multi-select for terrain and spawns, Ctrl+left-click selection toggling, group movement, and Ctrl+C/Ctrl+V copy-paste with pasted copies offset, selected, and preserving spawn team assignments.
 - Hid the native Electron menu chrome in the map maker and added an editor `Main Menu` button that exits back to the setup/library screen.
+- Kept the create-lobby screen fixed to the Discord-sized viewport by making the lobby settings form itself scroll internally when its controls exceed the available panel height.

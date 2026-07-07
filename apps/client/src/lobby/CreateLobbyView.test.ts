@@ -224,8 +224,11 @@ describe("CreateLobbyView helpers", () => {
     const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
     const compactLandscapeBlock = styles.match(/@media \(max-width: 820px\) and \(orientation: landscape\) \{([\s\S]*)\}\s*$/);
 
+    expect(styles).toContain(".create-lobby-panel");
+    expect(styles).toMatch(/\.create-lobby-form\s*\{[^}]*overflow-y:\s*auto;/s);
     expect(compactLandscapeBlock?.[1]).toContain(".create-lobby-form");
     expect(compactLandscapeBlock?.[1]).toContain("grid-template-columns: repeat(3, minmax(0, 1fr));");
+    expect(compactLandscapeBlock?.[1]).toContain("overflow-y: auto;");
     expect(compactLandscapeBlock?.[1]).toContain(".create-lobby-form .color-selector");
     expect(compactLandscapeBlock?.[1]).toContain("grid-column: 1 / -1;");
   });
