@@ -100,6 +100,17 @@ describe("editorModel", () => {
     expect(state.spawnPoints[0].position).toEqual({ x: bounds.maxX, y: bounds.minY });
   });
 
+  it("sanitizes non-finite pointer positions before adding terrain and spawns", () => {
+    const bounds = worldBoundsForMapSize("small");
+    let state = createEmptyEditorState({ worldBounds: bounds });
+
+    state = addRectangleTerrain(state, { x: Number.NaN, y: Number.POSITIVE_INFINITY }, 8, 4);
+    state = addSpawnPoint(state, { x: Number.NEGATIVE_INFINITY, y: Number.NaN });
+
+    expect(allTerrainPointsInsideBounds(state)).toBe(true);
+    expect(isWorldPointInBounds(state.spawnPoints[0].position, bounds)).toBe(true);
+  });
+
   it("keeps moved and resized selections inside the map bounds", () => {
     const bounds = worldBoundsForMapSize("small");
     let state = createEmptyEditorState({ worldBounds: bounds });

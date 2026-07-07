@@ -313,7 +313,12 @@ function pointsBounds(points: WorldPoint[]): Bounds {
 }
 
 function fitTerrainPointsWithinBounds(points: WorldPoint[], worldBounds: WorldBounds): WorldPoint[] {
-  const bounds = pointsBounds(points);
+  if (points.length === 0) {
+    return [];
+  }
+
+  const boundedPoints = points.map((point) => clampPointToBounds(point, worldBounds));
+  const bounds = pointsBounds(boundedPoints);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const worldWidth = worldBounds.maxX - worldBounds.minX;
@@ -337,13 +342,14 @@ function fitTerrainPointsWithinBounds(points: WorldPoint[], worldBounds: WorldBo
     }
   }
 
-  return points.map((point) => roundPoint(clampPointToBounds({ x: point.x + deltaX, y: point.y + deltaY }, worldBounds)));
+  return boundedPoints.map((point) => roundPoint(clampPointToBounds({ x: point.x + deltaX, y: point.y + deltaY }, worldBounds)));
 }
 
 function clampPointToBounds(point: WorldPoint, worldBounds: WorldBounds): WorldPoint {
+  const center = worldBoundsCenter(worldBounds);
   return {
-    x: clamp(point.x, worldBounds.minX, worldBounds.maxX),
-    y: clamp(point.y, worldBounds.minY, worldBounds.maxY)
+    x: clamp(finiteOrFallback(point.x, center.x), worldBounds.minX, worldBounds.maxX),
+    y: clamp(finiteOrFallback(point.y, center.y), worldBounds.minY, worldBounds.maxY)
   };
 }
 
@@ -410,6 +416,17 @@ function roundCoordinate(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function finiteOrFallback(value: number, fallback: number): number {
+  return Number.isNaN(value) ? fallback : value;
+}
+
+function worldBoundsCenter(worldBounds: WorldBounds): WorldPoint {
+  return {
+    x: (worldBounds.minX + worldBounds.maxX) / 2,
+    y: (worldBounds.minY + worldBounds.maxY) / 2
+  };
 }
 
 function cloneWorldBounds(worldBounds: WorldBounds): WorldBounds {

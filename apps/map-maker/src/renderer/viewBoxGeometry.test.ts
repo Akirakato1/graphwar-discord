@@ -41,6 +41,13 @@ describe("screenPointToWorldPoint", () => {
     expect(screenPointToWorldPoint({ x: 1000, y: 850 }, rect, worldBoundsForMapSize("standard"))).toEqual({ x: 25, y: -15 });
   });
 
+  it("falls back to the map center for zero-sized canvas measurements", () => {
+    expect(screenPointToWorldPoint({ x: 0, y: 0 }, { left: 0, top: 0, width: 0, height: 0 }, worldBoundsForMapSize("standard"))).toEqual({
+      x: 0,
+      y: 0
+    });
+  });
+
   it("maps huge-map corners and center using the active bounds", () => {
     const rect = { left: 100, top: 50, width: 1200, height: 600 };
     const bounds = worldBoundsForMapSize("huge");

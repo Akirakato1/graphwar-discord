@@ -96,6 +96,13 @@ export function shouldShowMinorGrid(viewBounds: WorldBounds, elementRect: Pick<R
 function normalizedScreenPoint(clientPoint: WorldPoint, elementRect: RectLike, worldBounds: WorldBounds) {
   const { renderedWidth, renderedHeight, offsetX, offsetY } = renderedViewMetrics(elementRect, worldBounds);
 
+  if (!isPositiveFinite(renderedWidth) || !isPositiveFinite(renderedHeight)) {
+    return {
+      normalizedX: 0.5,
+      normalizedY: 0.5
+    };
+  }
+
   return {
     normalizedX: clamp((clientPoint.x - elementRect.left - offsetX) / renderedWidth),
     normalizedY: clamp((clientPoint.y - elementRect.top - offsetY) / renderedHeight)
@@ -105,6 +112,15 @@ function normalizedScreenPoint(clientPoint: WorldPoint, elementRect: RectLike, w
 function renderedViewMetrics(elementRect: RectLike, worldBounds: WorldBounds) {
   const worldWidth = boundsWidth(worldBounds);
   const worldHeight = boundsHeight(worldBounds);
+  if (!isPositiveFinite(elementRect.width) || !isPositiveFinite(elementRect.height) || !isPositiveFinite(worldWidth) || !isPositiveFinite(worldHeight)) {
+    return {
+      renderedWidth: 0,
+      renderedHeight: 0,
+      offsetX: 0,
+      offsetY: 0
+    };
+  }
+
   const worldAspectRatio = worldWidth / worldHeight;
   const rectAspectRatio = elementRect.width / elementRect.height;
   const renderedWidth = rectAspectRatio > worldAspectRatio ? elementRect.height * worldAspectRatio : elementRect.width;
@@ -149,4 +165,8 @@ function clampToRange(value: number, min: number, max: number): number {
 
 function roundToTenth(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function isPositiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
 }

@@ -36,8 +36,15 @@ import {
   shouldShowMinorGrid,
   zoomViewBoundsAtScreenPoint
 } from "./viewBoxGeometry";
+import {
+  placementToolFromPointer,
+  shouldAssignTeamFromPointer,
+  shouldDrawPenPointFromPointer,
+  shouldSelectFromPointer,
+  type MapMakerTool,
+  type PlacementTool
+} from "./mapMakerInteraction";
 
-type Tool = "select" | "rectangle" | "triangle" | "circle" | "pen" | "spawn" | "team-a" | "team-b";
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type DragState =
   | {
@@ -62,7 +69,7 @@ type SetupDraft = {
   customHeight: string;
 };
 
-const tools: Array<{ id: Tool; label: string }> = [
+const tools: Array<{ id: MapMakerTool; label: string }> = [
   { id: "select", label: "Select" },
   { id: "rectangle", label: "Rect" },
   { id: "triangle", label: "Tri" },
@@ -92,11 +99,10 @@ export function App() {
   const [cameraBounds, setCameraBounds] = useState<WorldBounds | null>(null);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
   const [isSpaceDown, setIsSpaceDown] = useState(false);
-  const [tool, setTool] = useState<Tool>("select");
+  const [tool, setTool] = useState<MapMakerTool>("select");
   const [drag, setDrag] = useState<DragState>(null);
   const [message, setMessage] = useState("Ready");
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const suppressNextClickRef = useRef(false);
 
   const selectedTerrain = useMemo(() => {
     if (state?.selection?.type !== "terrain") {
@@ -252,43 +258,6 @@ export function App() {
     setState((current) => (current ? updater(current) : current));
   }
 
-  function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
-    if (suppressNextClickRef.current) {
-      suppressNextClickRef.current = false;
-      return;
-    }
-
-    if (drag) {
-      return;
-    }
-
-    const point = eventToWorldPoint(event, editorViewBounds);
-    if (tool === "rectangle") {
-      updateState((current) => addRectangleTerrain(current, point, 7, 3.5));
-      return;
-    }
-    if (tool === "triangle") {
-      updateState((current) => addTriangleTerrain(current, point, 7, 5));
-      return;
-    }
-    if (tool === "circle") {
-      updateState((current) => addCircleTerrain(current, point, 3.5, 28));
-      return;
-    }
-    if (tool === "spawn") {
-      updateState((current) => addSpawnPoint(current, point));
-      return;
-    }
-    if (tool === "pen") {
-      updateState((current) => {
-        if (current.penPoints.length >= 3 && distance(current.penPoints[0], point) < 0.9) {
-          return closePenShape(current);
-        }
-        return addPenPoint(current, point);
-      });
-    }
-  }
-
   function handleCanvasWheel(event: WheelEvent<SVGSVGElement>) {
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -307,22 +276,37 @@ export function App() {
   function handleCanvasPointerDown(event: PointerEvent<SVGSVGElement>) {
     if (shouldStartPan(event, isSpaceDown)) {
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      suppressNextClickRef.current = true;
       setDrag({ type: "pan", lastClientPoint: { x: event.clientX, y: event.clientY } });
       event.preventDefault();
       return;
     }
 
-    if (tool !== "select") {
+    const placementTool = placementToolFromPointer(tool, event.button);
+    if (placementTool) {
+      placeToolAtPoint(placementTool, eventToWorldPoint(event, editorViewBounds));
+      event.preventDefault();
+      return;
+    }
+
+    if (!shouldSelectFromPointer({ button: event.button, isSpaceDown })) {
       return;
     }
 
     const point = eventToWorldPoint(event, editorViewBounds);
     const selected = selectAtPoint(editorState, point);
-    setState(selected);
     if (selected.selection) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      setState(selected);
       setDrag({ type: "move", lastPoint: point });
+      return;
     }
+
+    if (shouldDrawPenPointFromPointer(tool, event.button)) {
+      updateState((current) => addPenPointOrClose(current, point));
+      return;
+    }
+
+    setState(selected);
   }
 
   function handleCanvasPointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -366,11 +350,10 @@ export function App() {
   }
 
   function handleContextMenu(event: MouseEvent<SVGSVGElement>) {
-    if (tool !== "pen") {
-      return;
-    }
     event.preventDefault();
-    updateState((current) => removeMostRecentPenPoint(current));
+    if (tool === "pen") {
+      updateState((current) => removeMostRecentPenPoint(current));
+    }
   }
 
   function assignSpawnTeam(spawnId: string, teamId: CustomMapTeamId) {
@@ -379,6 +362,29 @@ export function App() {
 
   function addTenSpawns() {
     updateState((current) => addDefaultSpawnSet(current));
+  }
+
+  function addPenPointOrClose(current: EditorState, point: WorldPoint): EditorState {
+    if (current.penPoints.length >= 3 && distance(current.penPoints[0], point) < 0.9) {
+      return closePenShape(current);
+    }
+    return addPenPoint(current, point);
+  }
+
+  function placeToolAtPoint(placementTool: PlacementTool, point: WorldPoint) {
+    if (placementTool === "rectangle") {
+      updateState((current) => addRectangleTerrain(current, point, 7, 3.5));
+      return;
+    }
+    if (placementTool === "triangle") {
+      updateState((current) => addTriangleTerrain(current, point, 7, 5));
+      return;
+    }
+    if (placementTool === "circle") {
+      updateState((current) => addCircleTerrain(current, point, 3.5, 28));
+      return;
+    }
+    updateState((current) => addSpawnPoint(current, point));
   }
 
   async function exportMap() {
@@ -436,13 +442,12 @@ export function App() {
           <Stat label="Team A" value={editorState.teamSpawnPointIds["team-a"].length} />
           <Stat label="Team B" value={editorState.teamSpawnPointIds["team-b"].length} />
           <p className="status-message">{message}</p>
-          <p className="compact-help">Left click places with the active tool. In Pen mode, click near the first node to close or right click to undo the latest node.</p>
+          <p className="compact-help">Left click selects and drags existing items. Right click places the active shape or spawn tool. Pen mode left-clicks empty map space to draw and right-clicks to undo.</p>
         </aside>
 
         <section className="map-maker-canvas" aria-label="Map canvas">
           <svg
             className={drag?.type === "pan" ? "panning" : undefined}
-            onClick={handleCanvasClick}
             onContextMenu={handleContextMenu}
             onPointerDown={handleCanvasPointerDown}
             onPointerLeave={handlePointerEnd}
@@ -490,17 +495,6 @@ export function App() {
                 className={editorState.selection?.type === "terrain" && editorState.selection.id === shape.id ? "terrain-shape selected" : "terrain-shape"}
                 d={shapePath(shape.points)}
                 key={shape.id}
-                onPointerDown={(event) => {
-                  if (shouldStartPan(event, isSpaceDown)) {
-                    return;
-                  }
-                  if (tool === "select") {
-                    event.stopPropagation();
-                    const point = eventToWorldPoint(event, editorViewBounds);
-                    updateState((current) => selectItem(current, { type: "terrain", id: shape.id }));
-                    setDrag({ type: "move", lastPoint: point });
-                  }
-                }}
               />
             ))}
 
@@ -519,21 +513,11 @@ export function App() {
                 cx={spawn.position.x}
                 cy={-spawn.position.y}
                 key={spawn.id}
-                onClick={(event) => {
-                  if (tool === "team-a" || tool === "team-b") {
+                onPointerDown={(event) => {
+                  if (shouldAssignTeamFromPointer(tool, event.button)) {
                     event.stopPropagation();
                     assignSpawnTeam(spawn.id, tool);
-                  }
-                }}
-                onPointerDown={(event) => {
-                  if (shouldStartPan(event, isSpaceDown)) {
-                    return;
-                  }
-                  if (tool === "select") {
-                    event.stopPropagation();
-                    const point = eventToWorldPoint(event, editorViewBounds);
-                    updateState((current) => selectItem(current, { type: "spawn", id: spawn.id }));
-                    setDrag({ type: "move", lastPoint: point });
+                    event.preventDefault();
                   }
                 }}
                 r="0.55"
@@ -593,10 +577,11 @@ function TransformBox({
           cy={-point.y}
           key={handle}
           onPointerDown={(event) => {
-            if (isSpaceDown) {
+            if (isSpaceDown || event.button !== 0) {
               return;
             }
             event.stopPropagation();
+            event.currentTarget.setPointerCapture?.(event.pointerId);
             onHandlePointerDown(handle);
           }}
           r="0.42"
