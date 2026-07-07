@@ -1,4 +1,5 @@
 import {
+  centeredWorldBounds,
   defaultMapSizePreset,
   mapSizePresets,
   worldBoundsForMapSize,
@@ -56,7 +57,9 @@ type DragState =
 
 type SetupDraft = {
   mapName: string;
-  mapSizePreset: MapSizePresetId;
+  mapSizePreset: MapSizePresetId | "custom";
+  customWidth: string;
+  customHeight: string;
 };
 
 const tools: Array<{ id: Tool; label: string }> = [
@@ -73,11 +76,17 @@ const tools: Array<{ id: Tool; label: string }> = [
 const defaultCanvasSize = { width: 1000, height: 600 };
 const majorGridStep = 5;
 const minorGridStep = 1;
+const customDimensionLimits = {
+  width: { min: 20, max: 200, fallback: 50 },
+  height: { min: 12, max: 120, fallback: 30 }
+};
 
 export function App() {
   const [setupDraft, setSetupDraft] = useState<SetupDraft>({
     mapName: "Custom Arena",
-    mapSizePreset: defaultMapSizePreset
+    mapSizePreset: defaultMapSizePreset,
+    customWidth: String(customDimensionLimits.width.fallback),
+    customHeight: String(customDimensionLimits.height.fallback)
   });
   const [state, setState] = useState<EditorState | null>(null);
   const [cameraBounds, setCameraBounds] = useState<WorldBounds | null>(null);
@@ -151,13 +160,15 @@ export function App() {
   }, [state]);
 
   if (!state || !viewGeometry) {
+    const setupWorldBounds = setupDraftWorldBounds(setupDraft);
+
     return (
       <main className="map-maker-setup-screen">
         <form
           className="map-maker-setup-panel"
           onSubmit={(event) => {
             event.preventDefault();
-            const worldBounds = worldBoundsForMapSize(setupDraft.mapSizePreset);
+            const worldBounds = setupWorldBounds;
             setState(createEmptyEditorState({ mapName: setupDraft.mapName, worldBounds }));
             setCameraBounds(worldBounds);
             setMessage("Ready");
@@ -185,10 +196,43 @@ export function App() {
                   {titleCase(preset.id)}
                 </button>
               ))}
+              <button
+                className={setupDraft.mapSizePreset === "custom" ? "active" : ""}
+                onClick={() => setSetupDraft((current) => ({ ...current, mapSizePreset: "custom" }))}
+                type="button"
+              >
+                Custom
+              </button>
             </div>
           </div>
+          {setupDraft.mapSizePreset === "custom" ? (
+            <div className="custom-size-grid" aria-label="Custom map dimensions">
+              <label className="custom-size-field">
+                <span>Width</span>
+                <input
+                  max={customDimensionLimits.width.max}
+                  min={customDimensionLimits.width.min}
+                  onChange={(event) => setSetupDraft((current) => ({ ...current, customWidth: event.currentTarget.value }))}
+                  step="1"
+                  type="number"
+                  value={setupDraft.customWidth}
+                />
+              </label>
+              <label className="custom-size-field">
+                <span>Height</span>
+                <input
+                  max={customDimensionLimits.height.max}
+                  min={customDimensionLimits.height.min}
+                  onChange={(event) => setSetupDraft((current) => ({ ...current, customHeight: event.currentTarget.value }))}
+                  step="1"
+                  type="number"
+                  value={setupDraft.customHeight}
+                />
+              </label>
+            </div>
+          ) : null}
           <p className="setup-size-readout">
-            {boundsLabel(worldBoundsForMapSize(setupDraft.mapSizePreset))}
+            {boundsLabel(setupWorldBounds)}
           </p>
           <button className="primary-action" type="submit">
             Start Editor
@@ -292,7 +336,9 @@ export function App() {
         y: event.clientY - drag.lastClientPoint.y
       };
       const rect = event.currentTarget.getBoundingClientRect();
-      setCameraBounds((currentBounds) => panViewBoundsByScreenDelta(currentBounds ?? editorState.worldBounds, rect, delta));
+      setCameraBounds((currentBounds) =>
+        panViewBoundsByScreenDelta(currentBounds ?? editorState.worldBounds, rect, delta, editorState.worldBounds)
+      );
       setDrag({ type: "pan", lastClientPoint: { x: event.clientX, y: event.clientY } });
       event.preventDefault();
       return;
@@ -647,6 +693,25 @@ function distance(left: WorldPoint, right: WorldPoint): number {
 
 function boundsLabel(bounds: EditorState["worldBounds"]): string {
   return `${bounds.maxX - bounds.minX} x ${bounds.maxY - bounds.minY}`;
+}
+
+function setupDraftWorldBounds(setupDraft: SetupDraft): WorldBounds {
+  if (setupDraft.mapSizePreset !== "custom") {
+    return worldBoundsForMapSize(setupDraft.mapSizePreset);
+  }
+
+  return centeredWorldBounds(
+    normalizedDimension(setupDraft.customWidth, customDimensionLimits.width),
+    normalizedDimension(setupDraft.customHeight, customDimensionLimits.height)
+  );
+}
+
+function normalizedDimension(value: string, limits: { min: number; max: number; fallback: number }): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return limits.fallback;
+  }
+  return Math.max(limits.min, Math.min(limits.max, parsed));
 }
 
 function slugify(value: string): string {

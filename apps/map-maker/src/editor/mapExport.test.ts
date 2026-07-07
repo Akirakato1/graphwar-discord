@@ -28,15 +28,29 @@ describe("mapExport", () => {
     expect(exported.worldBounds).toEqual(worldBounds);
   });
 
+  it("unions overlapping terrain shapes before exporting the playable map", () => {
+    let state = stateWithTenSpawns();
+    state = addRectangleTerrain(state, { x: -1, y: 0 }, 8, 4);
+    state = addRectangleTerrain(state, { x: 1, y: 0 }, 8, 4);
+
+    const exported = exportEditorMap(state);
+
+    expect(exported.terrain.blobs).toHaveLength(1);
+    expect(exported.terrain.blobs[0].id).toBe("terrain-merged-1");
+  });
+
   it("blocks export with fewer than ten spawn points", () => {
     expect(() => exportEditorMap(createEmptyEditorState())).toThrow("at least 10 spawn points");
   });
 
   it("blocks export when editor content falls outside the selected world bounds", () => {
-    let state = stateWithTenSpawns({ worldBounds: worldBoundsForMapSize("small") });
-    state = addSpawnPoint(state, { x: 21, y: 0 });
+    const state = stateWithTenSpawns({ worldBounds: worldBoundsForMapSize("small") });
+    const invalidState = {
+      ...state,
+      spawnPoints: [...state.spawnPoints, { id: "outside", position: { x: 21, y: 0 } }]
+    };
 
-    expect(() => exportEditorMap(state)).toThrow("Custom map content must stay inside world bounds.");
+    expect(() => exportEditorMap(invalidState)).toThrow("Custom map content must stay inside world bounds.");
   });
 
   it("serializes valid maps with a trailing newline for file export", () => {

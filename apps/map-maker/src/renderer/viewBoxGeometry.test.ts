@@ -65,6 +65,14 @@ describe("view bounds camera helpers", () => {
     expect(zoomedBounds.maxY - zoomedBounds.minY).toBeCloseTo(15);
   });
 
+  it("does not zoom out beyond the full map bounds", () => {
+    const bounds = worldBoundsForMapSize("standard");
+    const rect = { left: 0, top: 0, width: 1000, height: 600 };
+    const zoomedBounds = zoomViewBoundsAtScreenPoint(bounds, bounds, rect, { x: 500, y: 300 }, 1 / 10);
+
+    expect(zoomedBounds).toEqual(bounds);
+  });
+
   it("pans visible bounds by screen delta using the current zoom level", () => {
     const bounds = worldBoundsForMapSize("standard");
     const rect = { left: 0, top: 0, width: 1000, height: 600 };
@@ -74,6 +82,19 @@ describe("view bounds camera helpers", () => {
       maxX: 20,
       minY: -18,
       maxY: 12
+    });
+  });
+
+  it("clamps panning so the view never exposes void past the map bounds", () => {
+    const mapBounds = worldBoundsForMapSize("standard");
+    const rect = { left: 0, top: 0, width: 1000, height: 600 };
+    const zoomedBounds = zoomViewBoundsAtScreenPoint(mapBounds, mapBounds, rect, { x: 500, y: 300 }, 2);
+
+    expect(panViewBoundsByScreenDelta(zoomedBounds, rect, { x: 1000, y: 1000 }, mapBounds)).toEqual({
+      minX: mapBounds.minX,
+      maxX: 0,
+      minY: 0,
+      maxY: mapBounds.maxY
     });
   });
 

@@ -1,5 +1,6 @@
 import {
   worldBoundsForMapSize,
+  normalizeTerrainState,
   type LobbyPlacementId,
   type MatchModeId,
   type PersistedCustomMap,
@@ -64,7 +65,7 @@ function deriveBoundsFromTerrainAndSpawns(map: PersistedCustomMap): WorldBounds 
 export class CustomMapSpawner {
   generate(mode: MatchModeId, map: PersistedCustomMap, players: CustomMapSpawnPlayer[]): GeneratedMap {
     return {
-      terrain: structuredClone(map.terrain),
+      terrain: normalizeTerrainState(map.terrain),
       spawns: mode === "team-versus" ? this.teamVersusSpawns(map, players) : this.freeForAllSpawns(map, players),
       worldBounds: cloneWorldBounds(
         map.worldBounds ?? deriveBoundsFromTerrainAndSpawns(map) ?? worldBoundsForMapSize("standard")

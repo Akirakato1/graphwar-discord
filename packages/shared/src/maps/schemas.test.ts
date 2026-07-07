@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { mapSizePresetCatalog, mapSizePresetSchema, worldBoundsSchema } from "./schemas";
 import { customMapImportSchema, validateCustomMapImportForSave } from "./schemas";
-import { boundsHeight, boundsWidth, isWorldPointInBounds, mapSizePresets, worldBoundsForMapSize } from "./worldBounds";
+import {
+  boundsHeight,
+  boundsWidth,
+  centeredWorldBounds,
+  isWorldPointInBounds,
+  mapSizePresets,
+  worldBoundsForMapSize
+} from "./worldBounds";
 
 function spawnPoints(count: number) {
   return Array.from({ length: count }, (_, index) => ({
@@ -57,6 +64,7 @@ describe("custom map schemas", () => {
     expect(worldBoundsForMapSize("large")).toEqual({ minX: -37.5, maxX: 37.5, minY: -22.5, maxY: 22.5 });
     expect(boundsWidth(mapSizePresetCatalog.large.worldBounds)).toBe(75);
     expect(boundsHeight(mapSizePresetCatalog.large.worldBounds)).toBe(45);
+    expect(centeredWorldBounds(64, 32)).toEqual({ minX: -32, maxX: 32, minY: -16, maxY: 16 });
     expect(isWorldPointInBounds({ x: -37.5, y: 22.5 }, mapSizePresetCatalog.large.worldBounds)).toBe(true);
     expect(isWorldPointInBounds({ x: -37.6, y: 0 }, mapSizePresetCatalog.large.worldBounds)).toBe(false);
   });

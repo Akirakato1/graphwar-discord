@@ -66,12 +66,12 @@ export function addRectangleTerrain(
   const halfHeight = height / 2;
   const shape: EditorTerrainShape = {
     id: nextId("terrain", state.terrainShapes.map((item) => item.id)),
-    points: [
+    points: fitTerrainPointsWithinBounds([
       { x: center.x - halfWidth, y: center.y - halfHeight },
       { x: center.x + halfWidth, y: center.y - halfHeight },
       { x: center.x + halfWidth, y: center.y + halfHeight },
       { x: center.x - halfWidth, y: center.y + halfHeight }
-    ]
+    ], state.worldBounds)
   };
 
   return appendTerrainShape(state, shape);
@@ -85,11 +85,11 @@ export function addTriangleTerrain(
 ): EditorState {
   const shape: EditorTerrainShape = {
     id: nextId("terrain", state.terrainShapes.map((item) => item.id)),
-    points: [
+    points: fitTerrainPointsWithinBounds([
       { x: center.x, y: center.y + height / 2 },
       { x: center.x - width / 2, y: center.y - height / 2 },
       { x: center.x + width / 2, y: center.y - height / 2 }
-    ]
+    ], state.worldBounds)
   };
 
   return appendTerrainShape(state, shape);
@@ -104,13 +104,13 @@ export function addCircleTerrain(
   const safeSegments = Math.max(3, Math.floor(segments));
   const shape: EditorTerrainShape = {
     id: nextId("terrain", state.terrainShapes.map((item) => item.id)),
-    points: Array.from({ length: safeSegments }, (_, index) => {
+    points: fitTerrainPointsWithinBounds(Array.from({ length: safeSegments }, (_, index) => {
       const angle = (Math.PI * 2 * index) / safeSegments;
       return roundPoint({
         x: center.x + Math.cos(angle) * radius,
         y: center.y + Math.sin(angle) * radius
       });
-    })
+    }), state.worldBounds)
   };
 
   return appendTerrainShape(state, shape);
@@ -119,7 +119,7 @@ export function addCircleTerrain(
 export function addPenPoint(state: EditorState, point: WorldPoint): EditorState {
   return {
     ...state,
-    penPoints: [...state.penPoints, roundPoint(point)]
+    penPoints: [...state.penPoints, roundPoint(clampPointToBounds(point, state.worldBounds))]
   };
 }
 
@@ -144,7 +144,7 @@ export function closePenShape(state: EditorState): EditorState {
 export function addSpawnPoint(state: EditorState, position: WorldPoint): EditorState {
   const spawn = {
     id: nextId("spawn", state.spawnPoints.map((item) => item.id)),
-    position: roundPoint(position)
+    position: roundPoint(clampPointToBounds(position, state.worldBounds))
   };
 
   return {
@@ -189,7 +189,10 @@ export function moveSelected(state: EditorState, delta: WorldPoint): EditorState
         shape.id === state.selection?.id
           ? {
               ...shape,
-              points: shape.points.map((point) => roundPoint({ x: point.x + delta.x, y: point.y + delta.y }))
+              points: fitTerrainPointsWithinBounds(
+                shape.points.map((point) => ({ x: point.x + delta.x, y: point.y + delta.y })),
+                state.worldBounds
+              )
             }
           : shape
       )
@@ -202,7 +205,9 @@ export function moveSelected(state: EditorState, delta: WorldPoint): EditorState
       spawn.id === state.selection?.id
         ? {
             ...spawn,
-            position: roundPoint({ x: spawn.position.x + delta.x, y: spawn.position.y + delta.y })
+            position: roundPoint(
+              clampPointToBounds({ x: spawn.position.x + delta.x, y: spawn.position.y + delta.y }, state.worldBounds)
+            )
           }
         : spawn
     )
@@ -221,9 +226,13 @@ export function resizeSelectedTerrain(state: EditorState, targetBounds: Bounds):
         return shape;
       }
       const sourceBounds = pointsBounds(shape.points);
+      const clampedTargetBounds = clampBoundsToWorldBounds(targetBounds, state.worldBounds);
       return {
         ...shape,
-        points: shape.points.map((point) => scalePointBetweenBounds(point, sourceBounds, targetBounds))
+        points: fitTerrainPointsWithinBounds(
+          shape.points.map((point) => scalePointBetweenBounds(point, sourceBounds, clampedTargetBounds)),
+          state.worldBounds
+        )
       };
     })
   };
@@ -303,6 +312,65 @@ function pointsBounds(points: WorldPoint[]): Bounds {
   };
 }
 
+function fitTerrainPointsWithinBounds(points: WorldPoint[], worldBounds: WorldBounds): WorldPoint[] {
+  const bounds = pointsBounds(points);
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  const worldWidth = worldBounds.maxX - worldBounds.minX;
+  const worldHeight = worldBounds.maxY - worldBounds.minY;
+  let deltaX = 0;
+  let deltaY = 0;
+
+  if (width <= worldWidth) {
+    if (bounds.minX < worldBounds.minX) {
+      deltaX = worldBounds.minX - bounds.minX;
+    } else if (bounds.maxX > worldBounds.maxX) {
+      deltaX = worldBounds.maxX - bounds.maxX;
+    }
+  }
+
+  if (height <= worldHeight) {
+    if (bounds.minY < worldBounds.minY) {
+      deltaY = worldBounds.minY - bounds.minY;
+    } else if (bounds.maxY > worldBounds.maxY) {
+      deltaY = worldBounds.maxY - bounds.maxY;
+    }
+  }
+
+  return points.map((point) => roundPoint(clampPointToBounds({ x: point.x + deltaX, y: point.y + deltaY }, worldBounds)));
+}
+
+function clampPointToBounds(point: WorldPoint, worldBounds: WorldBounds): WorldPoint {
+  return {
+    x: clamp(point.x, worldBounds.minX, worldBounds.maxX),
+    y: clamp(point.y, worldBounds.minY, worldBounds.maxY)
+  };
+}
+
+function clampBoundsToWorldBounds(bounds: Bounds, worldBounds: WorldBounds): Bounds {
+  const minX = clamp(Math.min(bounds.minX, bounds.maxX), worldBounds.minX, worldBounds.maxX);
+  const maxX = clamp(Math.max(bounds.minX, bounds.maxX), worldBounds.minX, worldBounds.maxX);
+  const minY = clamp(Math.min(bounds.minY, bounds.maxY), worldBounds.minY, worldBounds.maxY);
+  const maxY = clamp(Math.max(bounds.minY, bounds.maxY), worldBounds.minY, worldBounds.maxY);
+  return expandBoundsIfNeeded({ minX, maxX, minY, maxY }, worldBounds);
+}
+
+function expandBoundsIfNeeded(bounds: Bounds, worldBounds: WorldBounds): Bounds {
+  const minSize = 0.5;
+  const next = { ...bounds };
+  if (next.maxX - next.minX < minSize) {
+    const center = (next.minX + next.maxX) / 2;
+    next.minX = clamp(center - minSize / 2, worldBounds.minX, worldBounds.maxX - minSize);
+    next.maxX = next.minX + minSize;
+  }
+  if (next.maxY - next.minY < minSize) {
+    const center = (next.minY + next.maxY) / 2;
+    next.minY = clamp(center - minSize / 2, worldBounds.minY, worldBounds.maxY - minSize);
+    next.maxY = next.minY + minSize;
+  }
+  return next;
+}
+
 function scalePointBetweenBounds(point: WorldPoint, sourceBounds: Bounds, targetBounds: Bounds): WorldPoint {
   const sourceWidth = sourceBounds.maxX - sourceBounds.minX;
   const sourceHeight = sourceBounds.maxY - sourceBounds.minY;
@@ -338,6 +406,10 @@ function roundPoint(point: WorldPoint): WorldPoint {
 
 function roundCoordinate(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function cloneWorldBounds(worldBounds: WorldBounds): WorldBounds {

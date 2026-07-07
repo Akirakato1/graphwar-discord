@@ -72,6 +72,43 @@ describe("CustomMapSpawner", () => {
     expect(generated.worldBounds).toEqual(worldBounds);
   });
 
+  it("normalizes overlapping saved terrain blobs into one playable terrain area", () => {
+    const generated = new CustomMapSpawner().generate(
+      "free-for-all",
+      persistedMap({
+        terrain: {
+          blobs: [
+            {
+              id: "left-overlap",
+              outer: [
+                { x: -5, y: -2 },
+                { x: 1, y: -2 },
+                { x: 1, y: 2 },
+                { x: -5, y: 2 }
+              ],
+              holes: []
+            },
+            {
+              id: "right-overlap",
+              outer: [
+                { x: -1, y: -2 },
+                { x: 5, y: -2 },
+                { x: 5, y: 2 },
+                { x: -1, y: 2 }
+              ],
+              holes: []
+            }
+          ]
+        }
+      }),
+      [{ playerId: "alice", placement: "players" }]
+    );
+
+    expect(generated.terrain.blobs).toHaveLength(1);
+    expect(generated.terrain.blobs[0].id).toBe("terrain-merged-1");
+  });
+
+
   it("derives world bounds from terrain and spawns when custom maps omit bounds", () => {
     const generated = new CustomMapSpawner().generate(
       "free-for-all",

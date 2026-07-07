@@ -7,7 +7,6 @@ type RectLike = {
   height: number;
 };
 
-const MIN_ZOOM_RATIO = 0.4;
 const MAX_ZOOM_RATIO = 5;
 const MINOR_GRID_PIXEL_THRESHOLD = 32;
 
@@ -47,13 +46,13 @@ export function zoomViewBoundsAtScreenPoint(
   const currentWidth = boundsWidth(viewBounds);
   const currentHeight = boundsHeight(viewBounds);
   const minWidth = boundsWidth(mapBounds) / MAX_ZOOM_RATIO;
-  const maxWidth = boundsWidth(mapBounds) / MIN_ZOOM_RATIO;
+  const maxWidth = boundsWidth(mapBounds);
   const nextWidth = clampToRange(currentWidth / factor, minWidth, maxWidth);
   const scale = nextWidth / currentWidth;
   const nextHeight = currentHeight * scale;
 
   if (nextWidth === currentWidth && nextHeight === currentHeight) {
-    return viewBounds;
+    return clampViewBoundsToMapBounds(viewBounds, mapBounds);
   }
 
   const worldPoint = screenPointToWorldPoint(clientPoint, elementRect, viewBounds);
@@ -61,29 +60,32 @@ export function zoomViewBoundsAtScreenPoint(
   const minX = worldPoint.x - normalizedX * nextWidth;
   const maxY = worldPoint.y + normalizedY * nextHeight;
 
-  return {
+  return clampViewBoundsToMapBounds({
     minX,
     maxX: minX + nextWidth,
     minY: maxY - nextHeight,
     maxY
-  };
+  }, mapBounds);
 }
 
 export function panViewBoundsByScreenDelta(
   viewBounds: WorldBounds,
   elementRect: RectLike,
-  delta: { x: number; y: number }
+  delta: { x: number; y: number },
+  mapBounds?: WorldBounds
 ): WorldBounds {
   const metrics = renderedViewMetrics(elementRect, viewBounds);
   const deltaWorldX = (delta.x / metrics.renderedWidth) * boundsWidth(viewBounds);
   const deltaWorldY = (delta.y / metrics.renderedHeight) * boundsHeight(viewBounds);
 
-  return {
+  const nextBounds = {
     minX: viewBounds.minX - deltaWorldX,
     maxX: viewBounds.maxX - deltaWorldX,
     minY: viewBounds.minY + deltaWorldY,
     maxY: viewBounds.maxY + deltaWorldY
   };
+
+  return mapBounds ? clampViewBoundsToMapBounds(nextBounds, mapBounds) : nextBounds;
 }
 
 export function shouldShowMinorGrid(viewBounds: WorldBounds, elementRect: Pick<RectLike, "width" | "height">): boolean {
@@ -113,6 +115,27 @@ function renderedViewMetrics(elementRect: RectLike, worldBounds: WorldBounds) {
     renderedHeight,
     offsetX: (elementRect.width - renderedWidth) / 2,
     offsetY: (elementRect.height - renderedHeight) / 2
+  };
+}
+
+function clampViewBoundsToMapBounds(viewBounds: WorldBounds, mapBounds: WorldBounds): WorldBounds {
+  const mapWidth = boundsWidth(mapBounds);
+  const mapHeight = boundsHeight(mapBounds);
+  const viewWidth = Math.min(boundsWidth(viewBounds), mapWidth);
+  const viewHeight = Math.min(boundsHeight(viewBounds), mapHeight);
+
+  if (viewWidth >= mapWidth || viewHeight >= mapHeight) {
+    return { ...mapBounds };
+  }
+
+  const minX = clampToRange(viewBounds.minX, mapBounds.minX, mapBounds.maxX - viewWidth);
+  const maxY = clampToRange(viewBounds.maxY, mapBounds.minY + viewHeight, mapBounds.maxY);
+
+  return {
+    minX,
+    maxX: minX + viewWidth,
+    minY: maxY - viewHeight,
+    maxY
   };
 }
 

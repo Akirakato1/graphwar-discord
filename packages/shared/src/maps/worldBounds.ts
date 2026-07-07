@@ -17,7 +17,7 @@ export type MapSizePreset = {
   worldBounds: WorldBounds;
 };
 
-function centeredWorldBounds(width: number, height: number): WorldBounds {
+export function centeredWorldBounds(width: number, height: number): WorldBounds {
   return {
     minX: -width / 2,
     maxX: width / 2,

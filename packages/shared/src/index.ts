@@ -12,4 +12,5 @@ export * from "./protocol/commands";
 export * from "./protocol/events";
 export * from "./protocol/schemas";
 export * from "./state/types";
+export * from "./terrain/normalizeTerrain";
 export * from "./validation/settings";

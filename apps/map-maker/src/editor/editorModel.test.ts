@@ -17,6 +17,12 @@ import {
 } from "./editorModel";
 
 describe("editorModel", () => {
+  function allTerrainPointsInsideBounds(state: ReturnType<typeof createEmptyEditorState>): boolean {
+    return state.terrainShapes.every((shape) =>
+      shape.points.every((point) => isWorldPointInBounds(point, state.worldBounds))
+    );
+  }
+
   it("stores custom map name and world bounds when creating an empty editor state", () => {
     const worldBounds = worldBoundsForMapSize("huge");
 
@@ -80,6 +86,52 @@ describe("editorModel", () => {
       { x: 4, y: 3 },
       { x: -4, y: 3 }
     ]);
+  });
+
+  it("clamps newly placed terrain and spawns inside the map bounds", () => {
+    const bounds = worldBoundsForMapSize("small");
+    let state = createEmptyEditorState({ worldBounds: bounds });
+
+    state = addRectangleTerrain(state, { x: bounds.maxX, y: bounds.maxY }, 8, 4);
+    state = addSpawnPoint(state, { x: bounds.maxX + 10, y: bounds.minY - 10 });
+
+    expect(allTerrainPointsInsideBounds(state)).toBe(true);
+    expect(isWorldPointInBounds(state.spawnPoints[0].position, bounds)).toBe(true);
+    expect(state.spawnPoints[0].position).toEqual({ x: bounds.maxX, y: bounds.minY });
+  });
+
+  it("keeps moved and resized selections inside the map bounds", () => {
+    const bounds = worldBoundsForMapSize("small");
+    let state = createEmptyEditorState({ worldBounds: bounds });
+
+    state = addRectangleTerrain(state, { x: 0, y: 0 }, 8, 4);
+    state = moveSelected(state, { x: 100, y: 100 });
+    expect(allTerrainPointsInsideBounds(state)).toBe(true);
+
+    state = resizeSelectedTerrain(state, {
+      minX: bounds.minX - 20,
+      maxX: bounds.maxX + 20,
+      minY: bounds.minY - 20,
+      maxY: bounds.maxY + 20
+    });
+    expect(allTerrainPointsInsideBounds(state)).toBe(true);
+
+    state = addSpawnPoint(state, { x: 0, y: 0 });
+    state = moveSelected(state, { x: -100, y: -100 });
+    expect(state.spawnPoints[0].position).toEqual({ x: bounds.minX, y: bounds.minY });
+  });
+
+  it("clamps pen points and closed pen terrain inside the map bounds", () => {
+    const bounds = worldBoundsForMapSize("small");
+    let state = createEmptyEditorState({ worldBounds: bounds });
+
+    state = addPenPoint(state, { x: bounds.minX - 4, y: bounds.maxY + 4 });
+    state = addPenPoint(state, { x: bounds.maxX + 4, y: bounds.maxY + 4 });
+    state = addPenPoint(state, { x: 0, y: bounds.minY - 4 });
+    state = closePenShape(state);
+
+    expect(state.penPoints).toHaveLength(0);
+    expect(allTerrainPointsInsideBounds(state)).toBe(true);
   });
 
   it("keeps a spawn in only one team subset at a time", () => {

@@ -1,4 +1,4 @@
-import { validateCustomMapImportForSave, type CustomMapImport } from "@graphwar/shared";
+import { normalizeTerrainState, validateCustomMapImportForSave, type CustomMapImport } from "@graphwar/shared";
 import type { EditorState } from "./editorTypes";
 
 export function exportEditorMap(state: EditorState): CustomMapImport {
@@ -7,13 +7,13 @@ export function exportEditorMap(state: EditorState): CustomMapImport {
     version: 1,
     name: state.mapName.trim() || "Custom Arena",
     worldBounds: { ...state.worldBounds },
-    terrain: {
+    terrain: normalizeTerrainState({
       blobs: state.terrainShapes.map((shape) => ({
         id: shape.id,
         outer: shape.points,
         holes: []
       }))
-    },
+    }),
     spawnPoints: state.spawnPoints.map((spawn) => ({
       id: spawn.id,
       position: spawn.position
