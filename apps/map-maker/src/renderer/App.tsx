@@ -17,17 +17,24 @@ import {
   addSpawnPoint,
   addTriangleTerrain,
   closePenShape,
+  copySelected,
   createEmptyEditorState,
   deleteSelected,
   getTerrainBounds,
+  isItemSelected,
+  itemAtPoint,
   moveSelected,
+  pasteClipboard,
   removeMostRecentPenPoint,
   resizeSelectedTerrain,
   selectAtPoint,
+  selectItemsInBounds,
   selectItem,
+  selectedItems,
+  toggleSelectedItem,
   toggleTeamSpawn
 } from "../editor/editorModel";
-import type { Bounds, EditorState } from "../editor/editorTypes";
+import type { Bounds, EditorClipboard, EditorState } from "../editor/editorTypes";
 import { stringifyEditorMap } from "../editor/mapExport";
 import {
   currentFileForSavedMap,
@@ -73,6 +80,11 @@ type DragState =
       type: "pan";
       lastClientPoint: WorldPoint;
     }
+  | {
+      type: "marquee";
+      startPoint: WorldPoint;
+      currentPoint: WorldPoint;
+    }
   | null;
 
 type SetupDraft = {
@@ -111,6 +123,7 @@ export function App() {
   const [state, setState] = useState<EditorState | null>(null);
   const [cameraBounds, setCameraBounds] = useState<WorldBounds | null>(null);
   const [currentFile, setCurrentFile] = useState<CurrentMapFile | null>(null);
+  const [clipboard, setClipboard] = useState<EditorClipboard | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<SavedMapSummary | null>(null);
   const [isLibraryVisible, setIsLibraryVisible] = useState(false);
   const [renameDraft, setRenameDraft] = useState<{ filePath: string; name: string } | null>(null);
@@ -125,10 +138,11 @@ export function App() {
   const messageTimeoutRef = useRef<number | undefined>(undefined);
 
   const selectedTerrain = useMemo(() => {
-    if (state?.selection?.type !== "terrain") {
+    const items = selectedItems(state?.selection ?? null);
+    if (items.length !== 1 || items[0].type !== "terrain") {
       return undefined;
     }
-    return state.terrainShapes.find((shape) => shape.id === state.selection?.id);
+    return state?.terrainShapes.find((shape) => shape.id === items[0].id);
   }, [state]);
 
   const selectedBounds = selectedTerrain ? getTerrainBounds(selectedTerrain) : undefined;
@@ -153,6 +167,36 @@ export function App() {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+
+  useEffect(() => {
+    const handleClipboardKeyDown = (event: KeyboardEvent) => {
+      if (!state || isTypingTarget(event.target) || !event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "c") {
+        const nextClipboard = copySelected(state);
+        if (nextClipboard) {
+          setClipboard(nextClipboard);
+          showMessage("Copied selection.", { transient: true });
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (key === "v" && clipboard) {
+        updateState((current) => pasteClipboard(current, clipboard));
+        showMessage("Pasted selection.", { transient: true });
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleClipboardKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleClipboardKeyDown);
+    };
+  }, [clipboard, state]);
 
   useEffect(() => {
     void refreshSavedMaps();
@@ -340,6 +384,7 @@ export function App() {
   const mapGeometry = createViewBoxGeometry(editorState.worldBounds);
   const editorViewBounds = cameraBounds ?? editorState.worldBounds;
   const showMinorGrid = shouldShowMinorGrid(editorViewBounds, canvasSize);
+  const marqueeBounds = drag?.type === "marquee" ? boundsFromPoints(drag.startPoint, drag.currentPoint) : undefined;
 
   function showMessage(nextMessage: string, options: { transient?: boolean } = {}) {
     if (messageTimeoutRef.current) {
@@ -414,10 +459,21 @@ export function App() {
     }
 
     const point = eventToWorldPoint(event, editorViewBounds);
-    const selected = selectAtPoint(editorState, point);
-    if (selected.selection) {
+    if (event.ctrlKey && tool === "select") {
+      const item = itemAtPoint(editorState, point);
+      if (item) {
+        setState(toggleSelectedItem(editorState, item));
+        event.preventDefault();
+      }
+      return;
+    }
+
+    const item = itemAtPoint(editorState, point);
+    if (item) {
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      setState(selected);
+      if (!isItemSelected(editorState.selection, item)) {
+        setState(selectItem(editorState, item));
+      }
       setDrag({ type: "move", lastPoint: point });
       return;
     }
@@ -427,7 +483,15 @@ export function App() {
       return;
     }
 
-    setState(selected);
+    if (tool === "select") {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      setState(selectAtPoint(editorState, point));
+      setDrag({ type: "marquee", startPoint: point, currentPoint: point });
+      event.preventDefault();
+      return;
+    }
+
+    setState(selectAtPoint(editorState, point));
   }
 
   function handleCanvasPointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -450,6 +514,12 @@ export function App() {
     }
 
     const point = eventToWorldPoint(event, editorViewBounds);
+    if (drag.type === "marquee") {
+      setDrag({ ...drag, currentPoint: point });
+      event.preventDefault();
+      return;
+    }
+
     if (drag.type === "move") {
       const delta = { x: point.x - drag.lastPoint.x, y: point.y - drag.lastPoint.y };
       updateState((current) => moveSelected(current, delta));
@@ -466,7 +536,11 @@ export function App() {
     });
   }
 
-  function handlePointerEnd() {
+  function handlePointerEnd(event?: PointerEvent<SVGSVGElement>) {
+    if (drag?.type === "marquee") {
+      const endPoint = event ? eventToWorldPoint(event, editorViewBounds) : drag.currentPoint;
+      updateState((current) => selectItemsInBounds(current, boundsFromPoints(drag.startPoint, endPoint)));
+    }
     setDrag(null);
   }
 
@@ -746,7 +820,11 @@ export function App() {
 
             {editorState.terrainShapes.map((shape) => (
               <path
-                className={editorState.selection?.type === "terrain" && editorState.selection.id === shape.id ? "terrain-shape selected" : "terrain-shape"}
+                className={
+                  isItemSelected(editorState.selection, { type: "terrain", id: shape.id })
+                    ? "terrain-shape selected"
+                    : "terrain-shape"
+                }
                 d={shapePath(shape.points)}
                 key={shape.id}
               />
@@ -781,6 +859,16 @@ export function App() {
                 ) : null}
               </g>
             ))}
+
+            {marqueeBounds ? (
+              <rect
+                className="marquee-selection"
+                height={marqueeBounds.maxY - marqueeBounds.minY}
+                width={marqueeBounds.maxX - marqueeBounds.minX}
+                x={marqueeBounds.minX}
+                y={-marqueeBounds.maxY}
+              />
+            ) : null}
 
             {selectedBounds && selectedTerrain ? (
               <TransformBox
@@ -995,6 +1083,15 @@ function shapePath(points: WorldPoint[]): string {
 
 function svgPoint(point: WorldPoint): string {
   return `${point.x},${-point.y}`;
+}
+
+function boundsFromPoints(left: WorldPoint, right: WorldPoint): Bounds {
+  return {
+    minX: Math.min(left.x, right.x),
+    maxX: Math.max(left.x, right.x),
+    minY: Math.min(left.y, right.y),
+    maxY: Math.max(left.y, right.y)
+  };
 }
 
 function boundsFromHandle(shape: Parameters<typeof getTerrainBounds>[0], handle: ResizeHandle, point: WorldPoint): Bounds {

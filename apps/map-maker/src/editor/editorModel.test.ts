@@ -8,11 +8,15 @@ import {
   addSpawnPoint,
   addTriangleTerrain,
   closePenShape,
+  copySelected,
   createEmptyEditorState,
   moveSelected,
+  pasteClipboard,
   removeMostRecentPenPoint,
   resizeSelectedTerrain,
   selectAtPoint,
+  selectItemsInBounds,
+  toggleSelectedItem,
   toggleTeamSpawn
 } from "./editorModel";
 
@@ -167,6 +171,99 @@ describe("editorModel", () => {
 
     state = selectAtPoint(state, { x: 1.2, y: 1.1 });
     expect(state.selection).toEqual({ type: "spawn", id: state.spawnPoints[0].id });
+  });
+
+  it("selects terrain and spawn points inside a marquee bounds", () => {
+    let state = createEmptyEditorState();
+    state = addRectangleTerrain(state, { x: 0, y: 0 }, 4, 4);
+    const terrainId = state.terrainShapes[0].id;
+    state = addSpawnPoint(state, { x: 8, y: 2 });
+    const spawnId = state.spawnPoints[0].id;
+    state = addRectangleTerrain(state, { x: 20, y: 20 }, 4, 4);
+
+    state = selectItemsInBounds(state, { minX: -3, maxX: 9, minY: -3, maxY: 3 });
+
+    expect(state.selection).toEqual({
+      type: "multi",
+      items: [
+        { type: "terrain", id: terrainId },
+        { type: "spawn", id: spawnId }
+      ]
+    });
+  });
+
+  it("toggles items out of and into a multi-selection", () => {
+    let state = createEmptyEditorState();
+    state = addRectangleTerrain(state, { x: 0, y: 0 }, 4, 4);
+    const terrainId = state.terrainShapes[0].id;
+    state = addSpawnPoint(state, { x: 8, y: 2 });
+    const spawnId = state.spawnPoints[0].id;
+    state = selectItemsInBounds(state, { minX: -3, maxX: 9, minY: -3, maxY: 3 });
+
+    state = toggleSelectedItem(state, { type: "spawn", id: spawnId });
+    expect(state.selection).toEqual({ type: "terrain", id: terrainId });
+
+    state = toggleSelectedItem(state, { type: "spawn", id: spawnId });
+    expect(state.selection).toEqual({
+      type: "multi",
+      items: [
+        { type: "terrain", id: terrainId },
+        { type: "spawn", id: spawnId }
+      ]
+    });
+  });
+
+  it("moves all selected terrain and spawn points as a group", () => {
+    let state = createEmptyEditorState();
+    state = addRectangleTerrain(state, { x: 0, y: 0 }, 4, 4);
+    state = addSpawnPoint(state, { x: 8, y: 2 });
+    state = selectItemsInBounds(state, { minX: -3, maxX: 9, minY: -3, maxY: 3 });
+
+    state = moveSelected(state, { x: 2, y: 3 });
+
+    expect(state.terrainShapes[0].points).toEqual([
+      { x: 0, y: 1 },
+      { x: 4, y: 1 },
+      { x: 4, y: 5 },
+      { x: 0, y: 5 }
+    ]);
+    expect(state.spawnPoints[0].position).toEqual({ x: 10, y: 5 });
+  });
+
+  it("copies and pastes selected terrain and spawns while preserving spawn teams", () => {
+    let state = createEmptyEditorState();
+    state = addRectangleTerrain(state, { x: 0, y: 0 }, 4, 4);
+    const sourceTerrainId = state.terrainShapes[0].id;
+    state = addSpawnPoint(state, { x: 8, y: 2 });
+    const sourceSpawnId = state.spawnPoints[0].id;
+    state = toggleTeamSpawn(state, sourceSpawnId, "team-a");
+    state = selectItemsInBounds(state, { minX: -3, maxX: 9, minY: -3, maxY: 3 });
+
+    const clipboard = copySelected(state);
+    expect(clipboard).not.toBeNull();
+    state = pasteClipboard(state, clipboard, { x: 2, y: -2 });
+
+    expect(state.terrainShapes).toHaveLength(2);
+    expect(state.spawnPoints).toHaveLength(2);
+    expect(state.terrainShapes[1].id).not.toBe(sourceTerrainId);
+    expect(state.terrainShapes[1].points).toEqual([
+      { x: 0, y: -4 },
+      { x: 4, y: -4 },
+      { x: 4, y: 0 },
+      { x: 0, y: 0 }
+    ]);
+    expect(state.spawnPoints[1]).toEqual({
+      id: "spawn-2",
+      position: { x: 10, y: 0 }
+    });
+    expect(state.teamSpawnPointIds["team-a"]).toEqual([sourceSpawnId, "spawn-2"]);
+    expect(state.selection).toEqual({
+      type: "multi",
+      items: [
+        { type: "terrain", id: state.terrainShapes[1].id },
+        { type: "spawn", id: "spawn-2" }
+      ]
+    });
   });
 
   it("adds a default 10-spawn set inside the active bounds with 5v5 team subsets", () => {

@@ -375,6 +375,14 @@ button.active,
   stroke-width: 0.16;
 }
 
+.marquee-selection {
+  fill: rgba(245, 247, 251, 0.1);
+  pointer-events: none;
+  stroke: #f5f7fb;
+  stroke-dasharray: 0.35 0.25;
+  stroke-width: 0.08;
+}
+
 .transform-box rect {
   fill: none;
   stroke: #e7c77d;

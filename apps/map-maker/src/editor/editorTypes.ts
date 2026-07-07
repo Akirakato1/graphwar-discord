@@ -5,12 +5,24 @@ export type EditorTerrainShape = {
   points: WorldPoint[];
 };
 
+export type EditorSelectionItem = {
+  type: "terrain" | "spawn";
+  id: string;
+};
+
 export type EditorSelection =
+  | EditorSelectionItem
   | {
-      type: "terrain" | "spawn";
-      id: string;
+      type: "multi";
+      items: EditorSelectionItem[];
     }
   | null;
+
+export type EditorClipboard = {
+  terrainShapes: EditorTerrainShape[];
+  spawnPoints: CustomMapSpawnPoint[];
+  teamSpawnPointIds: CustomMapTeamSpawnPointIds;
+};
 
 export type Bounds = {
   minX: number;

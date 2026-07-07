@@ -1,9 +1,10 @@
 import type { EditorState } from "../editor/editorTypes";
+import { isItemSelected } from "../editor/editorModel";
 
 type SpawnVisualState = Pick<EditorState, "selection" | "teamSpawnPointIds">;
 
 export function isSpawnSelected(state: SpawnVisualState, spawnId: string): boolean {
-  return state.selection?.type === "spawn" && state.selection.id === spawnId;
+  return isItemSelected(state.selection, { type: "spawn", id: spawnId });
 }
 
 export function spawnClassName(state: SpawnVisualState, spawnId: string): string {

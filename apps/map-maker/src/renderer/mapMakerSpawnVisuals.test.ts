@@ -28,6 +28,25 @@ describe("mapMakerSpawnVisuals", () => {
     expect(spawnClassName(state, "spawn-1")).toBe("");
     expect(isSpawnSelected(state, "spawn-1")).toBe(true);
   });
+
+  it("marks spawns as selected when they are part of a multi-selection", () => {
+    const state = spawnVisualState({
+      selection: {
+        type: "multi",
+        items: [
+          { type: "terrain", id: "terrain-1" },
+          { type: "spawn", id: "spawn-1" }
+        ]
+      },
+      teamSpawnPointIds: {
+        "team-a": [],
+        "team-b": ["spawn-1"]
+      }
+    });
+
+    expect(spawnClassName(state, "spawn-1")).toBe("team-b");
+    expect(isSpawnSelected(state, "spawn-1")).toBe(true);
+  });
 });
 
 function spawnVisualState(
