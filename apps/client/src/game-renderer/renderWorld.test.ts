@@ -65,10 +65,10 @@ class RecordingCanvasContext {
 
   public font = "";
   public globalAlpha = 1;
-  public lineWidth = 1;
   public textAlign = "";
   public textBaseline = "";
   private currentFillStyle = "";
+  private currentLineWidth = 1;
   private currentStrokeStyle = "";
 
   public get fillStyle() {
@@ -78,6 +78,15 @@ class RecordingCanvasContext {
   public set fillStyle(value: string) {
     this.currentFillStyle = value;
     this.record("setFillStyle", [value]);
+  }
+
+  public get lineWidth() {
+    return this.currentLineWidth;
+  }
+
+  public set lineWidth(value: number) {
+    this.currentLineWidth = value;
+    this.record("setLineWidth", [value]);
   }
 
   public get strokeStyle() {
@@ -346,6 +355,45 @@ describe("renderWorld", () => {
     );
     expect(context.calls.some((call) => call.name === "lineTo" && call.args[0] === 700 && call.args[1] === 300)).toBe(
       false
+    );
+  });
+
+  it("draws a thin local preview path in light yellow before authoritative shots", () => {
+    const context = new RecordingCanvasContext();
+
+    renderWorld(context as unknown as CanvasRenderingContext2D, { width: 1000, height: 600 }, {
+      previewPath: [
+        { x: -10, y: -2 },
+        { x: 0, y: 0 },
+        { x: 10, y: -2 }
+      ],
+      snapshot,
+      shot: {
+        path: [
+          { x: -10, y: 0 },
+          { x: 0, y: 0 }
+        ],
+        impact: { reason: "miss" },
+        progress: 1
+      }
+    });
+
+    const previewStrokeIndex = context.calls.findIndex(
+      (call) => call.name === "setStrokeStyle" && call.args[0] === "rgba(255, 224, 128, 0.46)"
+    );
+    const authoritativeStrokeIndex = context.calls.findIndex(
+      (call) => call.name === "setStrokeStyle" && String(call.args[0]).startsWith("rgba(249, 242, 199,")
+    );
+
+    expect(previewStrokeIndex).toBeGreaterThan(-1);
+    expect(authoritativeStrokeIndex).toBeGreaterThan(previewStrokeIndex);
+    expect(
+      context.calls.some(
+        (call, index) => index > previewStrokeIndex && call.name === "setLineWidth" && call.args[0] === 1.5
+      )
+    ).toBe(true);
+    expect(context.calls.some((call) => call.name === "lineTo" && call.args[0] === 500 && call.args[1] === 300)).toBe(
+      true
     );
   });
 

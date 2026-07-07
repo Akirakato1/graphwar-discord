@@ -178,7 +178,8 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     impact: z.object({
       reason: z.enum(["terrain-hit", "player-hit", "undefined-function", "path-too-long", "field-boundary", "miss"]),
       point: pointSchema.optional(),
-      targetPlayerId: z.string().optional()
+      targetPlayerId: z.string().optional(),
+      craterRadius: nonNegativeFiniteNumberSchema.optional()
     }),
     terrain: terrainStateSchema.optional(),
     damage: z.array(

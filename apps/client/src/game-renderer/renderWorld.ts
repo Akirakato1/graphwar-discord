@@ -24,6 +24,7 @@ export type RenderShot = {
 export type RenderWorldOptions = {
   avatarImages?: Record<string, CanvasImageSource>;
   camera?: Camera;
+  previewPath?: WorldPoint[];
   shot?: RenderShot;
   snapshot?: MatchSnapshot;
 };
@@ -111,6 +112,7 @@ export function renderWorld(ctx: CanvasRenderingContext2D, size: CanvasSize, opt
 
   if (options.snapshot) {
     drawTerrain(ctx, camera, options.snapshot);
+    drawPreviewPath(ctx, camera, options.previewPath);
     drawShot(ctx, camera, options.shot);
     drawPlayers(ctx, camera, options.snapshot, options.avatarImages);
   } else {
@@ -204,6 +206,25 @@ function drawTerrain(ctx: CanvasRenderingContext2D, camera: Camera, snapshot: Ma
   ctx.restore();
 }
 
+function drawPreviewPath(ctx: CanvasRenderingContext2D, camera: Camera, path: WorldPoint[] | undefined): void {
+  if (!path || path.length < 2) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 224, 128, 0.46)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const start = worldToCanvasWithCamera(path[0], camera);
+  ctx.moveTo(start.x, start.y);
+  for (const point of path.slice(1)) {
+    const canvasPoint = worldToCanvasWithCamera(point, camera);
+    ctx.lineTo(canvasPoint.x, canvasPoint.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawShot(ctx: CanvasRenderingContext2D, camera: Camera, shot: RenderShot | undefined): void {
   if (!shot || shot.path.length === 0) {
     return;
@@ -233,18 +254,23 @@ function drawShot(ctx: CanvasRenderingContext2D, camera: Camera, shot: RenderSho
     if (shot.impact.reason === "path-too-long") {
       drawRangeFizzle(ctx, camera, impact);
     } else {
-      drawImpactRing(ctx, camera, impact);
+      drawImpactRing(ctx, camera, impact, shot.impact.craterRadius);
     }
   }
 }
 
-function drawImpactRing(ctx: CanvasRenderingContext2D, camera: Camera, impact: { x: number; y: number }): void {
+function drawImpactRing(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  impact: { x: number; y: number },
+  craterRadius: number = defaultMatchTuning.circleCraterRadius
+): void {
   ctx.save();
   ctx.lineWidth = 2.5;
   ctx.strokeStyle = "#ffcf5d";
   ctx.fillStyle = "rgba(255, 111, 108, 0.16)";
   ctx.beginPath();
-  ctx.arc(impact.x, impact.y, worldDistanceToCanvas(defaultMatchTuning.circleCraterRadius, camera), 0, Math.PI * 2);
+  ctx.arc(impact.x, impact.y, worldDistanceToCanvas(craterRadius, camera), 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();

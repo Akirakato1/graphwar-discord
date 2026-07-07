@@ -83,6 +83,22 @@ describe("GameCanvas", () => {
     expect(html).toContain('data-world-bounds="-50,50,-30,30"');
   });
 
+  it("exposes local function preview metadata without requiring a shot event", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(GameCanvas, {
+        events: [],
+        previewPath: [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 }
+        ],
+        snapshot
+      })
+    );
+
+    expect(html).toContain('data-preview-points="2"');
+    expect(html).toContain('data-path-points="0"');
+  });
+
   it("keeps latest shot metadata after an immediate turn event", () => {
     const shotResolved: ServerEvent = {
       type: "shot-resolved",

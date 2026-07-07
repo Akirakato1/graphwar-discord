@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { GameCanvas, SHOT_ANIMATION_MS, shotEventKey } from "../game-renderer/GameCanvas";
+import { computeFunctionPreview } from "../game-renderer/functionPreview";
 import { findLatestShotResolvedEvent, findSnapshotBeforeLatestShot } from "../game-renderer/renderWorld";
 import { MatchHud } from "../hud/MatchHud";
 import { LeaderboardView } from "../leaderboard/LeaderboardView";
@@ -13,7 +14,7 @@ import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
 import { useGameStore, type AppView, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
-import type { LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
+import type { AimDirectionId, LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
 
 type LocalLobbyIdentityInput = {
   currentLobby?: LobbyRuntimeSnapshot;
@@ -195,6 +196,8 @@ function GameActivity() {
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
   const submitShot = useGameStore((state) => state.submitShot);
+  const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
+  const [draftExpression, setDraftExpression] = useState("sin(x)");
 
   const latestShot = useMemo(() => findLatestShotResolvedEvent(recentEvents), [recentEvents]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
@@ -211,6 +214,29 @@ function GameActivity() {
     [recentEvents, showMatchEndModal]
   );
   const lobbyIdentity = resolveLocalLobbyIdentity({ currentLobby, selectedLobbySession, session });
+  const previewPath = useMemo(
+    () =>
+      currentLobby?.functionPreview === false || lobbyIdentity.spectator
+        ? undefined
+        : computeFunctionPreview({
+            advancedFunctions: currentLobby?.advancedFunctions ?? false,
+            aimDirection,
+            expression: draftExpression,
+            maxFunctionLength: currentLobby?.maxFunctionLength ?? 50,
+            playerId: lobbyIdentity.effectiveSession.playerId,
+            snapshot: displaySnapshot
+          }),
+    [
+      aimDirection,
+      currentLobby?.advancedFunctions,
+      currentLobby?.functionPreview,
+      currentLobby?.maxFunctionLength,
+      displaySnapshot,
+      draftExpression,
+      lobbyIdentity.effectiveSession.playerId,
+      lobbyIdentity.spectator
+    ]
+  );
 
   useEffect(() => {
     if (!latestShotKey || !snapshotBeforeLatestShot) {
@@ -237,13 +263,17 @@ function GameActivity() {
       </header>
 
       <div className="app-grid playing-grid">
-        <GameCanvas events={canvasEvents} snapshot={displaySnapshot} />
+        <GameCanvas events={canvasEvents} previewPath={previewPath} snapshot={displaySnapshot} />
         <MatchHud
           advancedFunctionsEnabled={currentLobby?.advancedFunctions ?? false}
+          aimDirection={aimDirection}
           connectionStatus={connectionStatus}
           displaySnapshot={displaySnapshot}
+          expression={draftExpression}
           lastError={lastError}
           lastRejection={lastRejection}
+          onAimDirectionChange={setAimDirection}
+          onExpressionChange={setDraftExpression}
           onSubmitShot={submitShot}
           playbackInProgress={playbackInProgress}
           session={lobbyIdentity.effectiveSession}

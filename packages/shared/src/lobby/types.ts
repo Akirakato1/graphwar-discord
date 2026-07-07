@@ -65,6 +65,7 @@ export type LobbyRuntimeSnapshot = {
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
+  functionPreview: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -86,6 +87,7 @@ export type LobbySummary = {
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
+  functionPreview: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -105,6 +107,7 @@ export type CreateLobbyRequest = {
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
+  functionPreview?: boolean;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
 };

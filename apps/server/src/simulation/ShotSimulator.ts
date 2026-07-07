@@ -15,6 +15,7 @@ import {
   type WorldPoint
 } from "@graphwar/shared";
 import { CircleCraterExplosion } from "../terrain/Explosion";
+import type { ExplosionResult } from "../terrain/Explosion";
 import { TerrainSystem } from "../terrain/TerrainSystem";
 import type { ShotFunction } from "../functions/ShotFunction";
 import { CollisionSystem, compareCollisionOrder, type CollisionHit, type PlayerCollisionHit } from "./CollisionSystem";
@@ -65,6 +66,10 @@ function samePoint(a: WorldPoint, b: WorldPoint): boolean {
   return Math.abs(a.x - b.x) <= POINT_EPSILON && Math.abs(a.y - b.y) <= POINT_EPSILON;
 }
 
+function distance(start: WorldPoint, end: WorldPoint): number {
+  return Math.hypot(end.x - start.x, end.y - start.y);
+}
+
 export class ShotSimulator {
   constructor(
     private readonly collisionSystem = new CollisionSystem(),
@@ -109,10 +114,15 @@ export class ShotSimulator {
     }
 
     if (impact?.kind === "terrain-hit") {
+      const crater = this.applyCrater(
+        input.terrain,
+        impact.point,
+        this.impactRadiusMultiplier(worldPath, impact, maxFunctionLength)
+      );
       return {
         path: this.truncatePath(worldPath, impact, worldBounds),
-        impact: { reason: "terrain-hit", point: impact.point },
-        terrain: this.applyCrater(input.terrain, impact.point),
+        impact: { reason: "terrain-hit", point: impact.point, craterRadius: crater.radius },
+        terrain: crater.terrain,
         players: input.players,
         damage: [],
         eliminations: []
@@ -143,10 +153,15 @@ export class ShotSimulator {
         return this.pathTooLongResult(input, this.truncatePath(worldPath, impact, worldBounds), worldBounds);
       }
 
+      const crater = this.applyCrater(
+        input.terrain,
+        impact.point,
+        this.impactRadiusMultiplier(worldPath, impact, maxFunctionLength)
+      );
       return {
         path: this.truncatePath(worldPath, impact, worldBounds),
-        impact: { reason: impact.reason, point: impact.point },
-        terrain: this.applyCrater(input.terrain, impact.point),
+        impact: { reason: impact.reason, point: impact.point, craterRadius: crater.radius },
+        terrain: crater.terrain,
         players: input.players,
         damage: [],
         eliminations: []
@@ -192,8 +207,34 @@ export class ShotSimulator {
     };
   }
 
-  private applyCrater(terrain: TerrainState, point: WorldPoint): TerrainState {
-    return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact").terrain;
+  private applyCrater(terrain: TerrainState, point: WorldPoint, radiusMultiplier: number): ExplosionResult {
+    return this.explosion.apply(terrain, point, this.terrainSystem, "shot-impact", { radiusMultiplier });
+  }
+
+  private impactRadiusMultiplier(worldPath: WorldPoint[], hit: CollisionHit, maxFunctionLength: number): number {
+    if (maxFunctionLength <= POINT_EPSILON) {
+      return 1;
+    }
+
+    const traveledDistance = this.distanceAtHit(worldPath, hit);
+    const remainingRatio = Math.max(0, Math.min(1, (maxFunctionLength - traveledDistance) / maxFunctionLength));
+    return 1 + remainingRatio;
+  }
+
+  private distanceAtHit(worldPath: WorldPoint[], hit: CollisionHit): number {
+    let total = 0;
+    const fullSegments = Math.max(0, Math.min(hit.index, worldPath.length - 1));
+
+    for (let index = 0; index < fullSegments; index += 1) {
+      total += distance(worldPath[index], worldPath[index + 1]);
+    }
+
+    const segmentStart = worldPath[hit.index];
+    if (segmentStart) {
+      total += distance(segmentStart, hit.point);
+    }
+
+    return total;
   }
 
   private targetPlayersFor(input: ShotSimulationInput): PlayerState[] {

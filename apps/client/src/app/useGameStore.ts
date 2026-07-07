@@ -75,6 +75,7 @@ export type GameStoreState = {
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
     advancedFunctions: boolean;
+    functionPreview: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }): Promise<void>;
@@ -378,6 +379,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             uniqueFunctionHits: form.uniqueFunctionHits,
             friendlyFire: form.friendlyFire,
             advancedFunctions: form.advancedFunctions,
+            functionPreview: form.functionPreview,
             ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();

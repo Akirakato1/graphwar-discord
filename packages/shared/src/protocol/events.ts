@@ -10,7 +10,12 @@ export type ImpactReason =
   | "field-boundary"
   | "miss";
 
-export type ImpactEvent = { reason: ImpactReason; point?: WorldPoint; targetPlayerId?: PlayerId };
+export type ImpactEvent = {
+  reason: ImpactReason;
+  point?: WorldPoint;
+  targetPlayerId?: PlayerId;
+  craterRadius?: number;
+};
 export type DamageEvent = { playerId: PlayerId; amount: number; hpAfter: number };
 export type RoomSnapshotEvent = {
   type: "room-snapshot";

@@ -102,17 +102,36 @@ describe("LobbyDirectory", () => {
       damagePerHit: 80,
       uniqueFunctionHits: false,
       friendlyFire: true,
-      advancedFunctions: true
+      advancedFunctions: true,
+      functionPreview: false
     });
 
     expect(created.lobby).toEqual(
-      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     );
     expect(directory.getLobby("guild-1", "room-1")).toEqual(
-      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     );
     expect(directory.listLobbies("guild-1")).toEqual([
-      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     ]);
   });
 

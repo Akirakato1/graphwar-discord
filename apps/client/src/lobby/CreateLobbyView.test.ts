@@ -25,6 +25,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: true,
+        functionPreview: false,
         mapId: "map-1"
       })
     ).toEqual({
@@ -39,6 +40,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: true,
+        functionPreview: false,
         mapId: "map-1"
       }
     });
@@ -63,6 +65,7 @@ describe("CreateLobbyView helpers", () => {
       uniqueFunctionHits: true,
       friendlyFire: false,
       advancedFunctions: false,
+      functionPreview: true,
       mapSizePreset: defaultMapSizePreset
     });
     expect(availableInitialSlots(settings)).toEqual(["player"]);
@@ -78,7 +81,8 @@ describe("CreateLobbyView helpers", () => {
         damagePerHit: damagePerHitBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: false,
-        advancedFunctions: false
+        advancedFunctions: false,
+        functionPreview: true
       })
     );
 
@@ -93,10 +97,17 @@ describe("CreateLobbyView helpers", () => {
         damagePerHit: 83,
         uniqueFunctionHits: false,
         friendlyFire: true,
-        advancedFunctions: true
+        advancedFunctions: true,
+        functionPreview: false
       }).form
     ).toEqual(
-      expect.objectContaining({ damagePerHit: 83, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 83,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     );
   });
 
@@ -112,9 +123,12 @@ describe("CreateLobbyView helpers", () => {
         damagePerHit: damagePerHitBounds.default,
         uniqueFunctionHits: true,
         friendlyFire: true,
-        advancedFunctions: true
+        advancedFunctions: true,
+        functionPreview: true
       }).form
-    ).toEqual(expect.objectContaining({ mode: "free-for-all", friendlyFire: false, advancedFunctions: true }));
+    ).toEqual(
+      expect.objectContaining({ mode: "free-for-all", friendlyFire: false, advancedFunctions: true, functionPreview: true })
+    );
   });
 
   it("preserves map size presets for the default map", () => {
@@ -130,6 +144,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
+        functionPreview: true,
         mapSizePreset: "huge"
       })
     ).toEqual({
@@ -144,6 +159,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
+        functionPreview: true,
         mapSizePreset: "huge"
       }
     });
@@ -162,6 +178,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
+        functionPreview: true,
         mapId: "map-1",
         mapSizePreset: "huge"
       })
@@ -177,6 +194,7 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
+        functionPreview: true,
         mapId: "map-1"
       }
     });
@@ -230,6 +248,7 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain(`max="${damagePerHitBounds.max}"`);
     expect(html).toContain("Unique function hits");
     expect(html).toContain("Advanced functions");
+    expect(html).toContain("Function preview");
     expect(html).toContain("Friendly fire");
   });
 

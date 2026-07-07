@@ -1,5 +1,7 @@
 export * from "./constants";
 export * from "./geometry/coordinates";
+export * from "./functions/CompiledNormalExpression";
+export * from "./functions/normalFunction";
 export * from "./geometry/polygons";
 export * from "./geometry/types";
 export * from "./lobby/alias";

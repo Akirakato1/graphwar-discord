@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { MatchSnapshot, ServerEvent, ShotResolvedEvent } from "@graphwar/shared";
+import type { MatchSnapshot, ServerEvent, ShotResolvedEvent, WorldPoint } from "@graphwar/shared";
 import { panCamera, resolveCameraForRender, zoomCameraAtCanvasPoint, type Camera } from "./camera";
 import {
   findLatestShotResolvedEvent,
@@ -11,6 +11,7 @@ import {
 
 type GameCanvasProps = {
   events: ServerEvent[];
+  previewPath?: WorldPoint[];
   snapshot?: MatchSnapshot;
 };
 
@@ -24,7 +25,7 @@ export type ShotPlaybackState = {
   completedShotKey?: string;
 };
 
-export function GameCanvas({ events, snapshot }: GameCanvasProps) {
+export function GameCanvas({ events, previewPath, snapshot }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestShot = useMemo(() => findLatestShotResolvedEvent(events), [events]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
@@ -176,6 +177,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
       renderWorld(ctx, canvasSize, {
         avatarImages,
         camera: renderSnapshot ? resolveCameraForRender(renderSnapshot.worldBounds, canvasSize, camera) : undefined,
+        previewPath,
         snapshot: renderSnapshot,
         shot: visibleShot
           ? {
@@ -260,7 +262,18 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
         cancelFrame(animationFrame);
       }
     };
-  }, [avatarImages, camera, canvasSize, hiddenShotKey, latestShotHasTurnAfter, latestShotKey, snapshot, snapshotBeforeLatestShot, visibleShot]);
+  }, [
+    avatarImages,
+    camera,
+    canvasSize,
+    hiddenShotKey,
+    latestShotHasTurnAfter,
+    latestShotKey,
+    previewPath,
+    snapshot,
+    snapshotBeforeLatestShot,
+    visibleShot
+  ]);
 
   return (
     <section className="panel world-panel" aria-labelledby="world-title">
@@ -276,6 +289,7 @@ export function GameCanvas({ events, snapshot }: GameCanvasProps) {
         className="world-canvas"
         data-camera-enabled={snapshot ? "true" : undefined}
         data-path-points={visibleShot?.path.length ?? 0}
+        data-preview-points={previewPath?.length ?? 0}
         data-rendered={snapshot ? "true" : "false"}
         data-terrain-ids={snapshot?.terrain.blobs.map((blob) => blob.id).join(",") ?? ""}
         data-testid="game-canvas"

@@ -101,6 +101,7 @@ export function LobbySetupView({
         <span>Damage {lobby.damagePerHit}</span>
         <span>Unique hits {lobby.uniqueFunctionHits ? "On" : "Off"}</span>
         <span>Advanced functions {lobby.advancedFunctions ? "On" : "Off"}</span>
+        <span>Preview {lobby.functionPreview ? "On" : "Off"}</span>
         {lobby.mode === "team-versus" ? <span>Friendly fire {lobby.friendlyFire ? "On" : "Off"}</span> : null}
       </div>
 

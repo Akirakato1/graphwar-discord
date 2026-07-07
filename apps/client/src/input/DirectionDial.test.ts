@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -19,6 +20,22 @@ describe("DirectionDial", () => {
     }
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('data-direction="west"');
+  });
+
+  it("keeps the selected east label in a stable visible layer", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DirectionDial, {
+        disabled: false,
+        onChange: () => {},
+        value: "east"
+      })
+    );
+    const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+
+    expect(html).toContain('data-direction="east"');
+    expect(html).toContain('<span class="direction-button-label">E</span>');
+    expect(styles).toMatch(/\.direction-button\s*\{[^}]*display:\s*grid;/s);
+    expect(styles).toMatch(/\.direction-button-label\s*\{[^}]*z-index:\s*1;/s);
   });
 
   it("disables every direction button when aiming is disabled", () => {

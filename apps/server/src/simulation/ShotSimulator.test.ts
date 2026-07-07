@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fieldBounds, type PlayerState, type TerrainState, type WorldPoint } from "@graphwar/shared";
+import {
+  defaultMatchTuning,
+  fieldBounds,
+  polygonArea,
+  type PlayerState,
+  type TerrainState,
+  type WorldPoint
+} from "@graphwar/shared";
 import { NormalFunction } from "../functions/NormalFunction";
 import { ShotSimulator } from "./ShotSimulator";
 
@@ -23,6 +30,13 @@ function pathDistance(path: WorldPoint[]): number {
   }
 
   return total;
+}
+
+function terrainArea(terrain: TerrainState): number {
+  return terrain.blobs.reduce((total, blob) => {
+    const holeArea = blob.holes.reduce((holeTotal, hole) => holeTotal + polygonArea(hole), 0);
+    return total + polygonArea(blob.outer) - holeArea;
+  }, 0);
 }
 
 describe("ShotSimulator", () => {
@@ -215,6 +229,44 @@ describe("ShotSimulator", () => {
     expect(result.impact.reason).toBe("terrain-hit");
     expect(lastPathPoint(result.path)).toEqual(result.impact.point);
     expect(lastPathPoint(result.path)?.x).toBeLessThan(fieldBounds.maxX);
+  });
+
+  it("scales terrain craters by remaining function length at impact", () => {
+    const terrain: TerrainState = {
+      blobs: [
+        {
+          id: "wide-wall",
+          outer: [
+            { x: 1, y: -5 },
+            { x: 10, y: -5 },
+            { x: 10, y: 5 },
+            { x: 1, y: 5 }
+          ],
+          holes: []
+        }
+      ]
+    };
+    const simulator = new ShotSimulator();
+    const earlyImpact = simulator.simulate({
+      shooter,
+      players: [shooter],
+      terrain,
+      shot: NormalFunction.parse("0"),
+      maxFunctionLength: 10
+    });
+    const lateImpact = simulator.simulate({
+      shooter,
+      players: [shooter],
+      terrain,
+      shot: NormalFunction.parse("0"),
+      maxFunctionLength: 1.05
+    });
+
+    expect(earlyImpact.impact.reason).toBe("terrain-hit");
+    expect(lateImpact.impact.reason).toBe("terrain-hit");
+    expect(earlyImpact.impact.craterRadius).toBeCloseTo(defaultMatchTuning.circleCraterRadius * 1.9, 1);
+    expect(lateImpact.impact.craterRadius).toBeCloseTo(defaultMatchTuning.circleCraterRadius * (1 + 0.05 / 1.05), 1);
+    expect(terrainArea(earlyImpact.terrain)).toBeLessThan(terrainArea(lateImpact.terrain));
   });
 
   it("resolves a player before terrain as a player hit", () => {
@@ -448,7 +500,9 @@ describe("ShotSimulator", () => {
       shot: NormalFunction.parse("sqrt(1 - x)")
     });
 
-    expect(result.impact).toEqual({ reason: "undefined-function", point: { x: 1, y: -1 } });
+    expect(result.impact).toEqual(
+      expect.objectContaining({ reason: "undefined-function", point: { x: 1, y: -1 }, craterRadius: expect.any(Number) })
+    );
     expect(result.damage).toEqual([]);
     expect(result.terrain.blobs).not.toEqual(terrain.blobs);
   });

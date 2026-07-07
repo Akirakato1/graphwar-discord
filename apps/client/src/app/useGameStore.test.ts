@@ -99,6 +99,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
         friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
         advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
+        functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
         createdAt: "2026-07-05T00:00:00.000Z"
       },
       session: {
@@ -423,12 +424,19 @@ describe("createGameStore", () => {
       damagePerHit: 80,
       uniqueFunctionHits: false,
       friendlyFire: true,
-      advancedFunctions: true
+      advancedFunctions: true,
+      functionPreview: false
     });
 
     expect(createLobbyCalls[0]).toEqual([
       session.guildId,
-      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     ]);
   });
 
@@ -548,6 +556,7 @@ describe("createGameStore", () => {
               uniqueFunctionHits: request.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
               friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
               advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
+              functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
               createdAt: "2026-07-05T00:00:00.000Z"
             },
             session: {

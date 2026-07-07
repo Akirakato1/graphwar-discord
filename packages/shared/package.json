@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "expr-eval": "^2.0.2",
     "polygon-clipping": "^0.15.7",
     "zod": "^3.23.8"
   }

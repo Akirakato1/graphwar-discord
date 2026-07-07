@@ -54,7 +54,7 @@ export function DirectionDial({ disabled, onChange, value }: DirectionDialProps)
           title={`Aim ${direction}`}
           type="button"
         >
-          {directionSymbols[direction]}
+          <span className="direction-button-label">{directionSymbols[direction]}</span>
         </button>
       ))}
     </div>

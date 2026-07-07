@@ -80,7 +80,7 @@ describe("MatchHud", () => {
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
   });
 
-  it("disables function entry when it is not the local player's turn", () => {
+  it("keeps function prep editable when it is not the local player's turn", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchHud, {
         connectionStatus: "open",
@@ -95,8 +95,9 @@ describe("MatchHud", () => {
 
     expect(html).toContain("Bob&#x27;s Turn");
     expect(html).toContain("id=\"shot-expression\"");
-    expect(html).toMatch(/aria-label="Aim west"[^>]*disabled=""/);
-    expect(html).toMatch(/aria-label="Insert sine function"[^>]*disabled=""/);
+    expect(html).not.toMatch(/id="shot-expression"[^>]*disabled=""/);
+    expect(html).not.toMatch(/aria-label="Aim west"[^>]*disabled=""/);
+    expect(html).not.toMatch(/aria-label="Insert sine function"[^>]*disabled=""/);
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
   });
 

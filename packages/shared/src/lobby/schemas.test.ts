@@ -11,6 +11,7 @@ import {
   damagePerHitBounds,
   defaultAdvancedFunctions,
   defaultFriendlyFire,
+  defaultFunctionPreview,
   defaultUniqueFunctionHits,
   normalizeFunctionHitExpression
 } from "./gameplaySettings";
@@ -152,7 +153,8 @@ describe("lobby schemas", () => {
         damagePerHit: damagePerHitBounds.default,
         uniqueFunctionHits: defaultUniqueFunctionHits,
         friendlyFire: defaultFriendlyFire,
-        advancedFunctions: defaultAdvancedFunctions
+        advancedFunctions: defaultAdvancedFunctions,
+        functionPreview: defaultFunctionPreview
       })
     );
   });
@@ -168,10 +170,17 @@ describe("lobby schemas", () => {
         damagePerHit: 100,
         uniqueFunctionHits: false,
         friendlyFire: true,
-        advancedFunctions: true
+        advancedFunctions: true,
+        functionPreview: false
       })
     ).toEqual(
-      expect.objectContaining({ damagePerHit: 100, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 100,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     );
 
     expect(() =>
@@ -212,6 +221,7 @@ describe("lobby schemas", () => {
       uniqueFunctionHits: false,
       friendlyFire: true,
       advancedFunctions: true,
+      functionPreview: false,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 
@@ -231,10 +241,17 @@ describe("lobby schemas", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
+        functionPreview: false,
         createdAt: "2026-07-05T00:00:00.000Z"
       })
     ).toEqual(
-      expect.objectContaining({ damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true })
+      expect.objectContaining({
+        damagePerHit: 80,
+        uniqueFunctionHits: false,
+        friendlyFire: true,
+        advancedFunctions: true,
+        functionPreview: false
+      })
     );
   });
 
@@ -280,6 +297,7 @@ describe("lobby schemas", () => {
       uniqueFunctionHits: defaultUniqueFunctionHits,
       friendlyFire: defaultFriendlyFire,
       advancedFunctions: defaultAdvancedFunctions,
+      functionPreview: defaultFunctionPreview,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 

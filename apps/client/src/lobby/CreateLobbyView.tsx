@@ -54,6 +54,7 @@ type CreateLobbyViewProps = {
     uniqueFunctionHits: boolean;
     friendlyFire: boolean;
     advancedFunctions: boolean;
+    functionPreview: boolean;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }) => Promise<void>;
@@ -71,6 +72,7 @@ type CreateLobbyForm = {
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
+  functionPreview: boolean;
   mapId?: string;
   mapSizePreset?: MapSizePresetId;
 };
@@ -96,6 +98,7 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       uniqueFunctionHits: form.uniqueFunctionHits,
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       advancedFunctions: form.advancedFunctions,
+      functionPreview: form.functionPreview,
       ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
     }
   };
@@ -121,6 +124,7 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     uniqueFunctionHits: defaultLobbyGameplaySettings.uniqueFunctionHits,
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
+    functionPreview: defaultLobbyGameplaySettings.functionPreview,
     mapSizePreset: defaultMapSizePreset
   };
 }
@@ -138,6 +142,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [uniqueFunctionHits, setUniqueFunctionHits] = useState(initialForm.uniqueFunctionHits);
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
+  const [functionPreview, setFunctionPreview] = useState(initialForm.functionPreview);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -165,6 +170,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           uniqueFunctionHits,
           friendlyFire,
           advancedFunctions,
+          functionPreview,
           ...(mapId ? { mapId } : { mapSizePreset })
         }).form
       );
@@ -284,6 +290,17 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             type="checkbox"
           />
           Advanced functions
+        </label>
+        <label className="toggle-row">
+          <input
+            checked={functionPreview}
+            onChange={(event) => {
+              setFunctionPreview(event.currentTarget.checked);
+              setFormError(undefined);
+            }}
+            type="checkbox"
+          />
+          Function preview
         </label>
         {mode === "team-versus" ? (
           <label className="toggle-row">

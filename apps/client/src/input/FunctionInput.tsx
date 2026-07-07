@@ -5,7 +5,9 @@ type FunctionInputProps = {
   advancedFunctionsEnabled?: boolean;
   canSubmit: boolean;
   disabled: boolean;
+  expression?: string;
   initialExpression?: string;
+  onExpressionChange?: (expression: string) => void;
   onSubmitShot: (expression: string) => void;
 };
 
@@ -60,11 +62,14 @@ export function FunctionInput({
   advancedFunctionsEnabled = false,
   canSubmit,
   disabled,
+  expression: controlledExpression,
   initialExpression = "sin(x)",
+  onExpressionChange,
   onSubmitShot
 }: FunctionInputProps) {
-  const [expression, setExpression] = useState(initialExpression);
+  const [internalExpression, setInternalExpression] = useState(initialExpression);
   const inputRef = useRef<HTMLInputElement>(null);
+  const expression = controlledExpression ?? internalExpression;
   const fireDisabled = disabled || !canSubmit || expression.trim().length === 0;
   const snippetButtons = advancedFunctionsEnabled
     ? [...normalSnippetButtons, ...advancedSnippetButtons]
@@ -80,6 +85,13 @@ export function FunctionInput({
     input.setSelectionRange(cursorPosition, cursorPosition);
   }
 
+  function updateExpression(nextExpression: string): void {
+    if (controlledExpression === undefined) {
+      setInternalExpression(nextExpression);
+    }
+    onExpressionChange?.(nextExpression);
+  }
+
   function handleSnippetClick(snippet: string): void {
     if (disabled) {
       return;
@@ -89,7 +101,7 @@ export function FunctionInput({
     const selectionStart = input?.selectionStart ?? expression.length;
     const selectionEnd = input?.selectionEnd ?? selectionStart;
     const next = insertSnippet(expression, selectionStart, selectionEnd, snippet);
-    setExpression(next.value);
+    updateExpression(next.value);
 
     if (typeof window === "undefined" || !window.requestAnimationFrame) {
       restoreCursor(next.cursorPosition);
@@ -117,7 +129,7 @@ export function FunctionInput({
           autoComplete="off"
           disabled={disabled}
           id="shot-expression"
-          onChange={(event) => setExpression(event.target.value)}
+          onChange={(event) => updateExpression(event.target.value)}
           placeholder="sin(x)"
           ref={inputRef}
           value={expression}

@@ -39,6 +39,7 @@ const lobby = {
   uniqueFunctionHits: true,
   friendlyFire: false,
   advancedFunctions: false,
+  functionPreview: true,
   createdAt: "2026-07-05T00:00:00.000Z"
 };
 
@@ -131,7 +132,14 @@ describe("LobbySetupView", () => {
     const html = renderToStaticMarkup(
       <LobbySetupView
         currentPlayerId="alice-id"
-        lobby={{ ...lobby, damagePerHit: 80, uniqueFunctionHits: false, friendlyFire: true, advancedFunctions: true }}
+        lobby={{
+          ...lobby,
+          damagePerHit: 80,
+          uniqueFunctionHits: false,
+          friendlyFire: true,
+          advancedFunctions: true,
+          functionPreview: false
+        }}
         onAutoAssign={() => undefined}
         onBack={() => undefined}
         onMove={() => undefined}
@@ -143,6 +151,7 @@ describe("LobbySetupView", () => {
     expect(html).toContain("Unique hits Off");
     expect(html).toContain("Friendly fire On");
     expect(html).toContain("Advanced functions On");
+    expect(html).toContain("Preview Off");
   });
 
   it("hides friendly-fire status for free-for-all setup", () => {

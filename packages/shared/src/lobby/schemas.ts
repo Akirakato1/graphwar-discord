@@ -5,6 +5,7 @@ import type { MatchModeId } from "../state/types";
 import {
   damagePerHitBounds,
   defaultAdvancedFunctions,
+  defaultFunctionPreview,
   defaultFriendlyFire,
   defaultUniqueFunctionHits
 } from "./gameplaySettings";
@@ -56,7 +57,13 @@ function dropUndefinedProperties<T extends Record<string, unknown>>(value: T): T
 
 type ParsedCreateLobbyRequest = Omit<
   CreateLobbyRequest,
-  "color" | "maxFunctionLength" | "damagePerHit" | "uniqueFunctionHits" | "friendlyFire" | "advancedFunctions"
+  | "color"
+  | "maxFunctionLength"
+  | "damagePerHit"
+  | "uniqueFunctionHits"
+  | "friendlyFire"
+  | "advancedFunctions"
+  | "functionPreview"
 > &
   LobbyGameplaySettings & {
   color: PlayerColor;
@@ -120,6 +127,7 @@ export const createLobbyRequestSchema = z.object({
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
+  functionPreview: z.boolean().default(defaultFunctionPreview),
   mapSizePreset: mapSizePresetSchema.default(defaultMapSizePreset),
   mapId: z.string().trim().min(1).optional()
 }).transform(normalizeCreateLobbyRequest);
@@ -169,6 +177,7 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
+  functionPreview: z.boolean().default(defaultFunctionPreview),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),
@@ -190,6 +199,7 @@ export const lobbySummarySchema = z.object({
   uniqueFunctionHits: z.boolean().default(defaultUniqueFunctionHits),
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
+  functionPreview: z.boolean().default(defaultFunctionPreview),
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),
