@@ -223,7 +223,10 @@ export function App() {
             <span>Map name</span>
             <input
               className="map-name-input"
-              onChange={(event) => setSetupDraft((current) => ({ ...current, mapName: event.currentTarget.value }))}
+              onChange={(event) => {
+                const mapName = event.currentTarget.value;
+                setSetupDraft((current) => ({ ...current, mapName }));
+              }}
               value={setupDraft.mapName}
             />
           </label>
@@ -256,7 +259,10 @@ export function App() {
                 <input
                   max={customDimensionLimits.width.max}
                   min={customDimensionLimits.width.min}
-                  onChange={(event) => setSetupDraft((current) => ({ ...current, customWidth: event.currentTarget.value }))}
+                  onChange={(event) => {
+                    const customWidth = event.currentTarget.value;
+                    setSetupDraft((current) => ({ ...current, customWidth }));
+                  }}
                   step="1"
                   type="number"
                   value={setupDraft.customWidth}
@@ -267,7 +273,10 @@ export function App() {
                 <input
                   max={customDimensionLimits.height.max}
                   min={customDimensionLimits.height.min}
-                  onChange={(event) => setSetupDraft((current) => ({ ...current, customHeight: event.currentTarget.value }))}
+                  onChange={(event) => {
+                    const customHeight = event.currentTarget.value;
+                    setSetupDraft((current) => ({ ...current, customHeight }));
+                  }}
                   step="1"
                   type="number"
                   value={setupDraft.customHeight}
@@ -647,7 +656,10 @@ export function App() {
         <input
           aria-label="Map name"
           className="map-name-input"
-          onChange={(event) => updateState((current) => ({ ...current, mapName: event.currentTarget.value }))}
+          onChange={(event) => {
+            const mapName = event.currentTarget.value;
+            updateState((current) => ({ ...current, mapName }));
+          }}
           value={editorState.mapName}
         />
         <div aria-label="Tools" className="tool-strip">

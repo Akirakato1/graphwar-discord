@@ -24,7 +24,7 @@ async function createWindow() {
     title: "Graphwar Map Maker",
     backgroundColor: "#12151b",
     webPreferences: {
-      preload: join(app.getAppPath(), "dist/electron/preload.js"),
+      preload: join(app.getAppPath(), "dist/electron/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false
     }

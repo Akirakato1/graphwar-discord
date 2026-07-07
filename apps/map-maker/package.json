@@ -6,7 +6,8 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "dev": "npm run build && electron .",
-    "build": "npm run clean && tsc -b && tsc -p tsconfig.electron.json && vite build",
+    "build": "npm run clean && tsc -b && tsc -p tsconfig.electron.json && npm run build:preload && vite build",
+    "build:preload": "node scripts/build-preload.mjs",
     "start": "electron ."
   },
   "dependencies": {
