@@ -22,6 +22,10 @@ const groupActionLabels: Record<LobbyPlacementId, string> = {
   spectator: "Join Spectator"
 };
 
+function inputModeLabel(inputMode: LobbyRuntimeSnapshot["inputMode"]): string {
+  return inputMode === "hybrid" ? "Hybrid" : inputMode === "keypad" ? "Keypad" : "Keyboard";
+}
+
 type GroupMoveActionInput = {
   currentPlacement?: LobbyPlacementId;
   currentPlayerId?: string;
@@ -141,6 +145,8 @@ export function LobbySetupView({
         <span>Unique hits {lobby.uniqueFunctionHits ? "On" : "Off"}</span>
         <span>Advanced functions {lobby.advancedFunctions ? "On" : "Off"}</span>
         <span>Preview {lobby.functionPreview ? "On" : "Off"}</span>
+        <span>Timer {lobby.turnDurationSeconds}s</span>
+        <span>Input {inputModeLabel(lobby.inputMode)}</span>
         {lobby.mode === "team-versus" ? <span>Friendly fire {lobby.friendlyFire ? "On" : "Off"}</span> : null}
       </div>
 

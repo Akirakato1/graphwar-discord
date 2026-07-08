@@ -40,6 +40,9 @@ export type TurnState = {
   activePlayerId: PlayerId;
   order: PlayerId[];
   turnNumber: number;
+  startedAt?: string;
+  deadlineAt?: string;
+  durationSeconds?: number;
 };
 
 export type MatchSnapshot = {

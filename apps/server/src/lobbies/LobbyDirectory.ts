@@ -18,12 +18,14 @@ import {
   type MapSizePresetId,
   normalizeCraterRadius,
   normalizeDamagePerHit,
+  normalizeInputMode,
   normalizeMaxFunctionLength,
   normalizePlayerColor,
+  normalizeTurnDurationSeconds,
   type RoomId
 } from "@graphwar/shared";
 import type { PlayerColor } from "@graphwar/shared";
-import type { MatchModeId } from "@graphwar/shared";
+import type { FunctionInputMode, MatchModeId } from "@graphwar/shared";
 
 export type LobbyDirectoryOptions = {
   now?: () => Date;
@@ -61,6 +63,8 @@ type RuntimeLobby = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnDurationSeconds: number;
+  inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
   createdAt: string;
   startedAt?: string;
@@ -121,6 +125,8 @@ export class LobbyDirectory {
         request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
       advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
       functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+      turnDurationSeconds: normalizeTurnDurationSeconds(request.turnDurationSeconds),
+      inputMode: normalizeInputMode(request.inputMode),
       mapSizePreset: mapId ? undefined : request.mapSizePreset ?? defaultMapSizePreset,
       createdAt: this.now().toISOString(),
       mapId,
@@ -231,6 +237,8 @@ export class LobbyDirectory {
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions,
           functionPreview: lobby.functionPreview,
+          turnDurationSeconds: lobby.turnDurationSeconds,
+          inputMode: lobby.inputMode,
           ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
           mapId: lobby.mapId,
           mapName: lobby.mapName,
@@ -542,6 +550,8 @@ export class LobbyDirectory {
       friendlyFire: lobby.friendlyFire,
       advancedFunctions: lobby.advancedFunctions,
       functionPreview: lobby.functionPreview,
+      turnDurationSeconds: lobby.turnDurationSeconds,
+      inputMode: lobby.inputMode,
       ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
       mapId: lobby.mapId,
       mapName: lobby.mapName,

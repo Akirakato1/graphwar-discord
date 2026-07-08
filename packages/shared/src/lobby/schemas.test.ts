@@ -13,6 +13,8 @@ import {
   defaultAdvancedFunctions,
   defaultFriendlyFire,
   defaultFunctionPreview,
+  defaultInputMode,
+  defaultTurnDurationSeconds,
   defaultUniqueFunctionHits,
   normalizeFunctionHitExpression
 } from "./gameplaySettings";
@@ -40,7 +42,9 @@ describe("lobby schemas", () => {
       expect.objectContaining({
         color: defaultPlayerColor,
         mapSizePreset: "standard",
-        maxFunctionLength: defaultMaxFunctionLength
+        maxFunctionLength: defaultMaxFunctionLength,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: defaultInputMode
       })
     );
   });
@@ -156,12 +160,14 @@ describe("lobby schemas", () => {
         uniqueFunctionHits: defaultUniqueFunctionHits,
         friendlyFire: defaultFriendlyFire,
         advancedFunctions: defaultAdvancedFunctions,
-        functionPreview: defaultFunctionPreview
+        functionPreview: defaultFunctionPreview,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: defaultInputMode
       })
     );
   });
 
-  it("validates damage and crater radius bounds and accepts gameplay setting booleans", () => {
+  it("validates damage, crater radius, timer, input mode, and gameplay setting booleans", () => {
     expect(
       createLobbyRequestSchema.parse({
         name: "Team Room",
@@ -174,7 +180,9 @@ describe("lobby schemas", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad"
       })
     ).toEqual(
       expect.objectContaining({
@@ -183,7 +191,9 @@ describe("lobby schemas", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad"
       })
     );
 
@@ -230,6 +240,28 @@ describe("lobby schemas", () => {
         craterRadius: craterRadiusBounds.max + 0.25
       })
     ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        turnDurationSeconds: 9
+      })
+    ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        inputMode: "voice"
+      })
+    ).toThrow();
   });
 
   it("parses lobby snapshots and summaries with phase 2 gameplay settings", () => {
@@ -249,6 +281,8 @@ describe("lobby schemas", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      turnDurationSeconds: 45,
+      inputMode: "keypad",
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 
@@ -270,6 +304,8 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad",
         createdAt: "2026-07-05T00:00:00.000Z"
       })
     ).toEqual(
@@ -279,7 +315,9 @@ describe("lobby schemas", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad"
       })
     );
   });
@@ -328,6 +366,8 @@ describe("lobby schemas", () => {
       friendlyFire: defaultFriendlyFire,
       advancedFunctions: defaultAdvancedFunctions,
       functionPreview: defaultFunctionPreview,
+      turnDurationSeconds: defaultTurnDurationSeconds,
+      inputMode: defaultInputMode,
       createdAt: "2026-07-05T00:00:00.000Z"
     } as const;
 

@@ -103,6 +103,31 @@ describe("MatchHud", () => {
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
   });
 
+  it("shows turn time remaining and disables fire after the deadline", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MatchHud, {
+        connectionStatus: "open",
+        nowMs: Date.parse("2026-07-05T00:00:31.000Z"),
+        onSubmitShot: () => {},
+        session,
+        snapshot: {
+          ...playingSnapshot,
+          turn: {
+            ...playingSnapshot.turn,
+            startedAt: "2026-07-05T00:00:00.000Z",
+            deadlineAt: "2026-07-05T00:00:30.000Z",
+            durationSeconds: 30
+          }
+        }
+      })
+    );
+
+    expect(html).toContain("0s");
+    expect(html).toContain("id=\"shot-expression\"");
+    expect(html).not.toMatch(/id="shot-expression"[^>]*disabled=""/);
+    expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+  });
+
   it("hides function controls for spectators", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchHud, {

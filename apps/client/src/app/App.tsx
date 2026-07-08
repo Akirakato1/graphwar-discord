@@ -270,6 +270,7 @@ function GameActivity() {
           connectionStatus={connectionStatus}
           displaySnapshot={displaySnapshot}
           expression={draftExpression}
+          inputMode={currentLobby?.inputMode ?? "hybrid"}
           lastError={lastError}
           lastRejection={lastRejection}
           onAimDirectionChange={setAimDirection}

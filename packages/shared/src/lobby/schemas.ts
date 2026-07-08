@@ -8,7 +8,11 @@ import {
   defaultAdvancedFunctions,
   defaultFunctionPreview,
   defaultFriendlyFire,
-  defaultUniqueFunctionHits
+  defaultInputMode,
+  defaultTurnDurationSeconds,
+  defaultUniqueFunctionHits,
+  inputModes,
+  turnDurationSecondsBounds
 } from "./gameplaySettings";
 import type { LobbyGameplaySettings } from "./gameplaySettings";
 import { defaultMaxFunctionLength, defaultPlayerColor, functionLengthBounds, playerColorPalette } from "./identity";
@@ -66,6 +70,8 @@ type ParsedCreateLobbyRequest = Omit<
   | "friendlyFire"
   | "advancedFunctions"
   | "functionPreview"
+  | "turnDurationSeconds"
+  | "inputMode"
 > &
   LobbyGameplaySettings & {
   color: PlayerColor;
@@ -107,6 +113,16 @@ export const craterRadiusSchema = z.preprocess((value) => {
   return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
 }, z.number().finite().min(craterRadiusBounds.min).max(craterRadiusBounds.max));
 
+export const turnDurationSecondsSchema = z.preprocess((value) => {
+  if (value === undefined) {
+    return defaultTurnDurationSeconds;
+  }
+
+  return typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+}, z.number().int().min(turnDurationSecondsBounds.min).max(turnDurationSecondsBounds.max));
+
+export const inputModeSchema = z.enum(inputModes).default(defaultInputMode);
+
 export const guildSettingsSchema = z.object({
   guildId: z.string().min(1),
   defaultMode: matchModeSchema,
@@ -139,6 +155,8 @@ export const createLobbyRequestSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnDurationSeconds: turnDurationSecondsSchema,
+  inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.default(defaultMapSizePreset),
   mapId: z.string().trim().min(1).optional()
 }).transform(normalizeCreateLobbyRequest);
@@ -190,6 +208,8 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnDurationSeconds: turnDurationSecondsSchema,
+  inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),
@@ -213,6 +233,8 @@ export const lobbySummarySchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnDurationSeconds: turnDurationSecondsSchema,
+  inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.optional(),
   mapId: z.string().min(1).optional(),
   mapName: z.string().min(1).optional(),

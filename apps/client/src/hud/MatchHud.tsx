@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { AimDirectionId, MatchSnapshot } from "@graphwar/shared";
+import { useEffect, useState } from "react";
+import type { AimDirectionId, FunctionInputMode, MatchSnapshot } from "@graphwar/shared";
 import type { ConnectionStatus, CommandRejection } from "../app/useGameStore";
 import { DirectionDial } from "../input/DirectionDial";
 import { FunctionInput } from "../input/FunctionInput";
@@ -13,6 +13,7 @@ type MatchHudProps = {
   expression?: string;
   lastError?: string;
   lastRejection?: CommandRejection;
+  nowMs?: number;
   onAimDirectionChange?: (direction: AimDirectionId) => void;
   onExpressionChange?: (expression: string) => void;
   onForfeit?: () => void;
@@ -21,6 +22,7 @@ type MatchHudProps = {
   session: ClientSession;
   snapshot?: MatchSnapshot;
   spectator?: boolean;
+  inputMode?: FunctionInputMode;
 };
 
 function phaseLabel(snapshot: MatchSnapshot | undefined): string {
@@ -39,14 +41,30 @@ function phaseLabel(snapshot: MatchSnapshot | undefined): string {
   return `Turn ${snapshot.turn.turnNumber}`;
 }
 
+function remainingTurnSeconds(snapshot: MatchSnapshot | undefined, nowMs: number): number | undefined {
+  const deadlineAt = snapshot?.turn.deadlineAt;
+  if (!deadlineAt) {
+    return undefined;
+  }
+
+  const deadlineMs = Date.parse(deadlineAt);
+  if (!Number.isFinite(deadlineMs)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000));
+}
+
 export function MatchHud({
   advancedFunctionsEnabled = false,
   aimDirection: controlledAimDirection,
   connectionStatus,
   displaySnapshot,
   expression,
+  inputMode = "hybrid",
   lastError,
   lastRejection,
+  nowMs,
   onAimDirectionChange,
   onExpressionChange,
   onForfeit,
@@ -57,6 +75,7 @@ export function MatchHud({
   spectator = false
 }: MatchHudProps) {
   const [internalAimDirection, setInternalAimDirection] = useState<AimDirectionId>("east");
+  const [clockMs, setClockMs] = useState(nowMs ?? Date.now());
   const aimDirection = controlledAimDirection ?? internalAimDirection;
   const setAimDirection = onAimDirectionChange ?? setInternalAimDirection;
   const activePlayer = snapshot?.players.find((player) => player.id === snapshot.turn.activePlayerId);
@@ -64,9 +83,21 @@ export function MatchHud({
   const displayLocalPlayer = displaySnapshot?.players.find((player) => player.id === session.playerId) ?? localPlayer;
   const isPlaying = snapshot?.phase === "playing";
   const isMyTurn = isPlaying && snapshot.turn.activePlayerId === session.playerId;
-  const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress;
+  const displayNowMs = nowMs ?? clockMs;
+  const turnSecondsRemaining = remainingTurnSeconds(snapshot, displayNowMs);
+  const turnExpired = turnSecondsRemaining !== undefined && turnSecondsRemaining <= 0;
+  const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress && !turnExpired;
   const canForfeit = connectionStatus === "open" && isPlaying && !spectator && Boolean(localPlayer?.alive) && !playbackInProgress;
   const notice = lastError ?? lastRejection?.reason;
+
+  useEffect(() => {
+    if (nowMs !== undefined || !isPlaying || !snapshot?.turn.deadlineAt) {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => setClockMs(Date.now()), 250);
+    return () => window.clearInterval(interval);
+  }, [isPlaying, nowMs, snapshot?.turn.deadlineAt]);
 
   function handleForfeit(): void {
     if (!canForfeit || !onForfeit) {
@@ -117,6 +148,12 @@ export function MatchHud({
             <span>HP</span>
             <strong>{displayLocalPlayer ? `${displayLocalPlayer.hp} HP` : "-- HP"}</strong>
           </div>
+          {turnSecondsRemaining !== undefined ? (
+            <div className="turn-timer" aria-label="Turn time remaining">
+              <span>Timer</span>
+              <strong>{turnSecondsRemaining}s</strong>
+            </div>
+          ) : null}
           <button
             aria-label="Forfeit match"
             className="forfeit-action"
@@ -135,6 +172,7 @@ export function MatchHud({
           canSubmit={canSubmitShot}
           disabled={false}
           expression={expression}
+          inputMode={inputMode}
           onExpressionChange={onExpressionChange}
           onSubmitShot={(expression) => onSubmitShot(expression, aimDirection)}
         />

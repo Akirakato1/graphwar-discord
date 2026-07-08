@@ -14,6 +14,7 @@ import {
   damagePerHitBounds,
   defaultMapSizePreset,
   defaultPlayerColor,
+  defaultTurnDurationSeconds,
   playerColorPalette
 } from "@graphwar/shared";
 
@@ -33,6 +34,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad",
         mapId: "map-1"
       })
     ).toEqual({
@@ -49,6 +52,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad",
         mapId: "map-1"
       }
     });
@@ -75,6 +80,8 @@ describe("CreateLobbyView helpers", () => {
       friendlyFire: false,
       advancedFunctions: false,
       functionPreview: true,
+      turnDurationSeconds: defaultTurnDurationSeconds,
+      inputMode: "hybrid",
       mapSizePreset: defaultMapSizePreset
     });
     expect(availableInitialSlots(settings)).toEqual(["player"]);
@@ -92,7 +99,9 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: false,
         advancedFunctions: false,
-        functionPreview: true
+        functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid"
       })
     );
 
@@ -109,7 +118,9 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad"
       }).form
     ).toEqual(
       expect.objectContaining({
@@ -118,7 +129,9 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnDurationSeconds: 45,
+        inputMode: "keypad"
       })
     );
   });
@@ -137,7 +150,9 @@ describe("CreateLobbyView helpers", () => {
         uniqueFunctionHits: true,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: true
+        functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid"
       }).form
     ).toEqual(
       expect.objectContaining({ mode: "free-for-all", friendlyFire: false, advancedFunctions: true, functionPreview: true })
@@ -159,6 +174,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid",
         mapSizePreset: "huge"
       })
     ).toEqual({
@@ -175,6 +192,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid",
         mapSizePreset: "huge"
       }
     });
@@ -195,6 +214,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid",
         mapId: "map-1",
         mapSizePreset: "huge"
       })
@@ -212,6 +233,8 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnDurationSeconds: defaultTurnDurationSeconds,
+        inputMode: "hybrid",
         mapId: "map-1"
       }
     });
@@ -247,6 +270,8 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain('option value="huge"');
     expect(html).toContain("Color");
     expect(html).toContain("Max function length");
+    expect(html).toContain("Turn timer");
+    expect(html).toContain("Input mode");
     expect(html).toContain('min="20"');
     expect(html).toContain('max="100"');
   });
@@ -271,6 +296,9 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Unique function hits");
     expect(html).toContain("Advanced functions");
     expect(html).toContain("Function preview");
+    expect(html).toContain("Hybrid");
+    expect(html).toContain("Keypad");
+    expect(html).toContain("Keyboard");
     expect(html).toContain("Friendly fire");
   });
 

@@ -49,6 +49,12 @@ export type PlayerForfeitedEvent = {
   lobby?: LobbyRuntimeSnapshot;
 };
 
+export type TurnTimerFields = {
+  startedAt?: string;
+  deadlineAt?: string;
+  durationSeconds?: number;
+};
+
 export type ShotResolvedEvent = {
   type: "shot-resolved";
   guildId?: GuildId;
@@ -82,12 +88,12 @@ export type ServerEvent =
   | MatchStartedEvent
   | LobbyCancelledEvent
   | PlayerForfeitedEvent
-  | { type: "turn-started"; roomId: RoomId; playerId: PlayerId; turnNumber: number }
+  | ({ type: "turn-started"; roomId: RoomId; playerId: PlayerId; turnNumber: number } & TurnTimerFields)
   | { type: "shot-accepted"; roomId: RoomId; playerId: PlayerId }
   | { type: "shot-rejected"; roomId: RoomId; playerId: PlayerId; reason: string }
   | ShotResolvedEvent
   | { type: "terrain-changed"; roomId: RoomId; terrain: TerrainState }
   | { type: "player-damaged"; roomId: RoomId; damage: DamageEvent }
   | { type: "player-eliminated"; roomId: RoomId; playerId: PlayerId }
-  | { type: "turn-advanced"; roomId: RoomId; playerId: PlayerId; turnNumber: number }
+  | ({ type: "turn-advanced"; roomId: RoomId; playerId: PlayerId; turnNumber: number } & TurnTimerFields)
   | MatchEndedEvent;

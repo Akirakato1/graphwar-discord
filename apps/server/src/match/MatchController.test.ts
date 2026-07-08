@@ -26,6 +26,56 @@ describe("MatchController", () => {
     expect(snapshot.turn.activePlayerId).toBe("alice");
   });
 
+  it("stamps timed turns and rejects shots after the turn deadline", () => {
+    let nowMs = Date.parse("2026-07-05T00:00:00.000Z");
+    const controller = new MatchController("room-1", { now: () => new Date(nowMs) });
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+
+    const started = controller.startMatch("team-versus", undefined, { turnDurationSeconds: 30 });
+
+    expect(started.turn).toEqual(
+      expect.objectContaining({
+        activePlayerId: "alice",
+        startedAt: "2026-07-05T00:00:00.000Z",
+        deadlineAt: "2026-07-05T00:00:30.000Z",
+        durationSeconds: 30
+      })
+    );
+
+    nowMs = Date.parse("2026-07-05T00:00:30.001Z");
+    const [event] = controller.submitShot("alice", "normal", "0");
+
+    expect(event).toEqual({
+      type: "shot-rejected",
+      roomId: "room-1",
+      playerId: "alice",
+      reason: "Turn timer expired."
+    });
+  });
+
+  it("can advance an expired turn without a shot while preserving timer metadata", () => {
+    let nowMs = Date.parse("2026-07-05T00:00:00.000Z");
+    const controller = new MatchController("room-1", { now: () => new Date(nowMs) });
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+    controller.startMatch("team-versus", undefined, { turnDurationSeconds: 30 });
+
+    nowMs = Date.parse("2026-07-05T00:00:30.001Z");
+    const event = controller.advanceExpiredTurn();
+
+    expect(event).toEqual({
+      type: "turn-advanced",
+      roomId: "room-1",
+      playerId: "bob",
+      turnNumber: 2,
+      startedAt: "2026-07-05T00:00:30.001Z",
+      deadlineAt: "2026-07-05T00:01:00.001Z",
+      durationSeconds: 30
+    });
+    expect(controller.getSnapshot().turn).toEqual(expect.objectContaining({ activePlayerId: "bob", turnNumber: 2 }));
+  });
+
   it("starts a default match with the requested map size preset bounds", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");
@@ -174,11 +224,11 @@ describe("MatchController", () => {
         hp: 0,
         alive: false
       });
-      expect(events[0].snapshot.turn).toEqual({
+      expect(events[0].snapshot.turn).toEqual(expect.objectContaining({
         activePlayerId: "bob",
         order: ["alice", "bob", "charlie"],
         turnNumber: 2
-      });
+      }));
     }
   });
 

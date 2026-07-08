@@ -4,6 +4,7 @@ import type {
   CustomMapImport,
   CustomMapSummary,
   GuildSettings,
+  FunctionInputMode,
   LobbyPlacementId,
   LobbyJoinResult,
   LobbyRuntimeSnapshot,
@@ -78,6 +79,8 @@ export type GameStoreState = {
     friendlyFire: boolean;
     advancedFunctions: boolean;
     functionPreview: boolean;
+    turnDurationSeconds: number;
+    inputMode: FunctionInputMode;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }): Promise<void>;
@@ -176,7 +179,14 @@ function applyEventToSnapshot(snapshot: MatchSnapshot | undefined, event: Server
     case "turn-started":
       return {
         ...snapshot,
-        turn: { ...snapshot.turn, activePlayerId: event.playerId, turnNumber: event.turnNumber }
+        turn: {
+          ...snapshot.turn,
+          activePlayerId: event.playerId,
+          turnNumber: event.turnNumber,
+          ...(event.startedAt ? { startedAt: event.startedAt } : {}),
+          ...(event.deadlineAt ? { deadlineAt: event.deadlineAt } : {}),
+          ...(event.durationSeconds ? { durationSeconds: event.durationSeconds } : {})
+        }
       };
     default:
       return snapshot;
@@ -437,6 +447,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             friendlyFire: form.friendlyFire,
             advancedFunctions: form.advancedFunctions,
             functionPreview: form.functionPreview,
+            turnDurationSeconds: form.turnDurationSeconds,
+            inputMode: form.inputMode,
             ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();

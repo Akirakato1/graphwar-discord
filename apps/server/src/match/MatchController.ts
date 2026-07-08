@@ -5,6 +5,7 @@ import {
   defaultMapSizePreset,
   normalizeCraterRadius,
   normalizeDamagePerHit,
+  normalizeTurnDurationSeconds,
   type AimDirectionId,
   type FunctionFamilyId,
   type MapSizePresetId,
@@ -15,6 +16,7 @@ import {
   type ServerEvent,
   type TeamState,
   type TerrainState,
+  type TurnState,
   type WorldBounds,
   type WorldPoint,
   normalizeMaxFunctionLength,
@@ -39,6 +41,7 @@ type ShotRejectedEvent = Extract<ServerEvent, { type: "shot-rejected" }>;
 type ShotResolvedEvent = Extract<ServerEvent, { type: "shot-resolved" }>;
 type PlayerForfeitedEvent = Extract<ServerEvent, { type: "player-forfeited" }>;
 type MatchEndedEvent = Extract<ServerEvent, { type: "match-ended" }>;
+type TurnAdvancedEvent = Extract<ServerEvent, { type: "turn-advanced" }>;
 
 export type ShotSubmissionEvents =
   | [ShotRejectedEvent]
@@ -58,6 +61,7 @@ export type MatchStartOptions = {
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
+  turnDurationSeconds?: number;
 };
 
 export type LobbySnapshotOptions = {
@@ -71,6 +75,11 @@ type MatchRules = {
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
+  turnDurationSeconds: number;
+};
+
+export type MatchControllerOptions = {
+  now?: () => Date;
 };
 
 const duplicateHitRejection = "That function already hit this target. Try a different function.";
@@ -88,8 +97,10 @@ export class MatchController {
   private maxFunctionLength: number = defaultMaxFunctionLength;
   private lobbyWorldBounds: WorldBounds = worldBoundsForMapSize(defaultMapSizePreset);
   private snapshot: MatchState;
+  private readonly now: () => Date;
 
-  constructor(private readonly roomId: RoomId) {
+  constructor(private readonly roomId: RoomId, options: MatchControllerOptions = {}) {
+    this.now = options.now ?? (() => new Date());
     this.snapshot = this.createEmptyLobbySnapshot();
   }
 
@@ -150,7 +161,8 @@ export class MatchController {
       craterRadius: normalizeCraterRadius(options.craterRadius),
       uniqueFunctionHits: options.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
       friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
-      advancedFunctions: options.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions
+      advancedFunctions: options.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
+      turnDurationSeconds: normalizeTurnDurationSeconds(options.turnDurationSeconds)
     };
     this.successfulHitKeys.clear();
     const worldBounds = cloneWorldBounds(
@@ -183,9 +195,7 @@ export class MatchController {
       teams,
       terrain: map.terrain,
       turn: {
-        activePlayerId: turnOrder[0] ?? "",
-        order: turnOrder,
-        turnNumber: 1
+        ...this.createPlayingTurn(turnOrder[0] ?? "", turnOrder, 1)
       }
     };
 
@@ -204,6 +214,10 @@ export class MatchController {
 
     if (this.snapshot.turn.activePlayerId !== playerId) {
       return [this.rejectShot(playerId, "Player is not active")];
+    }
+
+    if (this.isTurnExpired()) {
+      return [this.rejectShot(playerId, "Turn timer expired.")];
     }
 
     const shooter = this.snapshot.players.find((player) => player.id === playerId);
@@ -324,6 +338,20 @@ export class MatchController {
     return [forfeited];
   }
 
+  advanceExpiredTurn(): TurnAdvancedEvent | undefined {
+    if (this.snapshot.phase !== "playing" || !this.isTurnExpired()) {
+      return undefined;
+    }
+
+    const turn = this.nextTurn(this.snapshot.players);
+    this.snapshot = {
+      ...this.snapshot,
+      turn
+    };
+
+    return this.turnAdvancedEvent(turn);
+  }
+
   forcePlayerHpForTest(playerId: PlayerId, hp: number): void {
     if (!this.snapshot.players.some((player) => player.id === playerId)) {
       throw new Error(`Unknown player: ${playerId}`);
@@ -407,9 +435,7 @@ export class MatchController {
       const nextPlayerId = previousOrder[(startIndex + offset) % previousOrder.length];
       if (livingPlayerIds.has(nextPlayerId)) {
         return {
-          activePlayerId: nextPlayerId,
-          order: [...previousOrder],
-          turnNumber: this.snapshot.turn.turnNumber + 1
+          ...this.createPlayingTurn(nextPlayerId, previousOrder, this.snapshot.turn.turnNumber + 1)
         };
       }
     }
@@ -418,6 +444,51 @@ export class MatchController {
       activePlayerId: "",
       order: [...previousOrder],
       turnNumber: this.snapshot.turn.turnNumber + 1
+    };
+  }
+
+  private createPlayingTurn(activePlayerId: PlayerId, order: PlayerId[], turnNumber: number): TurnState {
+    if (!activePlayerId) {
+      return {
+        activePlayerId,
+        order: [...order],
+        turnNumber
+      };
+    }
+
+    const startedAtDate = this.now();
+    const startedAt = startedAtDate.toISOString();
+    const deadlineAt = new Date(startedAtDate.getTime() + this.matchRules.turnDurationSeconds * 1000).toISOString();
+
+    return {
+      activePlayerId,
+      order: [...order],
+      turnNumber,
+      startedAt,
+      deadlineAt,
+      durationSeconds: this.matchRules.turnDurationSeconds
+    };
+  }
+
+  private isTurnExpired(): boolean {
+    const deadlineAt = this.snapshot.turn.deadlineAt;
+    if (!deadlineAt) {
+      return false;
+    }
+
+    const deadlineMs = Date.parse(deadlineAt);
+    return Number.isFinite(deadlineMs) && this.now().getTime() > deadlineMs;
+  }
+
+  private turnAdvancedEvent(turn: TurnState): TurnAdvancedEvent {
+    return {
+      type: "turn-advanced",
+      roomId: this.roomId,
+      playerId: turn.activePlayerId,
+      turnNumber: turn.turnNumber,
+      ...(turn.startedAt ? { startedAt: turn.startedAt } : {}),
+      ...(turn.deadlineAt ? { deadlineAt: turn.deadlineAt } : {}),
+      ...(turn.durationSeconds ? { durationSeconds: turn.durationSeconds } : {})
     };
   }
 

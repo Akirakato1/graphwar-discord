@@ -38,6 +38,9 @@ npm test
 Run typecheck:
 npm run check
 
+Run focused timer/input checks:
+npm test -- packages/shared/src/lobby/schemas.test.ts packages/shared/src/protocol/schemas.test.ts apps/server/src/match/MatchController.test.ts apps/client/src/input/FunctionInput.test.ts apps/client/src/lobby/CreateLobbyView.test.ts apps/client/src/lobby/LobbySetupView.test.tsx apps/client/src/hud/MatchHud.test.ts
+
 Run browser e2e tests:
 npm run test:e2e
 

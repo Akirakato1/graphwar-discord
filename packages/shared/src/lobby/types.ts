@@ -1,7 +1,7 @@
 import type { PersistedCustomMap } from "../maps/types";
 import type { MapSizePresetId } from "../maps/worldBounds";
 import type { MatchModeId, PlayerId, RoomId } from "../state/types";
-import type { LobbyGameplaySettings } from "./gameplaySettings";
+import type { FunctionInputMode, LobbyGameplaySettings } from "./gameplaySettings";
 import type { PlayerColor } from "./identity";
 
 export type GuildId = string;
@@ -67,6 +67,8 @@ export type LobbyRuntimeSnapshot = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnDurationSeconds: number;
+  inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -90,6 +92,8 @@ export type LobbySummary = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnDurationSeconds: number;
+  inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
   mapName?: string;
@@ -111,6 +115,8 @@ export type CreateLobbyRequest = {
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
   functionPreview?: boolean;
+  turnDurationSeconds?: number;
+  inputMode?: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
   mapId?: string;
 };

@@ -24,7 +24,8 @@ describe("protocol schemas", () => {
   });
 
   it("keeps server event schema output aligned with ServerEvent", () => {
-    expectTypeOf<z.infer<typeof serverEventSchema>>().toEqualTypeOf<ServerEvent>();
+    expectTypeOf<z.infer<typeof serverEventSchema>>().toMatchTypeOf<ServerEvent>();
+    expectTypeOf<ServerEvent>().toMatchTypeOf<z.infer<typeof serverEventSchema>>();
   });
 
   it("accepts a valid submit-shot command", () => {
@@ -105,6 +106,61 @@ describe("protocol schemas", () => {
 
     expect(parsed.type).toBe("shot-resolved");
     expect(parsed).toMatchObject({ aimDirection: "west" });
+  });
+
+  it("accepts timer metadata on match snapshots and turn events", () => {
+    const timedTurn = {
+      activePlayerId: "alice",
+      order: ["alice", "bob"],
+      turnNumber: 2,
+      startedAt: "2026-07-05T00:00:00.000Z",
+      deadlineAt: "2026-07-05T00:00:45.000Z",
+      durationSeconds: 45
+    };
+
+    expect(
+      matchSnapshotSchema.parse({
+        phase: "playing",
+        mode: "team-versus",
+        worldBounds: standardWorldBounds,
+        players: [],
+        teams: [],
+        terrain: { blobs: [] },
+        turn: timedTurn
+      }).turn
+    ).toEqual(timedTurn);
+
+    expect(
+      serverEventSchema.parse({
+        type: "turn-started",
+        roomId: "local-test",
+        playerId: "alice",
+        turnNumber: 2,
+        startedAt: timedTurn.startedAt,
+        deadlineAt: timedTurn.deadlineAt,
+        durationSeconds: timedTurn.durationSeconds
+      })
+    ).toEqual({
+      type: "turn-started",
+      roomId: "local-test",
+      playerId: "alice",
+      turnNumber: 2,
+      startedAt: timedTurn.startedAt,
+      deadlineAt: timedTurn.deadlineAt,
+      durationSeconds: timedTurn.durationSeconds
+    });
+
+    expect(
+      serverEventSchema.parse({
+        type: "turn-advanced",
+        roomId: "local-test",
+        playerId: "bob",
+        turnNumber: 3,
+        startedAt: "2026-07-05T00:00:45.000Z",
+        deadlineAt: "2026-07-05T00:01:30.000Z",
+        durationSeconds: 45
+      })
+    ).toMatchObject({ type: "turn-advanced", playerId: "bob", durationSeconds: 45 });
   });
 
   it("accepts a player-forfeited event with an authoritative snapshot", () => {

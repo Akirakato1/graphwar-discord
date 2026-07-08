@@ -5,10 +5,16 @@ import {
   defaultMapSizePreset,
   defaultLobbyGameplaySettings,
   defaultPlayerColor,
+  defaultTurnDurationSeconds,
+  inputModes,
   normalizeCraterRadius,
   normalizeDamagePerHit,
+  normalizeInputMode,
+  normalizeTurnDurationSeconds,
   playerColorPalette,
+  turnDurationSecondsBounds,
   type CustomMapSummary,
+  type FunctionInputMode,
   type GuildSettings,
   type LobbySlot,
   type MapSizePresetId,
@@ -58,6 +64,8 @@ type CreateLobbyViewProps = {
     friendlyFire: boolean;
     advancedFunctions: boolean;
     functionPreview: boolean;
+    turnDurationSeconds: number;
+    inputMode: FunctionInputMode;
     mapId?: string;
     mapSizePreset?: MapSizePresetId;
   }) => Promise<void>;
@@ -77,6 +85,8 @@ type CreateLobbyForm = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnDurationSeconds: number;
+  inputMode: FunctionInputMode;
   mapId?: string;
   mapSizePreset?: MapSizePresetId;
 };
@@ -104,6 +114,8 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       advancedFunctions: form.advancedFunctions,
       functionPreview: form.functionPreview,
+      turnDurationSeconds: normalizeTurnDurationSeconds(form.turnDurationSeconds),
+      inputMode: normalizeInputMode(form.inputMode),
       ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
     }
   };
@@ -131,6 +143,8 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
     functionPreview: defaultLobbyGameplaySettings.functionPreview,
+    turnDurationSeconds: defaultTurnDurationSeconds,
+    inputMode: defaultLobbyGameplaySettings.inputMode,
     mapSizePreset: defaultMapSizePreset
   };
 }
@@ -150,6 +164,8 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
   const [functionPreview, setFunctionPreview] = useState(initialForm.functionPreview);
+  const [turnDurationSeconds, setTurnDurationSeconds] = useState(initialForm.turnDurationSeconds);
+  const [inputMode, setInputMode] = useState<FunctionInputMode>(initialForm.inputMode);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
   const [name, setName] = useState(initialForm.name);
   const [submitting, setSubmitting] = useState(false);
@@ -179,6 +195,8 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           friendlyFire,
           advancedFunctions,
           functionPreview,
+          turnDurationSeconds,
+          inputMode,
           ...(mapId ? { mapId } : { mapSizePreset })
         }).form
       );
@@ -294,6 +312,32 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
               setFormError(undefined);
             }}
           />
+        </label>
+        <label className="slider-setting">
+          <span>
+            Turn timer <strong>{turnDurationSeconds}s</strong>
+          </span>
+          <input
+            max={turnDurationSecondsBounds.max}
+            min={turnDurationSecondsBounds.min}
+            step={turnDurationSecondsBounds.step}
+            type="range"
+            value={turnDurationSeconds}
+            onChange={(event) => {
+              setTurnDurationSeconds(Number(event.currentTarget.value));
+              setFormError(undefined);
+            }}
+          />
+        </label>
+        <label>
+          Input mode
+          <select value={inputMode} onChange={(event) => setInputMode(event.currentTarget.value as FunctionInputMode)}>
+            {inputModes.map((modeOption) => (
+              <option key={modeOption} value={modeOption}>
+                {modeOption === "hybrid" ? "Hybrid" : modeOption === "keypad" ? "Keypad" : "Keyboard"}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="toggle-row">
           <input

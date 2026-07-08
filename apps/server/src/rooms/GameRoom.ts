@@ -24,6 +24,7 @@ export class GameRoom {
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly match: MatchController;
   private readonly customMapSpawner = new CustomMapSpawner();
+  private turnTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly roomId: RoomId,
@@ -116,12 +117,8 @@ export class GameRoom {
       case "start-match": {
         const snapshot = this.match.startMatch(this.match.getSnapshot().mode);
         this.broadcast({ type: "match-started", roomId: this.roomId, snapshot });
-        this.broadcast({
-          type: "turn-started",
-          roomId: this.roomId,
-          playerId: snapshot.turn.activePlayerId,
-          turnNumber: snapshot.turn.turnNumber
-        });
+        this.broadcast(this.turnEvent("turn-started", snapshot.turn));
+        this.scheduleTurnTimer(snapshot);
         return;
       }
       case "submit-shot": {
@@ -224,15 +221,12 @@ export class GameRoom {
           craterRadius: lobby.craterRadius,
           uniqueFunctionHits: lobby.uniqueFunctionHits,
           friendlyFire: lobby.friendlyFire,
-          advancedFunctions: lobby.advancedFunctions
+          advancedFunctions: lobby.advancedFunctions,
+          turnDurationSeconds: lobby.turnDurationSeconds
         });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });
-        this.broadcast({
-          type: "turn-started",
-          roomId: this.roomId,
-          playerId: snapshot.turn.activePlayerId,
-          turnNumber: snapshot.turn.turnNumber
-        });
+        this.broadcast(this.turnEvent("turn-started", snapshot.turn));
+        this.scheduleTurnTimer(snapshot);
         return;
       }
       case "submit-shot": {
@@ -343,6 +337,7 @@ export class GameRoom {
       return;
     }
 
+    this.clearTurnTimer();
     this.broadcast(this.withResolvedLobbyContext(firstEvent));
 
     const matchEnded = events[1];
@@ -354,12 +349,8 @@ export class GameRoom {
       return;
     }
 
-    this.broadcast({
-      type: "turn-advanced",
-      roomId: this.roomId,
-      playerId: firstEvent.snapshot.turn.activePlayerId,
-      turnNumber: firstEvent.snapshot.turn.turnNumber
-    });
+    this.broadcast(this.turnEvent("turn-advanced", firstEvent.snapshot.turn));
+    this.scheduleTurnTimer(firstEvent.snapshot);
   }
 
   private async handleForfeitMatch(socket: WebSocket, playerId: string): Promise<void> {
@@ -374,11 +365,61 @@ export class GameRoom {
 
     const matchEnded = events[1];
     if (matchEnded) {
+      this.clearTurnTimer();
       this.broadcast(this.withResolvedLobbyContext(matchEnded));
       if (this.lobbyContext) {
         await this.recordMatchResult(matchEnded.winnerIds, matchEnded.snapshot.players.map((player) => player.id));
       }
+      return;
     }
+
+    this.scheduleTurnTimer(firstEvent.snapshot);
+  }
+
+  private scheduleTurnTimer(snapshot: MatchSnapshot): void {
+    this.clearTurnTimer();
+    if (snapshot.phase !== "playing" || !snapshot.turn.deadlineAt) {
+      return;
+    }
+
+    const delayMs = Math.max(0, Date.parse(snapshot.turn.deadlineAt) - Date.now() + 1);
+    this.turnTimer = setTimeout(() => {
+      const next = this.commandQueue.then(
+        () => this.advanceExpiredTurn(),
+        () => this.advanceExpiredTurn()
+      );
+      this.commandQueue = next.catch(() => undefined);
+    }, delayMs);
+  }
+
+  private advanceExpiredTurn(): void {
+    const event = this.match.advanceExpiredTurn();
+    if (!event) {
+      this.scheduleTurnTimer(this.match.getSnapshot());
+      return;
+    }
+
+    this.broadcast(event);
+    this.scheduleTurnTimer(this.match.getSnapshot());
+  }
+
+  private clearTurnTimer(): void {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = undefined;
+    }
+  }
+
+  private turnEvent(type: "turn-started" | "turn-advanced", turn: MatchSnapshot["turn"]): ServerEvent {
+    return {
+      type,
+      roomId: this.roomId,
+      playerId: turn.activePlayerId,
+      turnNumber: turn.turnNumber,
+      ...(turn.startedAt ? { startedAt: turn.startedAt } : {}),
+      ...(turn.deadlineAt ? { deadlineAt: turn.deadlineAt } : {}),
+      ...(turn.durationSeconds ? { durationSeconds: turn.durationSeconds } : {})
+    };
   }
 
   private withLobbyContext(event: ServerEvent): ServerEvent {
@@ -483,6 +524,9 @@ export class GameRoom {
 
     const removed = this.clients.delete(socket);
     if (removed && this.isEmpty()) {
+      if (!this.shouldRetainWhenEmpty()) {
+        this.clearTurnTimer();
+      }
       this.onEmpty();
     }
   }

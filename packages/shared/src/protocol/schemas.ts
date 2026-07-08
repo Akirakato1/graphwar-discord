@@ -32,6 +32,15 @@ export const terrainBlobSchema = z.object({
 
 export const terrainStateSchema = z.object({ blobs: z.array(terrainBlobSchema) });
 
+const turnStateSchema = z.object({
+  activePlayerId: z.string(),
+  order: z.array(z.string()),
+  turnNumber: positiveIntegerSchema,
+  startedAt: z.string().datetime().optional(),
+  deadlineAt: z.string().datetime().optional(),
+  durationSeconds: positiveIntegerSchema.optional()
+});
+
 export const matchSnapshotSchema = z.object({
   phase: z.enum(["lobby", "playing", "ended"]),
   mode: matchModeSchema,
@@ -52,7 +61,7 @@ export const matchSnapshotSchema = z.object({
   ),
   teams: z.array(z.object({ id: z.string(), playerIds: z.array(z.string()) })),
   terrain: terrainStateSchema,
-  turn: z.object({ activePlayerId: z.string(), order: z.array(z.string()), turnNumber: positiveIntegerSchema })
+  turn: turnStateSchema
 });
 
 const clientCommandUnionSchema = z.discriminatedUnion("type", [
@@ -191,7 +200,15 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     snapshot: matchSnapshotSchema,
     lobby: lobbyRuntimeSnapshotSchema.optional()
   }),
-  z.object({ type: z.literal("turn-started"), roomId: z.string(), playerId: z.string(), turnNumber: positiveIntegerSchema }),
+  z.object({
+    type: z.literal("turn-started"),
+    roomId: z.string(),
+    playerId: z.string(),
+    turnNumber: positiveIntegerSchema,
+    startedAt: z.string().datetime().optional(),
+    deadlineAt: z.string().datetime().optional(),
+    durationSeconds: positiveIntegerSchema.optional()
+  }),
   z.object({ type: z.literal("shot-accepted"), roomId: z.string(), playerId: z.string() }),
   z.object({ type: z.literal("shot-rejected"), roomId: z.string(), playerId: z.string(), reason: z.string() }),
   z.object({
@@ -224,7 +241,15 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     damage: z.object({ playerId: z.string(), amount: nonNegativeFiniteNumberSchema, hpAfter: nonNegativeFiniteNumberSchema })
   }),
   z.object({ type: z.literal("player-eliminated"), roomId: z.string(), playerId: z.string() }),
-  z.object({ type: z.literal("turn-advanced"), roomId: z.string(), playerId: z.string(), turnNumber: positiveIntegerSchema }),
+  z.object({
+    type: z.literal("turn-advanced"),
+    roomId: z.string(),
+    playerId: z.string(),
+    turnNumber: positiveIntegerSchema,
+    startedAt: z.string().datetime().optional(),
+    deadlineAt: z.string().datetime().optional(),
+    durationSeconds: positiveIntegerSchema.optional()
+  }),
   z.object({
     type: z.literal("match-ended"),
     guildId: optionalGuildIdSchema,

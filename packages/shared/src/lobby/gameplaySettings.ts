@@ -17,6 +17,18 @@ export const defaultUniqueFunctionHits = true;
 export const defaultFriendlyFire = false;
 export const defaultAdvancedFunctions = false;
 export const defaultFunctionPreview = true;
+export const inputModes = ["keypad", "keyboard", "hybrid"] as const;
+export type FunctionInputMode = (typeof inputModes)[number];
+export const defaultInputMode: FunctionInputMode = "hybrid";
+
+export const turnDurationSecondsBounds = {
+  min: 10,
+  max: 180,
+  step: 5,
+  default: 60
+} as const;
+
+export const defaultTurnDurationSeconds = turnDurationSecondsBounds.default;
 
 export type LobbyGameplaySettings = {
   damagePerHit: number;
@@ -25,6 +37,8 @@ export type LobbyGameplaySettings = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnDurationSeconds: number;
+  inputMode: FunctionInputMode;
 };
 
 export const defaultLobbyGameplaySettings: LobbyGameplaySettings = {
@@ -33,7 +47,9 @@ export const defaultLobbyGameplaySettings: LobbyGameplaySettings = {
   uniqueFunctionHits: defaultUniqueFunctionHits,
   friendlyFire: defaultFriendlyFire,
   advancedFunctions: defaultAdvancedFunctions,
-  functionPreview: defaultFunctionPreview
+  functionPreview: defaultFunctionPreview,
+  turnDurationSeconds: defaultTurnDurationSeconds,
+  inputMode: defaultInputMode
 };
 
 export function normalizeDamagePerHit(value: number | undefined): number {
@@ -53,6 +69,19 @@ export function normalizeCraterRadius(value: number | undefined): number {
   const roundedToStep = Math.round(value / craterRadiusBounds.step) * craterRadiusBounds.step;
   const clamped = Math.min(craterRadiusBounds.max, Math.max(craterRadiusBounds.min, roundedToStep));
   return Number(clamped.toFixed(2));
+}
+
+export function normalizeTurnDurationSeconds(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return defaultTurnDurationSeconds;
+  }
+
+  const roundedToStep = Math.round(value / turnDurationSecondsBounds.step) * turnDurationSecondsBounds.step;
+  return Math.min(turnDurationSecondsBounds.max, Math.max(turnDurationSecondsBounds.min, roundedToStep));
+}
+
+export function normalizeInputMode(value: unknown): FunctionInputMode {
+  return inputModes.includes(value as FunctionInputMode) ? (value as FunctionInputMode) : defaultInputMode;
 }
 
 export function normalizeFunctionHitExpression(expression: string): string {
