@@ -57,6 +57,39 @@ export function isPointInTerrain(point: WorldPoint, terrain: TerrainState): bool
   return terrain.blobs.some((blob) => pointInBlob(point, blob));
 }
 
+function distanceToSegment(point: WorldPoint, start: WorldPoint, end: WorldPoint): number {
+  const segmentX = end.x - start.x;
+  const segmentY = end.y - start.y;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSquared <= epsilon) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(1, ((point.x - start.x) * segmentX + (point.y - start.y) * segmentY) / lengthSquared)
+  );
+  return Math.hypot(point.x - (start.x + t * segmentX), point.y - (start.y + t * segmentY));
+}
+
+function distanceToRing(point: WorldPoint, ring: WorldPoint[]): number {
+  return ring.reduce((minimum, current, index) => {
+    const next = ring[(index + 1) % ring.length];
+    return Math.min(minimum, distanceToSegment(point, current, next));
+  }, Number.POSITIVE_INFINITY);
+}
+
+function terrainBoundaryDistance(point: WorldPoint, terrain: TerrainState): number {
+  return terrain.blobs.reduce((minimum, blob) => {
+    const rings = [blob.outer, ...blob.holes];
+    return Math.min(minimum, ...rings.map((ring) => distanceToRing(point, ring)));
+  }, Number.POSITIVE_INFINITY);
+}
+
+export function isPointClearOfTerrain(point: WorldPoint, terrain: TerrainState, minimumClearance = 1): boolean {
+  return !isPointInTerrain(point, terrain) && terrainBoundaryDistance(point, terrain) + epsilon >= minimumClearance;
+}
+
 function uniqueDirections(primary: WorldPoint): WorldPoint[] {
   const directions = [
     primary,
@@ -109,7 +142,7 @@ function nudgeSpawnOutsideTerrain(point: WorldPoint, terrain: TerrainState, boun
         y: point.y + direction.y * distance
       });
 
-      if (isWorldPointInBounds(candidate, bounds) && !isPointInTerrain(candidate, terrain)) {
+      if (isWorldPointInBounds(candidate, bounds) && isPointClearOfTerrain(candidate, terrain)) {
         return candidate;
       }
     }
@@ -124,7 +157,7 @@ export function ensureSpawnsOutsideTerrain(
   bounds: WorldBounds
 ): SpawnPoint[] {
   return spawns.map((spawn) =>
-    isPointInTerrain(spawn.position, terrain)
+    !isPointClearOfTerrain(spawn.position, terrain)
       ? { ...spawn, position: nudgeSpawnOutsideTerrain(spawn.position, terrain, bounds) }
       : spawn
   );

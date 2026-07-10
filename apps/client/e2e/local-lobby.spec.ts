@@ -249,16 +249,16 @@ test("player damage appears after the shot playback reaches impact", async ({ br
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();
     await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
 
     await alicePage.getByLabel("Function Shot").fill("0.05x(36-x)");
     await alicePage.getByRole("button", { name: "Fire" }).click();
 
     await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
 
     await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
-    await expect(bobPage.getByTestId("own-hp")).toContainText("65 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("65");
   } finally {
     await aliceContext.close();
     await bobContext.close();
@@ -285,16 +285,16 @@ test("create-lobby damage settings apply and duplicate function hits are rejecte
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();
     await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
 
     const hitExpression = "0.05x(36-x)";
     await alicePage.getByLabel("Function Shot").fill(hitExpression);
     await alicePage.getByRole("button", { name: "Fire" }).click();
 
     await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
     await expect.poll(() => canvasPathPoints(alicePage), { timeout: 5_000 }).toBe(0);
-    await expect(bobPage.getByTestId("own-hp")).toContainText("50 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("50");
 
     await fireMiss(bobPage);
     await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
@@ -327,9 +327,9 @@ test("final killing shot plays before the winner dialog returns to menu", async 
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();
     await expect(alicePage.getByTestId("active-turn")).toContainText("Your Turn");
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
 
-    for (const hpAfter of ["65 HP", "30 HP"]) {
+    for (const hpAfter of ["65", "30"]) {
       await alicePage.getByLabel("Function Shot").fill("0.05x(36-x)");
       await alicePage.getByRole("button", { name: "Fire" }).click();
       await expect.poll(() => canvasPathPoints(alicePage)).toBeGreaterThan(0);

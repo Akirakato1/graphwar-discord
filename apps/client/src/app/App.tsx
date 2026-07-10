@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GameCanvas, SHOT_ANIMATION_MS, shotEventKey } from "../game-renderer/GameCanvas";
+import { soundIdsForServerEvent } from "../audio/eventSounds";
+import { playGameSound } from "../audio/gameAudio";
 import { computeFunctionPreview } from "../game-renderer/functionPreview";
 import { findLatestShotResolvedEvent, findSnapshotBeforeLatestShot } from "../game-renderer/renderWorld";
 import { MatchHud } from "../hud/MatchHud";
@@ -198,6 +200,7 @@ function GameActivity() {
   const submitShot = useGameStore((state) => state.submitShot);
   const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
   const [draftExpression, setDraftExpression] = useState("sin(x)");
+  const audibleEventCountRef = useRef(0);
 
   const latestShot = useMemo(() => findLatestShotResolvedEvent(recentEvents), [recentEvents]);
   const latestShotKey = useMemo(() => (latestShot ? shotEventKey(latestShot) : undefined), [latestShot]);
@@ -251,6 +254,20 @@ function GameActivity() {
 
     return () => window.clearTimeout(timeout);
   }, [latestShotKey, snapshotBeforeLatestShot]);
+
+  useEffect(() => {
+    if (recentEvents.length < audibleEventCountRef.current) {
+      audibleEventCountRef.current = 0;
+    }
+
+    const newEvents = recentEvents.slice(audibleEventCountRef.current);
+    audibleEventCountRef.current = recentEvents.length;
+    for (const event of newEvents) {
+      for (const soundId of soundIdsForServerEvent(event)) {
+        playGameSound(soundId);
+      }
+    }
+  }, [recentEvents]);
 
   return (
     <main className="app-shell">

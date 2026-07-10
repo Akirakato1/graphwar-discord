@@ -1,16 +1,16 @@
 # Graph Report - Graphwar Discord Activity  (2026-07-10)
 
 ## Corpus Check
-- 181 files · ~131,255 words
+- 185 files · ~133,291 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1594 nodes · 3441 edges · 98 communities (86 shown, 12 thin omitted)
+- 1625 nodes · 3518 edges · 105 communities (94 shown, 11 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.53)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3b53ef08`
+- Built from commit: `0abaaf6e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -107,6 +107,13 @@
 - LeaderboardView.tsx
 - SettingsView.tsx
 - LocalStateStore.maps.test.ts
+- ShotSimulator.ts
+- FreeForAllMapGenerator.ts
+- MapGenerator.test.ts
+- normalizeTerrain.ts
+- MainMenu.tsx
+- gameAudio.ts
+- MemoryStorage
 
 ## God Nodes (most connected - your core abstractions)
 1. `WorldPoint` - 44 edges
@@ -127,79 +134,79 @@
   apps/client/src/game-renderer/camera.ts → packages/shared/src/maps/worldBounds.ts
 - `fitCameraToBounds()` --calls--> `boundsWidth()`  [EXTRACTED]
   apps/client/src/game-renderer/camera.ts → packages/shared/src/maps/worldBounds.ts
-- `computeFunctionPreview()` --calls--> `parseNormalFunction()`  [EXTRACTED]
-  apps/client/src/game-renderer/functionPreview.ts → packages/shared/src/functions/normalFunction.ts
-- `computeFunctionPreview()` --calls--> `localToWorld()`  [EXTRACTED]
-  apps/client/src/game-renderer/functionPreview.ts → packages/shared/src/geometry/coordinates.ts
+- `parseCustomMapFileText()` --calls--> `validateCustomMapImportForSave()`  [EXTRACTED]
+  apps/client/src/maps/mapFile.ts → packages/shared/src/maps/schemas.ts
+- `allTerrainPointsInsideBounds()` --calls--> `isWorldPointInBounds()`  [EXTRACTED]
+  apps/map-maker/src/editor/editorModel.test.ts → packages/shared/src/maps/worldBounds.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (98 total, 12 thin omitted)
+## Communities (105 total, 11 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.08
-Nodes (33): cloneSnapshot(), emptyTerrain, ForfeitEvents, lobbyPosition, LobbySnapshotOptions, MatchController, MatchControllerOptions, MatchEndedEvent (+25 more)
+Nodes (30): cloneWorldBounds(), cloneSnapshot(), emptyTerrain, ForfeitEvents, lobbyPosition, LobbySnapshotOptions, MatchController, MatchControllerOptions (+22 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.12
-Nodes (11): LobbySessionIdentity, parseCommand(), GameRoom, LobbyContext, RoomManager, ClientCommand, SubmitShotCommand, ServerEvent (+3 more)
+Cohesion: 0.13
+Nodes (8): LobbySessionIdentity, parseCommand(), GameRoom, LobbyContext, RoomManager, ClientCommand, ServerEvent, RoomId
 
 ### Community 2 - "Community 2"
 Cohesion: 0.09
-Nodes (42): advancedFunctionSymbols, assertAdvancedFunctionsAllowed(), baseFunctionSymbols, baseValueSymbols, canEndFactor(), canStartFactor(), compileDerivative(), CompiledNormalExpression (+34 more)
+Nodes (43): advancedFunctionSymbols, assertAdvancedFunctionsAllowed(), baseFunctionSymbols, baseValueSymbols, canEndFactor(), canStartFactor(), compileDerivative(), CompiledNormalExpression (+35 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.14
-Nodes (17): customMapImportSchema, customMapSpawnPointSchema, customMapTeamSpawnPointIdsSchema, customMapTerrainBlobSchema, customMapTerrainRingSchema, customMapTerrainStateSchema, mapNameSchema, persistedCustomMapSchema (+9 more)
+Cohesion: 0.12
+Nodes (21): allTerrainPointsInsideBounds(), customMapImportSchema, customMapSpawnPointSchema, customMapSummarySchema, customMapTeamSpawnPointIdsSchema, customMapTerrainBlobSchema, customMapTerrainRingSchema, customMapTerrainStateSchema (+13 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.12
-Nodes (14): lobbyPlacementSchema, lobbySlotSchema, matchModeSchema, playerColorSchema, aimDirectionSchema, clientCommandUnionSchema, finiteNumberSchema, nonNegativeFiniteNumberSchema (+6 more)
+Cohesion: 0.06
+Nodes (40): ShotSubmissionEvents, damagePerHitBounds, turnDurationSecondsBounds, autoAssignTeamsRequestSchema, avatarUrlInputSchema, avatarUrlSchema, craterRadiusSchema, createLobbyRequestSchema (+32 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.08
-Nodes (35): copySelected(), deleteSelected(), isItemSelected(), selectedItems(), App(), boundsFromHandle(), boundsFromPoints(), boundsLabel() (+27 more)
+Cohesion: 0.09
+Nodes (23): boundsFromHandle(), customDimensionLimits, defaultCanvasSize, DragState, gridValues(), normalizeBounds(), normalizedDimension(), ResizeHandle (+15 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.07
-Nodes (49): advancedFunctionSymbols, assertAdvancedFunctionsAllowed(), baseFunctionSymbols, baseValueSymbols, canEndFactor(), canStartFactor(), compileDerivative(), CompiledNormalExpression (+41 more)
+Cohesion: 0.09
+Nodes (40): advancedFunctionSymbols, assertAdvancedFunctionsAllowed(), baseFunctionSymbols, baseValueSymbols, canEndFactor(), canStartFactor(), compileDerivative(), CompiledNormalExpression (+32 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.39
-Nodes (6): computeFunctionPreview(), distance(), FunctionPreviewInput, resolveMaxFunctionLength(), snapshot, truncatePathByDistance()
+Cohesion: 0.12
+Nodes (19): computeFunctionPreview(), distance(), FunctionPreviewInput, resolveMaxFunctionLength(), snapshot, truncatePathByDistance(), compileNormalExpression(), CompileNormalExpressionOptions (+11 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.07
 Nodes (29): `apps/client`, `apps/server`, Authoritative Simulation, Class Structure, Client Commands, Coordinate Frame, Deferred Tuning, Explosions (+21 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.15
-Nodes (30): addPenPoint(), boundsIntersect(), clamp(), clampBoundsToWorldBounds(), clampDeltaToWorldBounds(), clampPointToBounds(), clipboardItemsBounds(), distance() (+22 more)
+Cohesion: 0.13
+Nodes (29): boundsIntersect(), clamp(), clampBoundsToWorldBounds(), clipboardItemsBounds(), distance(), expandBoundsIfNeeded(), getTerrainBounds(), isBounds() (+21 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.23
-Nodes (3): LobbyDirectory, LobbyOccupant, LobbyRuntimeSnapshot
+Cohesion: 0.21
+Nodes (4): LobbyDirectory, LobbyOccupant, LobbyPlacementId, LobbyRuntimeSnapshot
 
 ### Community 11 - "Community 11"
 Cohesion: 0.06
-Nodes (63): Camera, CanvasPoint, canvasToWorldWithCamera(), clampScale(), createBoundsKey(), fitCameraToBounds(), panCamera(), parseBoundsKey() (+55 more)
+Nodes (64): Camera, CanvasPoint, canvasToWorldWithCamera(), clampScale(), createBoundsKey(), fitCameraToBounds(), panCamera(), parseBoundsKey() (+56 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.17
-Nodes (15): App(), AppProps, findLatestMatchEndedEvent(), GameActivity(), GameSessionPill(), LocalLobbyIdentity, LocalLobbyIdentityInput, resolveLocalLobbyIdentity() (+7 more)
+Cohesion: 0.23
+Nodes (11): App(), AppProps, findLatestMatchEndedEvent(), GameActivity(), GameSessionPill(), LocalLobbyIdentity, LocalLobbyIdentityInput, resolveLocalLobbyIdentity() (+3 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.07
-Nodes (59): allTerrainPointsInsideBounds(), eventToWorldPoint(), clamp(), clampToRange(), clampViewBoundsToMapBounds(), createViewBoxGeometry(), isPositiveFinite(), normalizedScreenPoint() (+51 more)
+Cohesion: 0.32
+Nodes (16): eventToWorldPoint(), clamp(), clampToRange(), clampViewBoundsToMapBounds(), createViewBoxGeometry(), isPositiveFinite(), normalizedScreenPoint(), panViewBoundsByScreenDelta() (+8 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.05
-Nodes (64): addUniqueT(), clampT(), collectSegmentRingIntersectionTs(), CollisionHit, CollisionSystem, compareCollisionOrder(), cross(), distance() (+56 more)
+Cohesion: 0.20
+Nodes (7): CollisionHit, PlayerCollisionHit, interpolate(), samePoint(), ShotSimulator, WorldPoint, WorldBounds
 
 ### Community 15 - "Community 15"
-Cohesion: 0.21
-Nodes (11): defaultSettings(), emptyState(), ensureGuild(), hasErrorCode(), LocalStateStore, nowIso(), PersistedGuildState, GuildSettings (+3 more)
+Cohesion: 0.17
+Nodes (11): defaultSettings(), emptyState(), ensureGuild(), hasErrorCode(), LocalStateStore, tempDirs, nowIso(), PersistedGuildState (+3 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.09
@@ -218,28 +225,28 @@ Cohesion: 0.10
 Nodes (19): Execution Rules, File Structure, Graphwar Discord Activity Prototype Implementation Plan, Scope Check, Shared Type Names, Task 10: Client Session, Store, And Lobby UI, Task 11: Canvas Renderer And Server Event Animation, Task 12: Function Input Palette And Submit Flow (+11 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.13
-Nodes (13): createSessionFactory(), readClientSession(), readSourceFromHref(), SessionFactoryOptions, SessionSource, ClientSession, createLocalPlayerId(), LocalSessionStorage (+5 more)
+Cohesion: 0.19
+Nodes (11): createSessionFactory(), readClientSession(), readSourceFromHref(), SessionFactoryOptions, SessionSource, ClientSession, createLocalPlayerId(), LocalSessionStorage (+3 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.14
-Nodes (13): DiscordUserId, GuildId, LobbyPlacementId, LobbySlot, AutoAssignTeamsCommand, CancelLobbyCommand, ForfeitMatchCommand, JoinRoomCommand (+5 more)
+Cohesion: 0.09
+Nodes (25): FunctionInputMode, inputModes, LobbyGameplaySettings, AutoAssignTeamsRequest, DiscordUserId, GuildId, LobbyGameplaySettingsSnapshot, LobbyHttpError (+17 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.13
-Nodes (25): advancedSnippetButtons, clampPosition(), cursorInArgument(), CursorSelection, formatPlainExpression(), FunctionInput(), FunctionInputProps, mathCursor() (+17 more)
+Cohesion: 0.10
+Nodes (35): advancedSnippetButtons, argumentStartsInCall(), clampPosition(), cursorInArgument(), CursorSelection, formatPlainExpression(), FunctionInput(), FunctionInputProps (+27 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.21
-Nodes (9): FunctionCreateOptions, FunctionRegistry, NormalFunction, SampleContext, ShotFunction, TrajectorySample, NormalFunctionParseOptions, ParsedNormalFunction (+1 more)
+Cohesion: 0.16
+Nodes (10): FunctionCreateOptions, FunctionRegistry, NormalFunction, SampleContext, ShotFunction, TrajectorySample, NormalFunctionParseOptions, ParsedNormalFunction (+2 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.15
-Nodes (22): availableInitialSlots(), boundedFunctionLength(), createLobbyErrorMessage(), CreateLobbyForm, createLobbyInitialForm(), CreateLobbyView(), CreateLobbyViewProps, prepareCreateLobbyForm() (+14 more)
+Cohesion: 0.27
+Nodes (13): availableInitialSlots(), boundedFunctionLength(), createLobbyErrorMessage(), CreateLobbyForm, createLobbyInitialForm(), CreateLobbyView(), CreateLobbyViewProps, prepareCreateLobbyForm() (+5 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.16
-Nodes (12): ShotSubmissionEvents, autoAssignTeamsRequestSchema, createLobbyRequestSchema, joinLobbyRequestSchema, lobbyJoinResultSchema, lobbyRuntimeSnapshotSchema, lobbySummarySchema, setLobbyPlacementRequestSchema (+4 more)
+Cohesion: 0.22
+Nodes (18): addUniqueT(), clampT(), collectSegmentRingIntersectionTs(), CollisionSystem, compareCollisionOrder(), cross(), distance(), dot() (+10 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.11
@@ -262,8 +269,8 @@ Cohesion: 0.16
 Nodes (9): alice, bob, canvasPathPoints(), expectMenuCreateJoinNoScroll(), expectNoPageScroll(), fireMiss(), joinPopulatedLobbyWithoutScroll(), openLocalMenu() (+1 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.22
-Nodes (10): ClientCreateLobbyRequest, ClientJoinLobbyRequest, errorMessageFromPayload(), readEmpty(), readJson(), guildSettingsSchema, playerStatsEntrySchema, CreateLobbyRequest (+2 more)
+Cohesion: 0.20
+Nodes (10): ClientCreateLobbyRequest, ClientJoinLobbyRequest, errorMessageFromPayload(), readEmpty(), readJson(), guildSettingsSchema, lobbyJoinResultSchema, playerStatsEntrySchema (+2 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.18
@@ -282,24 +289,24 @@ Cohesion: 0.13
 Nodes (14): dependencies, expr-eval, fastify, @graphwar/shared, polygon-clipping, ws, zod, name (+6 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.22
-Nodes (12): buildRoomWebSocketUrl(), BuildRoomWebSocketUrlOptions, connectGameClient(), GameClient, normalizeServerUrl(), readLocationHref(), readWebSocketConstructor(), Listener (+4 more)
+Cohesion: 0.20
+Nodes (13): buildRoomWebSocketUrl(), BuildRoomWebSocketUrlOptions, connectGameClient(), ConnectGameClientOptions, GameClient, normalizeServerUrl(), readLocationHref(), readWebSocketConstructor() (+5 more)
 
 ### Community 38 - "Community 38"
 Cohesion: 0.18
 Nodes (10): LobbyDirectoryOptions, RuntimeLobby, Deferred, functionLengthBounds, isPlayerColor(), normalizeMaxFunctionLength(), normalizePlayerColor(), playerColorPalette (+2 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.26
-Nodes (15): addCircleTerrain(), addDefaultSpawnSet(), addRectangleTerrain(), addSpawnPoint(), addTriangleTerrain(), appendTerrainShape(), closePenShape(), fitTerrainPointsWithinBounds() (+7 more)
+Cohesion: 0.19
+Nodes (22): addCircleTerrain(), addDefaultSpawnSet(), addPenPoint(), addRectangleTerrain(), addSpawnPoint(), addTriangleTerrain(), appendTerrainShape(), clampDeltaToWorldBounds() (+14 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.18
-Nodes (13): availableJoinSlots(), isAliasConflictError(), isJoinActionDisabled(), joinActionLabel(), JoinLobbyForm, JoinLobbyView(), JoinLobbyViewProps, prepareJoinLobbyForm() (+5 more)
+Cohesion: 0.22
+Nodes (12): availableJoinSlots(), isAliasConflictError(), isJoinActionDisabled(), joinActionLabel(), JoinLobbyForm, JoinLobbyView(), JoinLobbyViewProps, prepareJoinLobbyForm() (+4 more)
 
 ### Community 41 - "Community 41"
-Cohesion: 0.17
-Nodes (11): avatarUrlSchema, craterRadiusSchema, damagePerHitSchema, dropUndefinedProperties(), inputModeSchema, lobbyOccupantSchema, lobbyStatusSchema, maxFunctionLengthSchema (+3 more)
+Cohesion: 0.20
+Nodes (14): CircleCraterExplosion, Explosion, ExplosionApplyOptions, ExplosionResult, blobToMultiPolygon(), effectiveBlobArea(), pointsToRing(), ringFromNumbers() (+6 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.27
@@ -318,16 +325,16 @@ Cohesion: 0.12
 Nodes (16): Architecture Sketch, Client UI, Custom Maps And Map Maker Design, Electron Map Maker, Free-For-All Spawn Assignment, Goal, HTTP API, Lobby Integration (+8 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.25
-Nodes (7): EditorClipboard, EditorSelection, EditorSelectionItem, EditorState, EditorTerrainShape, spawnClassName(), SpawnVisualState
+Cohesion: 0.14
+Nodes (17): copySelected(), deleteSelected(), isItemSelected(), selectedItems(), EditorState, App(), boundsFromPoints(), boundsLabel() (+9 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.31
 Nodes (8): formatMatchWinner(), MatchEndModal(), teamLabel(), freeForAllSnapshot, standardWorldBounds, teamSnapshot, WinnerText, MatchEndedEvent
 
 ### Community 48 - "useGameStore.test.ts"
-Cohesion: 0.17
-Nodes (7): Listener, playingSnapshot, session, snapshot, standardWorldBounds, ConnectGameClientOptions, LobbyApi
+Cohesion: 0.18
+Nodes (6): Listener, playingSnapshot, session, snapshot, standardWorldBounds, LobbyApi
 
 ### Community 49 - "Community 49"
 Cohesion: 0.20
@@ -357,13 +364,17 @@ Nodes (7): compilerOptions, composite, declaration, outDir, rootDir, extends, in
 Cohesion: 0.29
 Nodes (4): alice, bob, customMap, Player
 
+### Community 59 - "Community 59"
+Cohesion: 0.24
+Nodes (10): CustomMapSpawner, CustomMapSpawnPlayer, deriveBoundsFromTerrainAndSpawns(), distanceSquared(), padBounds(), pointBounds(), teamSpawnLabels, terrainPoints() (+2 more)
+
 ### Community 60 - "Community 60"
 Cohesion: 0.43
 Nodes (4): aliasesConflict(), normalizeAlias(), JoinLobbyRequest, LobbyJoinResult
 
 ### Community 61 - "Community 61"
-Cohesion: 0.18
-Nodes (7): shooter, terrainArea(), defaultMatchTuning, fieldBounds, defaultFunctionValidationSettings, FunctionValidationSettings, InvalidFunctionBehavior
+Cohesion: 0.20
+Nodes (7): shooter, terrainArea(), defaultMatchTuning, fieldBounds, isPointInBounds(), makeCirclePolygon(), PolygonRing
 
 ### Community 62 - "Community 62"
 Cohesion: 0.50
@@ -434,12 +445,12 @@ Cohesion: 0.50
 Nodes (3): Graphify Workflow, Personal Preferences, UI Design Workflow
 
 ### Community 89 - "MatchHud.tsx"
-Cohesion: 0.27
-Nodes (8): CommandRejection, MatchHud(), MatchHudProps, phaseLabel(), remainingTurnSeconds(), playingSnapshot, session, standardWorldBounds
+Cohesion: 0.26
+Nodes (10): CommandRejection, playGameSound(), MatchHud(), MatchHudProps, phaseLabel(), remainingTurnSeconds(), soundCueForTurnTimer(), playingSnapshot (+2 more)
 
 ### Community 90 - "types.ts"
-Cohesion: 0.22
-Nodes (8): CustomMapFormat, CustomMapSpawnPoint, CustomMapTeamSpawnPointIds, CustomMapVersion, CustomMapWorldBounds, SaveCustomMapRequest, MapSizePreset, MapSizePresetId
+Cohesion: 0.26
+Nodes (12): rectangleBlob(), scalePoint(), scaleTerrain(), spawnForTeam(), spawnXByTeamId, TeamVersusMapGenerator, teamVersusTerrain(), assignTeamIdByPlayerIndex() (+4 more)
 
 ### Community 91 - "DirectionDial.tsx"
 Cohesion: 0.43
@@ -457,25 +468,53 @@ Nodes (4): MapLibraryView(), MapLibraryViewProps, map, CustomMapSummary
 Cohesion: 0.40
 Nodes (3): customMap, customMapSummary, persistedCustomMap
 
+### Community 97 - "LocalStateStore.maps.test.ts"
+Cohesion: 0.28
+Nodes (14): distanceToRing(), distanceToSegment(), ensureSpawnsOutsideTerrain(), isPointClearOfTerrain(), isPointInTerrain(), nudgeSpawnOutsideTerrain(), pointInBlob(), pointInRing() (+6 more)
+
+### Community 98 - "ShotSimulator.ts"
+Cohesion: 0.15
+Nodes (13): distance(), ResolvedImpact, ShotSimulationInput, ShotSimulationResult, DamageEvent, ImpactEvent, ImpactReason, LobbyCancelledEvent (+5 more)
+
+### Community 99 - "FreeForAllMapGenerator.ts"
+Cohesion: 0.38
+Nodes (8): FreeForAllMapGenerator, roundToTwoDecimals(), scalePoint(), scaleTerrain(), squareBlob(), triangleBlob(), GeneratedMap, MapGenerator
+
+### Community 100 - "MapGenerator.test.ts"
+Cohesion: 0.36
+Nodes (8): distanceToRing(), distanceToSegment(), distanceToTerrain(), pointInBlob(), pointInRing(), pointOnSegment(), terrainAtPoint(), mapSizePresetIds
+
+### Community 101 - "normalizeTerrain.ts"
+Cohesion: 0.39
+Nodes (8): TerrainBlob, blobToMultiPolygon(), cloneTerrain(), effectiveBlobArea(), normalizeTerrainState(), pointsToRing(), ringFromNumbers(), stripDuplicatedClosingPoint()
+
+### Community 102 - "MainMenu.tsx"
+Cohesion: 0.29
+Nodes (6): AppView, EquationProjectile, equationProjectiles, equationTemplates, MainMenu(), MainMenuProps
+
+### Community 103 - "gameAudio.ts"
+Cohesion: 0.36
+Nodes (5): soundIdsForServerEvent(), BrowserAudioWindow, currentAudioContext(), GameSoundId, playTone()
+
 ## Knowledge Gaps
-- **544 isolated node(s):** `Player`, `alice`, `bob`, `customMap`, `Player` (+539 more)
+- **548 isolated node(s):** `Player`, `alice`, `bob`, `customMap`, `Player` (+543 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `WorldPoint` connect `Community 14` to `Community 0`, `Community 5`, `Community 7`, `Community 9`, `Community 11`, `Community 13`, `Community 46`, `types.ts`, `Community 61`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
 - **Why does `RecordingCanvasContext` connect `Community 26` to `Community 11`?**
-  _High betweenness centrality (0.022) - this node is a cross-community bridge._
-- **Why does `LobbyDirectory` connect `Community 10` to `Community 1`, `Community 34`, `Community 38`, `Community 40`, `Community 16`, `Community 21`, `Community 24`, `Community 60`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
+- **Why does `WorldPoint` connect `Community 14` to `Community 0`, `LocalStateStore.maps.test.ts`, `ShotSimulator.ts`, `FreeForAllMapGenerator.ts`, `MapGenerator.test.ts`, `Community 5`, `normalizeTerrain.ts`, `Community 7`, `Community 9`, `Community 41`, `Community 11`, `Community 13`, `Community 21`, `Community 25`, `types.ts`, `Community 59`, `Community 61`?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `worldBoundsForMapSize()` connect `Community 30` to `Community 0`, `ShotSimulator.ts`, `FreeForAllMapGenerator.ts`, `MapGenerator.test.ts`, `Community 5`, `Community 4`, `Community 39`, `Community 3`, `Community 9`, `Community 13`, `Community 14`, `Community 16`, `Community 54`, `types.ts`, `Community 59`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **What connects `Player`, `alice`, `bob` to the rest of the system?**
-  _544 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _548 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.07783783783783783 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08249496981891348 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.11989795918367346 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1294685990338164 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.08792270531400966 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08603145235892692 - nodes in this community are weakly interconnected._

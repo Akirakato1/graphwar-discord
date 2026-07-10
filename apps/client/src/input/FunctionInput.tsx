@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { FunctionInputMode } from "@graphwar/shared";
+import { playGameSound } from "../audio/gameAudio";
 import { insertSnippet } from "./insertSnippet";
 
 type FunctionInputProps = {
@@ -204,6 +205,244 @@ function formatPlainExpression(expression: string): string {
     .replace(/\bbeta\b/g, "Β");
 }
 
+function isIdentifierStart(character: string | undefined): boolean {
+  return Boolean(character && /[A-Za-z_]/.test(character));
+}
+
+function isIdentifierPart(character: string | undefined): boolean {
+  return Boolean(character && /[A-Za-z0-9_]/.test(character));
+}
+
+function matchingClosingParen(expression: string, openIndex: number, endIndex: number): number | undefined {
+  let depth = 0;
+  for (let index = openIndex; index < endIndex; index += 1) {
+    const character = expression[index];
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function argumentStartsInCall(expression: string, openIndex: number, closeIndex: number): number[] {
+  const starts = [openIndex + 1];
+  let depth = 0;
+  for (let index = openIndex + 1; index < closeIndex; index += 1) {
+    const character = expression[index];
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth = Math.max(0, depth - 1);
+    } else if (character === "," && depth === 0) {
+      starts.push(index + 1);
+    }
+  }
+
+  return starts;
+}
+
+function renderPlainChunk(expression: string, absoluteStart: number, cursorPosition: number, key: string): ReactNode {
+  const localCursor = cursorPosition - absoluteStart;
+  if (localCursor < 0 || localCursor > expression.length) {
+    return formatPlainExpression(expression);
+  }
+
+  return (
+    <span key={key}>
+      {formatPlainExpression(expression.slice(0, localCursor))}
+      {mathCursor()}
+      {formatPlainExpression(expression.slice(localCursor))}
+    </span>
+  );
+}
+
+function functionSymbol(name: string): string {
+  switch (name) {
+    case "PI":
+      return "π";
+    case "gamma":
+      return "Γ";
+    case "digamma":
+      return "ψ";
+    case "beta":
+      return "Β";
+    case "zeta":
+      return "ζ";
+    default:
+      return name;
+  }
+}
+
+function renderFunctionCall(
+  name: string,
+  argumentValues: string[],
+  argumentStarts: number[],
+  cursorPosition: number,
+  key: string
+): ReactNode {
+  const renderArgument = (index: number, fallback = "") =>
+    renderInlineMath(argumentValues[index] ?? fallback, argumentStarts[index] ?? 0, cursorPosition);
+
+  if (name === "floor") {
+    return (
+      <span className="math-bracketed" key={key}>
+        ⌊{renderArgument(0)}⌋
+      </span>
+    );
+  }
+
+  if (name === "ceil") {
+    return (
+      <span className="math-bracketed" key={key}>
+        ⌈{renderArgument(0)}⌉
+      </span>
+    );
+  }
+
+  if (name === "exp") {
+    return (
+      <span className="math-power" key={key}>
+        e<sup>{renderArgument(0)}</sup>
+      </span>
+    );
+  }
+
+  return (
+    <span className="math-function-call" key={key}>
+      <span className="math-function-name">{functionSymbol(name)}</span>(
+      {argumentValues.map((argument, index) => (
+        <span key={`${key}-arg-${index}`}>
+          {index > 0 ? "," : ""}
+          {renderInlineMath(argument, argumentStarts[index] ?? 0, cursorPosition)}
+        </span>
+      ))}
+      )
+    </span>
+  );
+}
+
+type ParsedAtom = {
+  node: ReactNode;
+  nextIndex: number;
+};
+
+function parseInlineAtom(
+  expression: string,
+  absoluteStart: number,
+  cursorPosition: number,
+  startIndex: number,
+  endIndex: number,
+  key: string
+): ParsedAtom {
+  const character = expression[startIndex];
+
+  if (character === "(") {
+    const closeIndex = matchingClosingParen(expression, startIndex, endIndex);
+    if (closeIndex !== undefined) {
+      return {
+        nextIndex: closeIndex + 1,
+        node: (
+          <span className="math-parenthesized" key={key}>
+            ({renderInlineMath(expression.slice(startIndex + 1, closeIndex), absoluteStart + startIndex + 1, cursorPosition)})
+          </span>
+        )
+      };
+    }
+  }
+
+  if (isIdentifierStart(character)) {
+    let identifierEnd = startIndex + 1;
+    while (identifierEnd < endIndex && isIdentifierPart(expression[identifierEnd])) {
+      identifierEnd += 1;
+    }
+
+    if (expression[identifierEnd] === "(") {
+      const closeIndex = matchingClosingParen(expression, identifierEnd, endIndex);
+      if (closeIndex !== undefined) {
+        const body = expression.slice(identifierEnd + 1, closeIndex);
+        return {
+          nextIndex: closeIndex + 1,
+          node: renderFunctionCall(
+            expression.slice(startIndex, identifierEnd),
+            splitTopLevelArguments(body),
+            argumentStartsInCall(expression, identifierEnd, closeIndex).map((position) => absoluteStart + position),
+            cursorPosition,
+            key
+          )
+        };
+      }
+    }
+
+    return {
+      nextIndex: identifierEnd,
+      node: renderPlainChunk(expression.slice(startIndex, identifierEnd), absoluteStart + startIndex, cursorPosition, key)
+    };
+  }
+
+  if (/[0-9.]/.test(character)) {
+    let numberEnd = startIndex + 1;
+    while (numberEnd < endIndex && /[0-9.]/.test(expression[numberEnd])) {
+      numberEnd += 1;
+    }
+
+    return {
+      nextIndex: numberEnd,
+      node: renderPlainChunk(expression.slice(startIndex, numberEnd), absoluteStart + startIndex, cursorPosition, key)
+    };
+  }
+
+  return {
+    nextIndex: startIndex + 1,
+    node: renderPlainChunk(character, absoluteStart + startIndex, cursorPosition, key)
+  };
+}
+
+function renderInlineMath(expression: string, absoluteStart: number, cursorPosition: number): ReactNode {
+  const nodes: ReactNode[] = [];
+  let index = 0;
+
+  while (index < expression.length) {
+    const atom = parseInlineAtom(expression, absoluteStart, cursorPosition, index, expression.length, `atom-${absoluteStart}-${index}`);
+    index = atom.nextIndex;
+
+    if (expression[index] === "^") {
+      const exponentStart = index + 1;
+      if (exponentStart < expression.length) {
+        const exponent = parseInlineAtom(
+          expression,
+          absoluteStart,
+          cursorPosition,
+          exponentStart,
+          expression.length,
+          `exponent-${absoluteStart}-${exponentStart}`
+        );
+        nodes.push(
+          <span className="math-power" key={`power-${absoluteStart}-${index}`}>
+            {atom.node}
+            <sup>{exponent.node}</sup>
+          </span>
+        );
+        index = exponent.nextIndex;
+        continue;
+      }
+    }
+
+    nodes.push(atom.node);
+  }
+
+  if (cursorPosition === absoluteStart + expression.length) {
+    nodes.push(<span key={`cursor-${absoluteStart}-${expression.length}`}>{mathCursor()}</span>);
+  }
+
+  return nodes.length > 0 ? nodes : null;
+}
+
 function renderPlainWithCursor(
   expression: string,
   absoluteStart: number,
@@ -237,13 +476,11 @@ function renderSlot(value: string | undefined, fallback: string, absoluteStart: 
   const slotValue = value ?? "";
   if (cursorPosition >= absoluteStart && cursorPosition <= absoluteStart + slotValue.length) {
     return (
-      <span className="math-slot-value">
-        {renderPlainWithCursor(slotValue, absoluteStart, cursorPosition, fallback)}
-      </span>
+      <span className="math-slot-value">{renderInlineMath(slotValue, absoluteStart, cursorPosition)}</span>
     );
   }
 
-  return slotValue.length > 0 ? formatPlainExpression(slotValue) : <span className="math-slot">{fallback}</span>;
+  return slotValue.length > 0 ? renderInlineMath(slotValue, absoluteStart, cursorPosition) : <span className="math-slot">{fallback}</span>;
 }
 
 function cursorInArgument(argumentsList: string[], starts: number[], cursorPosition: number): boolean {
@@ -259,7 +496,7 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
   const trimmed = expression.trimStart();
   const integral = parseCall(trimmed, "int");
   const integralStarts = topLevelArgumentStarts(trimmed, "int")?.map((position) => position + trimmedStartOffset);
-  if (integral && integralStarts && integralStarts.length >= 4 && cursorInArgument(integral, integralStarts, clampedCursor)) {
+  if (integral && integralStarts && integralStarts.length >= 4) {
     const [variable, lower, upper, body] = integral;
     return (
       <>
@@ -269,6 +506,7 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
         </span>
         <span className="math-body">{renderSlot(body, "body", integralStarts[3], clampedCursor)}</span>
         <span className="math-differential"> d{renderSlot(variable, "v", integralStarts[0], clampedCursor)}</span>
+        {!cursorInArgument(integral, integralStarts, clampedCursor) && clampedCursor === expression.length ? mathCursor() : null}
       </>
     );
   }
@@ -279,7 +517,7 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
     summation &&
     summationStarts &&
     summationStarts.length >= 4 &&
-    cursorInArgument(summation, summationStarts, clampedCursor)
+    true
   ) {
     const [variable, lower, upper, body] = summation;
     return (
@@ -293,6 +531,7 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
           <sup>{renderSlot(upper, "upper", summationStarts[2], clampedCursor)}</sup>
         </span>
         <span className="math-body">{renderSlot(body, "body", summationStarts[3], clampedCursor)}</span>
+        {!cursorInArgument(summation, summationStarts, clampedCursor) && clampedCursor === expression.length ? mathCursor() : null}
       </>
     );
   }
@@ -303,7 +542,7 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
     derivative &&
     derivativeStarts &&
     derivativeStarts.length >= 3 &&
-    cursorInArgument(derivative, derivativeStarts, clampedCursor)
+    true
   ) {
     const [variable, order, body] = derivative;
     return (
@@ -313,11 +552,12 @@ function renderMathPreview(expression: string, cursorPosition: number): ReactNod
           <sup>{renderSlot(order, "1", derivativeStarts[1], clampedCursor)}</sup>
         </span>
         <span className="math-body">{renderSlot(body, "body", derivativeStarts[2], clampedCursor)}</span>
+        {!cursorInArgument(derivative, derivativeStarts, clampedCursor) && clampedCursor === expression.length ? mathCursor() : null}
       </>
     );
   }
 
-  return renderPlainWithCursor(expression, 0, clampedCursor);
+  return expression.length > 0 ? renderInlineMath(expression, 0, clampedCursor) : renderPlainWithCursor(expression, 0, clampedCursor);
 }
 
 function renderButtonGrid(buttons: SnippetButton[], disabled: boolean, onClick: (snippet: string) => void): ReactNode {
@@ -418,6 +658,7 @@ export function FunctionInput({
 
     const currentSelection = readSelection();
     const next = insertSnippet(expression, currentSelection.start, currentSelection.end, snippet);
+    playGameSound("function.button");
     updateExpression(next.value);
 
     if (typeof window === "undefined" || !window.requestAnimationFrame) {
@@ -432,6 +673,7 @@ export function FunctionInput({
     const currentSelection = readSelection();
     const currentCursor = currentSelection.end;
     const slotCursorPosition = nextSlotCursorPosition(expression, currentCursor, delta);
+    playGameSound("function.cursor");
     restoreCursor(slotCursorPosition ?? Math.max(0, Math.min(expression.length, currentCursor + delta)));
   }
 
@@ -445,16 +687,19 @@ export function FunctionInput({
     const end = Math.max(currentSelection.start, currentSelection.end);
 
     if (start !== end) {
+      playGameSound("function.delete");
       updateExpression(`${expression.slice(0, start)}${expression.slice(end)}`);
       restoreCursor(start);
       return;
     }
 
     if (start === 0) {
+      playGameSound("function.delete");
       restoreCursor(0);
       return;
     }
 
+    playGameSound("function.delete");
     updateExpression(`${expression.slice(0, start - 1)}${expression.slice(start)}`);
     restoreCursor(start - 1);
   }
@@ -466,6 +711,7 @@ export function FunctionInput({
       return;
     }
 
+    playGameSound("combat.fire");
     onSubmitShot(expression);
   }
 

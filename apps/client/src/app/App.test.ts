@@ -16,6 +16,10 @@ describe("App", () => {
     expect(html).toContain("Settings");
     expect(html).toContain("Leaderboard");
     expect(html).toContain("Custom Maps");
+    expect(html).toContain("class=\"equation-stream\"");
+    expect((html.match(/class="menu-equation"/g) ?? []).length).toBe(200);
+    expect(html).toContain("Σ");
+    expect(html).toContain("∫");
     expect(html).not.toContain("Battlefield");
     expect(html).not.toContain("Function Shot");
   });

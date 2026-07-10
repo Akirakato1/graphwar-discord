@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MatchHud } from "./MatchHud";
+import { MatchHud, soundCueForTurnTimer } from "./MatchHud";
 import type { MatchSnapshot } from "@graphwar/shared";
 
 const session = {
@@ -59,7 +59,10 @@ describe("MatchHud", () => {
     );
 
     expect(html).toContain("Function Shot");
-    expect(html).toContain("100 HP");
+    expect(html).toContain("aria-label=\"Your hit points\"");
+    expect(html).toContain("♥");
+    expect(html).toContain(">100</strong>");
+    expect(html).toContain("class=\"hud-topline\"");
     expect(html).toContain("aria-label=\"Aim west\"");
     expect(html).toContain("aria-label=\"Insert sine function\"");
     expect(html).toContain("aria-label=\"Forfeit match\"");
@@ -123,9 +126,42 @@ describe("MatchHud", () => {
     );
 
     expect(html).toContain("0s");
+    expect(html).toContain("class=\"turn-timer critical-turn-timer\"");
     expect(html).toContain("id=\"shot-expression\"");
     expect(html).not.toMatch(/id="shot-expression"[^>]*disabled=""/);
     expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+  });
+
+  it("marks the timer critical for the final ten seconds", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MatchHud, {
+        connectionStatus: "open",
+        nowMs: Date.parse("2026-07-05T00:00:21.000Z"),
+        onSubmitShot: () => {},
+        session,
+        snapshot: {
+          ...playingSnapshot,
+          turn: {
+            ...playingSnapshot.turn,
+            startedAt: "2026-07-05T00:00:00.000Z",
+            deadlineAt: "2026-07-05T00:00:30.000Z",
+            durationSeconds: 30
+          }
+        }
+      })
+    );
+
+    expect(html).toContain("9s");
+    expect(html).toContain("class=\"turn-timer critical-turn-timer\"");
+  });
+
+  it("maps local turn timer changes to warning and timeout sounds", () => {
+    expect(soundCueForTurnTimer(undefined, 10, true)).toBe("timer.tick");
+    expect(soundCueForTurnTimer(10, 9, true)).toBe("timer.tick");
+    expect(soundCueForTurnTimer(1, 0, true)).toBe("timer.timeout");
+    expect(soundCueForTurnTimer(9, 8, false)).toBeUndefined();
+    expect(soundCueForTurnTimer(30, 29, true)).toBeUndefined();
+    expect(soundCueForTurnTimer(9, 9, true)).toBeUndefined();
   });
 
   it("hides function controls for spectators", () => {

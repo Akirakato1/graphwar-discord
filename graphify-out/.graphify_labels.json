@@ -96,5 +96,12 @@
   "94": "lobbyApi.test.ts",
   "95": "LeaderboardView.tsx",
   "96": "SettingsView.tsx",
-  "97": "LocalStateStore.maps.test.ts"
+  "97": "LocalStateStore.maps.test.ts",
+  "98": "ShotSimulator.ts",
+  "99": "FreeForAllMapGenerator.ts",
+  "100": "MapGenerator.test.ts",
+  "101": "normalizeTerrain.ts",
+  "102": "MainMenu.tsx",
+  "103": "gameAudio.ts",
+  "104": "MemoryStorage"
 }

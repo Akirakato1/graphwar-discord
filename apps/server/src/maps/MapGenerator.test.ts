@@ -10,6 +10,7 @@ import {
 } from "@graphwar/shared";
 import { FreeForAllMapGenerator } from "./FreeForAllMapGenerator";
 import { TeamVersusMapGenerator } from "./TeamVersusMapGenerator";
+import { ensureSpawnsOutsideTerrain } from "./SpawnSafety";
 
 function pointOnSegment(point: WorldPoint, start: WorldPoint, end: WorldPoint): boolean {
   const cross = (point.y - start.y) * (end.x - start.x) - (point.x - start.x) * (end.y - start.y);
@@ -51,6 +52,35 @@ function pointInBlob(point: WorldPoint, blob: TerrainBlob): boolean {
 
 function terrainAtPoint(point: WorldPoint, terrain: TerrainState): string | undefined {
   return terrain.blobs.find((blob) => pointInBlob(point, blob))?.id;
+}
+
+function distanceToSegment(point: WorldPoint, start: WorldPoint, end: WorldPoint): number {
+  const segmentX = end.x - start.x;
+  const segmentY = end.y - start.y;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSquared === 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(1, ((point.x - start.x) * segmentX + (point.y - start.y) * segmentY) / lengthSquared)
+  );
+  return Math.hypot(point.x - (start.x + t * segmentX), point.y - (start.y + t * segmentY));
+}
+
+function distanceToRing(point: WorldPoint, ring: WorldPoint[]): number {
+  return ring.reduce((minimum, current, index) => {
+    const next = ring[(index + 1) % ring.length];
+    return Math.min(minimum, distanceToSegment(point, current, next));
+  }, Number.POSITIVE_INFINITY);
+}
+
+function distanceToTerrain(point: WorldPoint, terrain: TerrainState): number {
+  return terrain.blobs.reduce((minimum, blob) => {
+    const rings = [blob.outer, ...blob.holes];
+    return Math.min(minimum, ...rings.map((ring) => distanceToRing(point, ring)));
+  }, Number.POSITIVE_INFINITY);
 }
 
 describe("map generators", () => {
@@ -186,8 +216,53 @@ describe("map generators", () => {
           });
 
           expect(blocked).toEqual([]);
+          expect(
+            generated.map.spawns.map((spawn) => ({
+              mode: generated.mode,
+              playerId: spawn.playerId,
+              clearance: distanceToTerrain(spawn.position, generated.map.terrain)
+            }))
+          ).toEqual(
+            expect.arrayContaining(
+              generated.map.spawns.map((spawn) =>
+                expect.objectContaining({
+                  mode: generated.mode,
+                  playerId: spawn.playerId,
+                  clearance: expect.any(Number)
+                })
+              )
+            )
+          );
+          for (const spawn of generated.map.spawns) {
+            expect(distanceToTerrain(spawn.position, generated.map.terrain)).toBeGreaterThanOrEqual(1);
+          }
         }
       }
     }
+  });
+
+  it("nudges default-map spawns that are too close to terrain perimeter", () => {
+    const terrain: TerrainState = {
+      blobs: [
+        {
+          id: "test-rock",
+          outer: [
+            { x: -4, y: -4 },
+            { x: 4, y: -4 },
+            { x: 4, y: 4 },
+            { x: -4, y: 4 }
+          ],
+          holes: []
+        }
+      ]
+    };
+    const [spawn] = ensureSpawnsOutsideTerrain(
+      [{ playerId: "alice", position: { x: 4.5, y: 0 } }],
+      terrain,
+      worldBoundsForMapSize("standard")
+    );
+
+    expect(terrainAtPoint(spawn.position, terrain)).toBeUndefined();
+    expect(distanceToTerrain(spawn.position, terrain)).toBeGreaterThanOrEqual(1);
   });
 });

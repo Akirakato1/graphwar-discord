@@ -72,6 +72,45 @@ describe("FunctionInput", () => {
     expect(html).not.toContain("aria-label=\"Advanced function buttons\"");
   });
 
+  it("renders floor, ceiling, exponentials, and powers with math structure", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(FunctionInput, {
+        canSubmit: true,
+        disabled: false,
+        expression: "floor(x)+ceil(x)+exp(x)+x^2",
+        onSubmitShot: () => {}
+      })
+    );
+
+    expect(html).toContain("⌊");
+    expect(html).toContain("⌋");
+    expect(html).toContain("⌈");
+    expect(html).toContain("⌉");
+    expect(html).toContain("<sup>x</sup>");
+    expect(html).toContain("<sup>2</sup>");
+    expect(html).toContain("class=\"math-power\"");
+    expect(html).toContain("value=\"floor(x)+ceil(x)+exp(x)+x^2\"");
+  });
+
+  it("uses readable mathematical symbols on function buttons", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(FunctionInput, {
+        advancedFunctionsEnabled: true,
+        canSubmit: true,
+        disabled: false,
+        onSubmitShot: () => {}
+      })
+    );
+
+    expect(html).toContain("⌊x⌋");
+    expect(html).toContain("⌈x⌉");
+    expect(html).toContain(">Σ<");
+    expect(html).toContain(">∫<");
+    expect(html).toContain(">Γ<");
+    expect(html).toContain(">ψ<");
+    expect(html).toContain(">ζ<");
+  });
+
   it("disables the input, snippet buttons, and fire button together", () => {
     const html = renderToStaticMarkup(
       React.createElement(FunctionInput, {

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AimDirectionId, FunctionInputMode, MatchSnapshot } from "@graphwar/shared";
 import type { ConnectionStatus, CommandRejection } from "../app/useGameStore";
+import { playGameSound, type GameSoundId } from "../audio/gameAudio";
 import { DirectionDial } from "../input/DirectionDial";
 import { FunctionInput } from "../input/FunctionInput";
 import type { ClientSession } from "../sessions/localSession";
@@ -55,6 +56,26 @@ function remainingTurnSeconds(snapshot: MatchSnapshot | undefined, nowMs: number
   return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000));
 }
 
+export function soundCueForTurnTimer(
+  previousSeconds: number | undefined,
+  currentSeconds: number | undefined,
+  isLocalActiveTurn: boolean
+): GameSoundId | undefined {
+  if (!isLocalActiveTurn || currentSeconds === undefined || previousSeconds === currentSeconds) {
+    return undefined;
+  }
+
+  if (currentSeconds <= 0 && previousSeconds !== undefined && previousSeconds > 0) {
+    return "timer.timeout";
+  }
+
+  if (currentSeconds > 0 && currentSeconds <= 10) {
+    return "timer.tick";
+  }
+
+  return undefined;
+}
+
 export function MatchHud({
   advancedFunctionsEnabled = false,
   aimDirection: controlledAimDirection,
@@ -89,6 +110,7 @@ export function MatchHud({
   const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress && !turnExpired;
   const canForfeit = connectionStatus === "open" && isPlaying && !spectator && Boolean(localPlayer?.alive) && !playbackInProgress;
   const notice = lastError ?? lastRejection?.reason;
+  const previousTurnSeconds = useRef<number | undefined>();
 
   useEffect(() => {
     if (nowMs !== undefined || !isPlaying || !snapshot?.turn.deadlineAt) {
@@ -98,6 +120,15 @@ export function MatchHud({
     const interval = window.setInterval(() => setClockMs(Date.now()), 250);
     return () => window.clearInterval(interval);
   }, [isPlaying, nowMs, snapshot?.turn.deadlineAt]);
+
+  useEffect(() => {
+    const soundCue = soundCueForTurnTimer(previousTurnSeconds.current, turnSecondsRemaining, Boolean(isMyTurn));
+    previousTurnSeconds.current = turnSecondsRemaining;
+
+    if (soundCue) {
+      playGameSound(soundCue);
+    }
+  }, [isMyTurn, turnSecondsRemaining]);
 
   function handleForfeit(): void {
     if (!canForfeit || !onForfeit) {
@@ -144,13 +175,17 @@ export function MatchHud({
         </div>
 
         <div className={turnSecondsRemaining !== undefined ? "play-control-strip has-turn-timer" : "play-control-strip"}>
-          <div className="own-hp" data-testid="own-hp">
-            <span>HP</span>
-            <strong>{displayLocalPlayer ? `${displayLocalPlayer.hp} HP` : "-- HP"}</strong>
+          <div className="hud-topline">
+          <div className="own-hp hud-stat" aria-label="Your hit points" data-testid="own-hp">
+            <span aria-hidden="true">♥</span>
+            <strong>{displayLocalPlayer ? displayLocalPlayer.hp : "--"}</strong>
           </div>
           {turnSecondsRemaining !== undefined ? (
-            <div className="turn-timer" aria-label="Turn time remaining">
-              <span>Timer</span>
+            <div
+              className={turnSecondsRemaining <= 10 ? "turn-timer critical-turn-timer" : "turn-timer"}
+              aria-label="Turn time remaining"
+            >
+              <span aria-hidden="true">⏱</span>
               <strong>{turnSecondsRemaining}s</strong>
             </div>
           ) : null}
@@ -164,6 +199,7 @@ export function MatchHud({
           >
             FF
           </button>
+          </div>
           <DirectionDial disabled={false} onChange={setAimDirection} value={aimDirection} />
         </div>
 

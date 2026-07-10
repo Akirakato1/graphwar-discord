@@ -91,8 +91,8 @@ test("imports a guild custom map and starts a two-client match with it", async (
 
     await expect(alicePage.getByTestId("game-canvas")).toBeVisible();
     await expect(bobPage.getByTestId("game-canvas")).toBeVisible();
-    await expect(alicePage.getByTestId("own-hp")).toContainText("100 HP");
-    await expect(bobPage.getByTestId("own-hp")).toContainText("100 HP");
+    await expect(alicePage.getByTestId("own-hp")).toContainText("100");
+    await expect(bobPage.getByTestId("own-hp")).toContainText("100");
     await expect(alicePage.getByTestId("game-canvas")).toHaveAttribute("data-rendered", "true");
     await expect(alicePage.getByTestId("game-canvas")).toHaveAttribute("data-terrain-ids", /e2e-platform/);
   } finally {
