@@ -79,3 +79,5 @@ npm run test:e2e
 ## Discord Direction
 
 Local browser tabs are mock Discord clients. To ship as a real Activity, replace the query-parameter session factory with Discord Embedded App SDK identity/guild data and host the client/server over HTTPS/WSS.
+
+Detailed production path: [docs/discord-heroku-production-deployment.txt](docs/discord-heroku-production-deployment.txt).

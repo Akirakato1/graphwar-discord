@@ -1,0 +1,463 @@
+Graphwar Discord Activity: Production Deployment Path
+Last reviewed: 2026-07-10
+
+Goal
+====
+
+Turn the current local-first Graphwar prototype into a private, production-like
+Discord Activity hosted on Heroku. The recommended shape is one Heroku web app
+serving both:
+
+- The built React client as static files.
+- The Fastify HTTP API and WebSocket game server.
+
+That keeps Discord URL mappings simple, avoids cross-origin surprises inside
+the Activity iframe, and lets the client use relative HTTP paths plus same-origin
+WSS paths through Discord's proxy.
+
+Target Architecture
+===================
+
+Discord client
+  -> Discord Activity iframe
+  -> https://<DISCORD_APPLICATION_ID>.discordsays.com/
+  -> Discord URL mapping prefix "/" targets <HEROKU_APP>.herokuapp.com
+  -> Heroku single web dyno
+       - GET / serves client index.html and assets
+       - /guilds/:guildId/... serves lobby/map/stat APIs
+       - /guilds/:guildId/rooms/:roomId upgrades to WebSocket
+       - /api/discord/token exchanges Discord OAuth code server-side
+       - persistent storage uses Postgres for maps/stats/settings
+
+Current Repo State To Account For
+=================================
+
+The repo is already close to the shape we want, but these production changes
+are still required:
+
+1. Client session source
+   - apps/client/src/sessions/localSession.ts currently supports mock query
+     parameters such as guild, user, room, avatar, and server.
+   - apps/client/src/sessions/discordSession.ts is the intended replacement for
+     Discord identity and guild data.
+   - The production route should select the Discord session factory by default
+     inside Discord and keep local query mode for browser testing.
+
+2. Network URLs
+   - apps/client/src/networking/lobbyApi.ts currently derives a localhost server
+     base when no server URL is passed.
+   - apps/client/src/networking/gameClient.ts currently derives a localhost WS
+     URL when no server URL is passed.
+   - In production these should use same-origin paths:
+       HTTP: /guilds/:guildId/...
+       WS:   location.origin with http->ws, then /guilds/:guildId/rooms/:roomId
+
+3. Server port and static hosting
+   - apps/server/src/index.ts must listen on process.env.PORT when present.
+   - It should serve the built client from apps/client/dist in production.
+   - It should return index.html for unknown non-API GET routes so the SPA
+     survives refreshes.
+
+4. Persistence
+   - LocalStateStore is fine for local development.
+   - Heroku dyno filesystems are not suitable for permanent maps, leaderboard,
+     guild settings, or stats.
+   - Production should add a Postgres-backed state store before treating data as
+     permanent.
+
+Discord Developer Portal Setup
+==============================
+
+1. Create or use the existing Discord application.
+
+2. Enable Activities for the application.
+
+3. Supported platforms:
+   - Enable every platform you intend to test: desktop, web, iOS, and Android.
+   - Discord only shows the Activity on platforms selected in the portal.
+
+4. URL Mapping:
+   Recommended single-domain mapping:
+     Prefix: /
+     Target: <HEROKU_APP>.herokuapp.com
+
+   Notes:
+   - Do not include https:// in the target.
+   - The target must be a directory/domain target, not an index.html file.
+   - If more mappings are added later, place longer/more specific prefixes above
+     shorter prefixes.
+   - With this single mapping, client fetches and WebSockets can stay relative:
+       fetch("/guilds/...")
+       new WebSocket("wss://<app_id>.discordsays.com/guilds/.../rooms/...")
+
+5. OAuth2 / Embedded App SDK:
+   - Public client identifier:
+       DISCORD_CLIENT_ID
+       VITE_DISCORD_CLIENT_ID or equivalent build-time client var
+   - Server-only secret:
+       DISCORD_CLIENT_SECRET
+   - Do not commit the client secret.
+
+6. Scopes:
+   Start with:
+   - identify
+
+   Add as needed:
+   - guilds or guilds.members.read if guild-specific nickname/avatar data is
+     required server-side.
+
+   Practical approach for this game:
+   - Use the authenticated Discord user id as the permanent stats identity.
+   - Use display name/avatar from Discord auth or a server-side Discord API call.
+   - Keep player alias as the lobby-facing name, with the existing duplicate
+     alias check.
+
+7. Private testing vs public distribution:
+   - Private development/testing can use the Developer Activity Shelf and a
+     production URL mapping.
+   - Public App Directory/App Launcher discovery requires verification and
+     Discovery opt-in. That is separate from simply hosting and testing the app.
+
+Heroku Setup
+============
+
+1. Create app:
+
+   heroku create graphwar-discord-activity
+
+2. Add production config vars:
+
+   heroku config:set NODE_ENV=production
+   heroku config:set DISCORD_CLIENT_ID=<discord_application_id>
+   heroku config:set DISCORD_CLIENT_SECRET=<discord_client_secret>
+   heroku config:set GRAPHWAR_SESSION_SECRET=<long_random_secret>
+   heroku config:set GRAPHWAR_CORS_ORIGINS=https://<discord_application_id>.discordsays.com,https://<heroku_app>.herokuapp.com
+
+   If client build needs a Vite env variable:
+
+   heroku config:set VITE_DISCORD_CLIENT_ID=<discord_application_id>
+
+3. Add Postgres before relying on permanent stats/maps:
+
+   heroku addons:create heroku-postgresql:essential-0
+
+   Heroku sets DATABASE_URL automatically.
+
+4. Web process:
+
+   Use one Node web process that runs the server after building shared packages,
+   server code, and client assets.
+
+   Recommended package scripts to add before first deployment:
+
+   root package.json:
+     "build": "npm --workspaces run build"
+     "start": "npm --workspace apps/server run start"
+     "heroku-postbuild": "npm run build"
+
+   apps/server package.json should compile to dist and start dist/index.js.
+   If the server imports TypeScript-only paths in production, fix that before
+   deployment instead of running tsx in production.
+
+5. Procfile:
+
+   web: npm start
+
+6. WebSockets:
+   - Heroku supports WebSockets on the normal web dyno.
+   - For one dyno, in-memory room state is acceptable for private play sessions.
+   - If scaling to multiple dynos, enable session affinity and/or move room
+     routing/state to Redis.
+
+   Optional multi-dyno command:
+     heroku features:enable http-session-affinity
+
+7. Deploy:
+
+   git push heroku main
+
+8. Operational commands:
+
+   heroku logs --tail
+   heroku ps
+   heroku restart
+   heroku config
+   heroku open
+
+App-Side Implementation Path
+============================
+
+Phase 1: Single-port production host
+
+1. Make apps/server/src/index.ts listen on:
+
+   const port = Number(process.env.PORT ?? 8787);
+
+2. Serve apps/client/dist in production.
+
+3. Add SPA fallback for GET routes that are not API/WS routes.
+
+4. Keep local dev unchanged:
+
+   npm run dev
+   http://localhost:5173/?guild=local-guild&user=alice
+
+Phase 2: Same-origin client networking
+
+1. Update lobbyApi.ts:
+   - If session.serverUrl exists, use it for local/manual override.
+   - Otherwise use relative origin, not localhost:8787.
+
+2. Update gameClient.ts:
+   - If session.serverUrl exists, use it.
+   - Otherwise derive WebSocket base from current page origin:
+
+     const wsOrigin = window.location.origin.replace(/^http/, "ws");
+
+3. This supports:
+   - Local override mode.
+   - Heroku direct browser smoke tests.
+   - Discord proxy mode.
+
+Phase 3: Discord session factory
+
+1. Use @discord/embedded-app-sdk in apps/client/src/sessions/discordSession.ts.
+
+2. Flow:
+   - Construct DiscordSDK with DISCORD_CLIENT_ID.
+   - Read discordSdk.instanceId early and include it in session/lobby context.
+   - Await discordSdk.ready().
+   - Call authorize() with required scopes.
+   - Send the returned code to the server.
+   - Server exchanges code using DISCORD_CLIENT_SECRET.
+   - Client authenticates through the SDK using the returned access token.
+
+3. Build ClientSession:
+   - guildId: from SDK launch context or the server-verified Discord context.
+   - discordUserId/playerId: authenticated Discord user id.
+   - defaultAlias/displayName: Discord display name.
+   - avatarUrl: Discord avatar URL or server-provided guild avatar.
+   - roomId: existing saved room if resuming.
+   - source: "discord".
+
+4. Keep local fallback:
+   - Query mode remains useful for non-Discord browser testing.
+   - Example:
+     http://localhost:5173/?guild=local-guild&user=alice
+
+Phase 4: Server-side auth and trust boundary
+
+1. Add POST /api/discord/token:
+   - Accept OAuth code from the client.
+   - Exchange it with Discord API using DISCORD_CLIENT_SECRET.
+   - Return only what the client needs.
+   - Prefer issuing a server session token so future API/WS calls are tied to a
+     server-verified Discord user.
+
+2. Do not trust guildId, userId, displayName, or avatar URL sent by the client in
+   production. Discord docs explicitly warn client-provided Discord data can be
+   falsified.
+
+3. Lobby APIs should derive the identity from the server session/token.
+
+4. WebSocket connect should authenticate:
+   - Cookie, bearer token, or a short-lived WS ticket.
+   - The server should reject mismatched guild/user/room access.
+
+5. Sanitize display strings:
+   - Alias, Discord display name, guild names, lobby names.
+   - Render as text content, not raw HTML.
+
+Phase 5: Postgres persistence
+
+Tables/store concepts:
+
+1. guild_settings
+   - guild_id primary key
+   - default lobby settings JSON
+
+2. players
+   - discord_user_id primary key
+   - last_display_name
+   - last_avatar_url
+   - created_at
+   - updated_at
+
+3. guild_player_stats
+   - guild_id
+   - discord_user_id
+   - wins/losses/kills/damage/etc
+   - primary key (guild_id, discord_user_id)
+
+4. custom_maps
+   - id
+   - guild_id
+   - owner_discord_user_id
+   - name
+   - map_json
+   - created_at
+   - updated_at
+
+5. lobbies / room snapshots, optional
+   - For private one-dyno play, runtime room state can stay in memory.
+   - For restart recovery or multi-dyno production, persist lobby/game snapshots
+     or use Redis as the real-time state layer.
+
+Phase 6: Reconnect/resume
+
+The local game already has reconnect grace behavior. For Discord production:
+
+1. Key active sessions by:
+   - guildId
+   - discordUserId
+   - roomId
+   - discordSdk.instanceId where useful for Activity instance scoping
+
+2. On reload:
+   - Discord session factory re-authenticates.
+   - Client asks server for active lobby/game by guildId + user id.
+   - Server returns current game state, timer deadline, current function draft if
+     drafts are being stored, and connection status.
+
+3. If disconnected for more than 3 minutes:
+   - Existing forfeit flow should mark player dead.
+   - Server broadcasts state to remaining players.
+
+Phase 7: Production hardening
+
+1. Cache busting:
+   - Vite hashed assets are good.
+   - Do not rely on HTML cache headers through Discord proxy.
+
+2. Health route:
+   - Add GET /healthz returning server version, uptime, and storage status.
+
+3. Logging:
+   - Log lobby create/join/start/end.
+   - Log websocket connect/disconnect/reconnect/forfeit.
+   - Avoid logging Discord tokens or secrets.
+
+4. Rate limits:
+   - Rate limit lobby creation, map uploads, and auth exchange.
+   - Respect Discord API 429 responses on server-side Discord calls.
+
+5. Asset/CSP compatibility:
+   - Avoid external browser requests from the client unless there is a Discord
+     URL mapping or a documented Discord exception.
+   - Discord avatar/CDN URLs are expected exceptions.
+
+6. Data validation:
+   - Keep using zod/shared schemas at API boundaries.
+   - Size-limit custom map JSON uploads.
+
+7. Mobile/iframe fit:
+   - Continue treating 16:9 no-scroll as a hard Activity requirement.
+   - Test desktop and phone landscape sizes before deployment.
+
+Deployment Checklist
+====================
+
+Before Heroku deploy:
+
+1. Implement phases 1 through 4 at minimum.
+2. Add Postgres for any data you want to survive dyno restarts.
+3. Confirm these commands pass locally:
+
+   npm install
+   npm run check
+   npm test
+   npm run test:e2e
+   npm run build
+
+4. Confirm production single-port local mode:
+
+   npm run build
+   PORT=8787 npm start
+   http://localhost:8787/
+
+5. Confirm WebSocket URL in browser dev tools:
+
+   ws://localhost:8787/guilds/<guildId>/rooms/<roomId>
+
+After Heroku deploy:
+
+1. Check logs:
+
+   heroku logs --tail
+
+2. Check health route:
+
+   https://<heroku_app>.herokuapp.com/healthz
+
+3. Open direct browser fallback:
+
+   https://<heroku_app>.herokuapp.com/?session=local&guild=local-guild&user=alice
+
+4. Set Discord URL Mapping:
+
+   Prefix: /
+   Target: <heroku_app>.herokuapp.com
+
+5. Launch from Discord Developer Activity Shelf:
+   - Enable Discord Developer Mode.
+   - Join a voice channel.
+   - Open the Activity shelf.
+   - Launch the app.
+
+6. Smoke test in Discord:
+   - Create lobby.
+   - Join from a second Discord client or friend.
+   - Confirm alias/color flow.
+   - Start game.
+   - Fire one normal function and one advanced-mode function.
+   - Confirm WebSocket reconnect after refresh.
+   - Confirm avatar display.
+   - Confirm end-game popup.
+   - Confirm custom map load.
+
+Rollback Plan
+=============
+
+1. Keep local query mode working at all times.
+2. If Discord SDK auth breaks, route only ?session=local browser testing while
+   fixing the Discord session.
+3. If Heroku release fails:
+
+   heroku releases
+   heroku rollback vNN
+
+4. If data migration fails:
+   - Disable map upload and leaderboard writes.
+   - Keep in-memory gameplay running while fixing persistence.
+
+Recommended Order For This Repo
+===============================
+
+1. Add production build/start scripts and server static hosting.
+2. Change client networking to same-origin with local override support.
+3. Implement Discord session factory and server token exchange.
+4. Add server-side session identity and protect HTTP/WS routes.
+5. Add Postgres store for maps, leaderboard, and guild settings.
+6. Add /healthz and production logging.
+7. Deploy to Heroku.
+8. Configure Discord URL mapping.
+9. Test privately in Discord.
+10. Only later, if desired, complete Discord verification and Discovery.
+
+Official References
+===================
+
+- Discord Activities Overview:
+  https://docs.discord.com/developers/activities/overview
+- Discord Local Development and URL Mappings:
+  https://docs.discord.com/developers/activities/development-guides/local-development
+- Discord Activity Networking:
+  https://docs.discord.com/developers/activities/development-guides/networking
+- Discord Multiplayer Experience:
+  https://docs.discord.com/developers/activities/development-guides/multiplayer-experience
+- Discord Production Readiness:
+  https://docs.discord.com/developers/activities/development-guides/production-readiness
+- Discord Discovery:
+  https://docs.discord.com/developers/discovery/enabling-discovery
+- Heroku Node WebSockets:
+  https://devcenter.heroku.com/articles/node-websockets
