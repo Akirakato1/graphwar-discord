@@ -3080,7 +3080,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_client_src_networking_lobbyapi_test",
-      "community": 38,
+      "community": 32,
       "norm_label": "lobbyapi.test.ts"
     },
     {
@@ -3090,7 +3090,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "apps_client_src_networking_lobbyapi_test_custommap",
-      "community": 38,
+      "community": 32,
       "norm_label": "custommap"
     },
     {
@@ -3100,7 +3100,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_client_src_networking_lobbyapi_test_persistedcustommap",
-      "community": 38,
+      "community": 32,
       "norm_label": "persistedcustommap"
     },
     {
@@ -3110,7 +3110,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_client_src_networking_lobbyapi_test_custommapsummary",
-      "community": 38,
+      "community": 32,
       "norm_label": "custommapsummary"
     },
     {
@@ -3120,7 +3120,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "apps_client_src_networking_lobbyapi_test_lobbyjoinresult",
-      "community": 38,
+      "community": 32,
       "norm_label": "lobbyjoinresult()"
     },
     {
@@ -6650,7 +6650,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_server_src_lobbies_lobbydirectory",
-      "community": 21,
+      "community": 24,
       "norm_label": "lobbydirectory.ts"
     },
     {
@@ -6680,7 +6680,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "apps_server_src_lobbies_lobbydirectory_runtimelobby",
-      "community": 21,
+      "community": 24,
       "norm_label": "runtimelobby"
     },
     {
@@ -6720,7 +6720,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "apps_server_src_lobbies_lobbydirectory_lobbydirectory_joinlobby",
-      "community": 21,
+      "community": 60,
       "norm_label": ".joinlobby()"
     },
     {
@@ -6730,7 +6730,7 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "apps_server_src_lobbies_lobbydirectory_lobbydirectory_joinlobbyunlocked",
-      "community": 21,
+      "community": 60,
       "norm_label": ".joinlobbyunlocked()"
     },
     {
@@ -6740,7 +6740,7 @@
       "source_location": "L217",
       "_origin": "ast",
       "id": "apps_server_src_lobbies_lobbydirectory_lobbydirectory_listlobbies",
-      "community": 21,
+      "community": 40,
       "norm_label": ".listlobbies()"
     },
     {
@@ -11420,7 +11420,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "packages_shared_src_lobby_identity_normalizemaxfunctionlength",
-      "community": 38,
+      "community": 24,
       "norm_label": "normalizemaxfunctionlength()"
     },
     {
@@ -11840,7 +11840,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "packages_shared_src_lobby_types_lobbysummary",
-      "community": 21,
+      "community": 40,
       "norm_label": "lobbysummary"
     },
     {
@@ -11850,7 +11850,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "packages_shared_src_lobby_types_createlobbyrequest",
-      "community": 32,
+      "community": 24,
       "norm_label": "createlobbyrequest"
     },
     {
@@ -11870,7 +11870,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "packages_shared_src_lobby_types_joinlobbyrequest",
-      "community": 21,
+      "community": 60,
       "norm_label": "joinlobbyrequest"
     },
     {
@@ -11880,7 +11880,7 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "packages_shared_src_lobby_types_lobbyjoinresult",
-      "community": 21,
+      "community": 60,
       "norm_label": "lobbyjoinresult"
     },
     {
@@ -12180,7 +12180,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "packages_shared_src_maps_types_savecustommaprequest",
-      "community": 32,
+      "community": 21,
       "norm_label": "savecustommaprequest"
     },
     {
@@ -12250,7 +12250,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "packages_shared_src_maps_worldbounds_mapsizepresetid",
-      "community": 21,
+      "community": 24,
       "norm_label": "mapsizepresetid"
     },
     {
@@ -12350,7 +12350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands",
-      "community": 48,
+      "community": 21,
       "norm_label": "commands.ts"
     },
     {
@@ -12360,7 +12360,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_joinroomcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "joinroomcommand"
     },
     {
@@ -12370,7 +12370,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_selectmodecommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "selectmodecommand"
     },
     {
@@ -12380,7 +12380,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_setteamcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "setteamcommand"
     },
     {
@@ -12390,7 +12390,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_autoassignteamscommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "autoassignteamscommand"
     },
     {
@@ -12400,7 +12400,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_cancellobbycommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "cancellobbycommand"
     },
     {
@@ -12410,7 +12410,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_forfeitmatchcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "forfeitmatchcommand"
     },
     {
@@ -12420,7 +12420,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_startmatchcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "startmatchcommand"
     },
     {
@@ -12440,7 +12440,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_sendchatcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "sendchatcommand"
     },
     {
@@ -12450,7 +12450,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "packages_shared_src_protocol_commands_requestrematchcommand",
-      "community": 48,
+      "community": 21,
       "norm_label": "requestrematchcommand"
     },
     {
@@ -22248,7 +22248,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/client/src/lobby/JoinLobbyView.tsx",
-      "source_location": "L195",
+      "source_location": "L196",
       "weight": 1.0,
       "source": "apps_client_src_lobby_joinlobbyview_joinlobbyview",
       "target": "apps_client_src_lobby_joinlobbyview_joinactionlabel",
@@ -22259,7 +22259,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/client/src/lobby/JoinLobbyView.tsx",
-      "source_location": "L190",
+      "source_location": "L191",
       "weight": 1.0,
       "source": "apps_client_src_lobby_joinlobbyview_joinlobbyview",
       "target": "apps_client_src_lobby_joinlobbyview_isjoinactiondisabled",
@@ -22270,7 +22270,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/client/src/lobby/JoinLobbyView.tsx",
-      "source_location": "L187",
+      "source_location": "L188",
       "weight": 1.0,
       "source": "apps_client_src_lobby_joinlobbyview_joinlobbyview",
       "target": "apps_client_src_lobby_joinlobbyview_availablejoinslots",
@@ -52139,5 +52139,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "f8526a817d68e24e574d13e1e0df807a37fe49ab"
+  "built_at_commit": "f7accbfccdba4e336bb9fe80ed60793310ed5872"
 }

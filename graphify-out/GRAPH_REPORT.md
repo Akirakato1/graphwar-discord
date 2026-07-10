@@ -1,16 +1,16 @@
 # Graph Report - Graphwar Discord Activity  (2026-07-10)
 
 ## Corpus Check
-- 181 files · ~130,528 words
+- 181 files · ~130,531 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1587 nodes · 3424 edges · 89 communities (79 shown, 10 thin omitted)
+- 1587 nodes · 3424 edges · 88 communities (79 shown, 9 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.53)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f8526a81`
+- Built from commit: `f7accbfc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -63,7 +63,6 @@
 - Community 45
 - Community 46
 - Community 47
-- Community 48
 - Community 49
 - Community 50
 - Community 51
@@ -126,7 +125,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (89 total, 10 thin omitted)
+## Communities (88 total, 9 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
@@ -213,8 +212,8 @@ Cohesion: 0.05
 Nodes (44): CommandRejection, MatchHud(), MatchHudProps, phaseLabel(), remainingTurnSeconds(), playingSnapshot, session, standardWorldBounds (+36 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.12
-Nodes (19): RuntimeLobby, LobbyGameplaySettings, AutoAssignTeamsRequest, DiscordUserId, GuildId, JoinLobbyRequest, LobbyGameplaySettingsSnapshot, LobbyHttpError (+11 more)
+Cohesion: 0.09
+Nodes (24): LobbyGameplaySettings, AutoAssignTeamsRequest, DiscordUserId, GuildId, LobbyGameplaySettingsSnapshot, LobbyHttpError, LobbyStatus, SetLobbyPlacementRequest (+16 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.24
@@ -225,8 +224,8 @@ Cohesion: 0.46
 Nodes (7): blobToMultiPolygon(), cloneTerrain(), effectiveBlobArea(), normalizeTerrainState(), pointsToRing(), ringFromNumbers(), stripDuplicatedClosingPoint()
 
 ### Community 24 - "Community 24"
-Cohesion: 0.21
-Nodes (18): availableInitialSlots(), boundedFunctionLength(), createLobbyErrorMessage(), CreateLobbyForm, createLobbyInitialForm(), CreateLobbyView(), CreateLobbyViewProps, prepareCreateLobbyForm() (+10 more)
+Cohesion: 0.17
+Nodes (22): availableInitialSlots(), boundedFunctionLength(), createLobbyErrorMessage(), CreateLobbyForm, createLobbyInitialForm(), CreateLobbyView(), CreateLobbyViewProps, prepareCreateLobbyForm() (+14 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.20
@@ -253,8 +252,8 @@ Cohesion: 0.16
 Nodes (9): alice, bob, canvasPathPoints(), expectMenuCreateJoinNoScroll(), expectNoPageScroll(), fireMiss(), joinPopulatedLobbyWithoutScroll(), openLocalMenu() (+1 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.14
-Nodes (15): MapLibraryView(), MapLibraryViewProps, map, ClientCreateLobbyRequest, ClientJoinLobbyRequest, createLobbyApi(), errorMessageFromPayload(), httpBase() (+7 more)
+Cohesion: 0.12
+Nodes (16): MapLibraryView(), MapLibraryViewProps, map, ClientCreateLobbyRequest, ClientJoinLobbyRequest, createLobbyApi(), errorMessageFromPayload(), httpBase() (+8 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.14
@@ -277,16 +276,16 @@ Cohesion: 0.20
 Nodes (15): CanvasPoint, canvasToWorldWithCamera(), clampScale(), createBoundsKey(), fitCameraToBounds(), panCamera(), parseBoundsKey(), ParsedCameraKey (+7 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.13
-Nodes (12): customMap, customMapSummary, persistedCustomMap, LobbyDirectoryOptions, Deferred, functionLengthBounds, isPlayerColor(), normalizeMaxFunctionLength() (+4 more)
+Cohesion: 0.19
+Nodes (8): LobbyDirectoryOptions, Deferred, functionLengthBounds, isPlayerColor(), normalizePlayerColor(), PlayerColor, playerColorPalette, playerColors
 
 ### Community 39 - "Community 39"
 Cohesion: 0.26
 Nodes (15): addCircleTerrain(), addDefaultSpawnSet(), addRectangleTerrain(), addSpawnPoint(), addTriangleTerrain(), appendTerrainShape(), closePenShape(), fitTerrainPointsWithinBounds() (+7 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.27
-Nodes (10): availableJoinSlots(), isAliasConflictError(), isJoinActionDisabled(), joinActionLabel(), JoinLobbyForm, JoinLobbyView(), JoinLobbyViewProps, prepareJoinLobbyForm() (+2 more)
+Cohesion: 0.22
+Nodes (11): availableJoinSlots(), isAliasConflictError(), isJoinActionDisabled(), joinActionLabel(), JoinLobbyForm, JoinLobbyView(), JoinLobbyViewProps, prepareJoinLobbyForm() (+3 more)
 
 ### Community 41 - "Community 41"
 Cohesion: 0.14
@@ -316,10 +315,6 @@ Nodes (7): EditorClipboard, EditorSelection, EditorSelectionItem, EditorState, E
 Cohesion: 0.31
 Nodes (8): formatMatchWinner(), MatchEndModal(), teamLabel(), freeForAllSnapshot, standardWorldBounds, teamSnapshot, WinnerText, MatchEndedEvent
 
-### Community 48 - "Community 48"
-Cohesion: 0.20
-Nodes (9): AutoAssignTeamsCommand, CancelLobbyCommand, ForfeitMatchCommand, JoinRoomCommand, RequestRematchCommand, SelectModeCommand, SendChatCommand, SetTeamCommand (+1 more)
-
 ### Community 49 - "Community 49"
 Cohesion: 0.20
 Nodes (9): compilerOptions, composite, jsx, lib, outDir, types, extends, include (+1 more)
@@ -347,6 +342,10 @@ Nodes (7): compilerOptions, composite, declaration, outDir, rootDir, extends, in
 ### Community 57 - "Community 57"
 Cohesion: 0.29
 Nodes (4): alice, bob, customMap, Player
+
+### Community 60 - "Community 60"
+Cohesion: 0.43
+Nodes (4): aliasesConflict(), normalizeAlias(), JoinLobbyRequest, LobbyJoinResult
 
 ### Community 61 - "Community 61"
 Cohesion: 0.23
@@ -423,7 +422,7 @@ Nodes (3): Graphify Workflow, Personal Preferences, UI Design Workflow
 ## Knowledge Gaps
 - **542 isolated node(s):** `Player`, `alice`, `bob`, `customMap`, `Player` (+537 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

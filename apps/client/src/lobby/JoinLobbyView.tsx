@@ -102,107 +102,109 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
   }
 
   return (
-    <section className="panel menu-panel" aria-labelledby="join-lobby-title">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">Available rooms</p>
-          <h2 id="join-lobby-title">Join Lobby</h2>
+    <div className="menu-screen">
+      <section className="panel menu-panel" aria-labelledby="join-lobby-title">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Available rooms</p>
+            <h2 id="join-lobby-title">Join Lobby</h2>
+          </div>
+          <button className="secondary-action" onClick={() => void loadLobbies()} type="button">
+            Refresh
+          </button>
         </div>
-        <button className="secondary-action" onClick={() => void loadLobbies()} type="button">
-          Refresh
-        </button>
-      </div>
 
-      <div className="menu-form join-lobby-form">
-        <label>
-          Alias
-          <input
-            aria-invalid={aliasTaken ? "true" : undefined}
-            required
-            value={alias}
-            onChange={(event) => {
-              setAlias(event.currentTarget.value);
-              setAliasTaken(false);
-              setFormError(undefined);
-            }}
-          />
-        </label>
-        <fieldset className="color-selector">
-          <legend>Color</legend>
-          <div className="color-options">
-            {lobbyPlayerColorPalette.map((option) => (
-              <label key={option} title={option}>
-                <input
-                  aria-label={`Choose color ${option}`}
-                  checked={color === option}
-                  name="join-player-color"
-                  onChange={() => setColor(option)}
-                  type="radio"
-                  value={option}
-                />
-                <span className="color-swatch" style={{ backgroundColor: option }} />
-              </label>
+        <div className="menu-form join-lobby-form">
+          <label>
+            Alias
+            <input
+              aria-invalid={aliasTaken ? "true" : undefined}
+              required
+              value={alias}
+              onChange={(event) => {
+                setAlias(event.currentTarget.value);
+                setAliasTaken(false);
+                setFormError(undefined);
+              }}
+            />
+          </label>
+          <fieldset className="color-selector">
+            <legend>Color</legend>
+            <div className="color-options">
+              {lobbyPlayerColorPalette.map((option) => (
+                <label key={option} title={option}>
+                  <input
+                    aria-label={`Choose color ${option}`}
+                    checked={color === option}
+                    name="join-player-color"
+                    onChange={() => setColor(option)}
+                    type="radio"
+                    value={option}
+                  />
+                  <span className="color-swatch" style={{ backgroundColor: option }} />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+        {(loadError || formError) && (
+          <p className="notice" role="alert">
+            {formError ?? loadError}
+          </p>
+        )}
+
+        <div className="lobby-list">
+          {lobbies.length === 0 ? (
+            <p className="muted">No lobbies available.</p>
+          ) : (
+            lobbies.map((lobby) => {
+              return (
+                <div className="lobby-row" key={lobby.roomId}>
+                  <div>
+                    <button
+                      aria-pressed={selectedRoomId === lobby.roomId}
+                      className="lobby-select-button"
+                      onClick={() => {
+                        setSelectedRoomId(lobby.roomId);
+                        setAliasTaken(false);
+                        setFormError(undefined);
+                      }}
+                      type="button"
+                    >
+                      {lobby.name}
+                    </button>
+                    <span>
+                      {lobby.status} - {lobby.playerCount} players - {lobby.spectatorCount} spectators
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {selectedLobby && (
+          <div className="form-actions" aria-label={`Join ${selectedLobby.name}`}>
+            {availableJoinSlots(settings).map((actionSlot) => (
+              <button
+                className={actionSlot === "player" ? "primary-action" : "secondary-action"}
+                disabled={isJoinActionDisabled(selectedLobby, actionSlot, joiningRoomId)}
+                key={actionSlot}
+                onClick={(event) => void handleJoin(selectedLobby.roomId, actionSlot, event)}
+                type="button"
+              >
+                {joinActionLabel(actionSlot)}
+              </button>
             ))}
           </div>
-        </fieldset>
-      </div>
-      {(loadError || formError) && (
-        <p className="notice" role="alert">
-          {formError ?? loadError}
-        </p>
-      )}
-
-      <div className="lobby-list">
-        {lobbies.length === 0 ? (
-          <p className="muted">No lobbies available.</p>
-        ) : (
-          lobbies.map((lobby) => {
-            return (
-              <div className="lobby-row" key={lobby.roomId}>
-                <div>
-                  <button
-                    aria-pressed={selectedRoomId === lobby.roomId}
-                    className="lobby-select-button"
-                    onClick={() => {
-                      setSelectedRoomId(lobby.roomId);
-                      setAliasTaken(false);
-                      setFormError(undefined);
-                    }}
-                    type="button"
-                  >
-                    {lobby.name}
-                  </button>
-                  <span>
-                    {lobby.status} - {lobby.playerCount} players - {lobby.spectatorCount} spectators
-                  </span>
-                </div>
-              </div>
-            );
-          })
         )}
-      </div>
 
-      {selectedLobby && (
-        <div className="form-actions" aria-label={`Join ${selectedLobby.name}`}>
-          {availableJoinSlots(settings).map((actionSlot) => (
-            <button
-              className={actionSlot === "player" ? "primary-action" : "secondary-action"}
-              disabled={isJoinActionDisabled(selectedLobby, actionSlot, joiningRoomId)}
-              key={actionSlot}
-              onClick={(event) => void handleJoin(selectedLobby.roomId, actionSlot, event)}
-              type="button"
-            >
-              {joinActionLabel(actionSlot)}
-            </button>
-          ))}
+        <div className="form-actions">
+          <button className="secondary-action" onClick={onBack} type="button">
+            Back
+          </button>
         </div>
-      )}
-
-      <div className="form-actions">
-        <button className="secondary-action" onClick={onBack} type="button">
-          Back
-        </button>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

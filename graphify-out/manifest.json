@@ -145,9 +145,9 @@
     "semantic_hash": "4817b2311522417dbed5198ede76d870"
   },
   "apps/client/src/lobby/JoinLobbyView.tsx": {
-    "mtime": 1783294913.0486965,
-    "ast_hash": "898d72c5cb923b8d9ebf10eb2145cc19",
-    "semantic_hash": "898d72c5cb923b8d9ebf10eb2145cc19"
+    "mtime": 1783654228.1935122,
+    "ast_hash": "c7d17d331596cb1bb891e69ce1372af1",
+    "semantic_hash": ""
   },
   "apps/client/src/lobby/LobbySetupView.test.tsx": {
     "mtime": 1783482304.3887515,
@@ -912,11 +912,6 @@
   "graphwar_cheat_sheet.md": {
     "mtime": 1783150536.8808475,
     "ast_hash": "67f2efadc6c0b5a4c104cf3a5192eee6",
-    "semantic_hash": ""
-  },
-  "prompt notes.txt": {
-    "mtime": 1783315677.6734874,
-    "ast_hash": "db41f7bcf61cde831400239d3478f515",
     "semantic_hash": ""
   }
 }
