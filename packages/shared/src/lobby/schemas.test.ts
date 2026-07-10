@@ -11,6 +11,7 @@ import {
   craterRadiusBounds,
   damagePerHitBounds,
   defaultAdvancedFunctions,
+  defaultFunctionHistory,
   defaultFriendlyFire,
   defaultFunctionPreview,
   defaultInputMode,
@@ -164,6 +165,7 @@ describe("lobby schemas", () => {
         friendlyFire: defaultFriendlyFire,
         advancedFunctions: defaultAdvancedFunctions,
         functionPreview: defaultFunctionPreview,
+        functionHistory: defaultFunctionHistory,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: defaultInputMode
@@ -185,6 +187,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 300,
         inputMode: "keypad"
@@ -197,6 +200,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 300,
         inputMode: "keypad"
@@ -300,6 +304,7 @@ describe("lobby schemas", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      functionHistory: false,
       turnTimerEnabled: false,
       turnDurationSeconds: 45,
       inputMode: "keypad",
@@ -324,6 +329,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
@@ -337,6 +343,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
@@ -388,6 +395,7 @@ describe("lobby schemas", () => {
       friendlyFire: defaultFriendlyFire,
       advancedFunctions: defaultAdvancedFunctions,
       functionPreview: defaultFunctionPreview,
+      functionHistory: defaultFunctionHistory,
       turnTimerEnabled: defaultTurnTimerEnabled,
       turnDurationSeconds: defaultTurnDurationSeconds,
       inputMode: defaultInputMode,

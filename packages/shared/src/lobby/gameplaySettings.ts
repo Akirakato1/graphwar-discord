@@ -17,6 +17,7 @@ export const defaultUniqueFunctionHits = true;
 export const defaultFriendlyFire = false;
 export const defaultAdvancedFunctions = false;
 export const defaultFunctionPreview = true;
+export const defaultFunctionHistory = true;
 export const defaultTurnTimerEnabled = true;
 export const inputModes = ["keypad", "keyboard", "hybrid"] as const;
 export type FunctionInputMode = (typeof inputModes)[number];
@@ -38,6 +39,7 @@ export type LobbyGameplaySettings = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  functionHistory: boolean;
   turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
@@ -50,6 +52,7 @@ export const defaultLobbyGameplaySettings: LobbyGameplaySettings = {
   friendlyFire: defaultFriendlyFire,
   advancedFunctions: defaultAdvancedFunctions,
   functionPreview: defaultFunctionPreview,
+  functionHistory: defaultFunctionHistory,
   turnTimerEnabled: defaultTurnTimerEnabled,
   turnDurationSeconds: defaultTurnDurationSeconds,
   inputMode: defaultInputMode

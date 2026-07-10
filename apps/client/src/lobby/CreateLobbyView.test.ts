@@ -12,6 +12,7 @@ import {
 import {
   craterRadiusBounds,
   damagePerHitBounds,
+  defaultFunctionHistory,
   defaultMapSizePreset,
   defaultPlayerColor,
   defaultTurnDurationSeconds,
@@ -35,6 +36,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
@@ -54,6 +56,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
@@ -83,6 +86,7 @@ describe("CreateLobbyView helpers", () => {
       friendlyFire: false,
       advancedFunctions: false,
       functionPreview: true,
+      functionHistory: defaultFunctionHistory,
       turnTimerEnabled: defaultTurnTimerEnabled,
       turnDurationSeconds: defaultTurnDurationSeconds,
       inputMode: "hybrid",
@@ -104,6 +108,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        functionHistory: defaultFunctionHistory,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid"
@@ -124,6 +129,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
@@ -136,6 +142,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
@@ -158,12 +165,19 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: true,
+        functionHistory: true,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid"
       }).form
     ).toEqual(
-      expect.objectContaining({ mode: "free-for-all", friendlyFire: false, advancedFunctions: true, functionPreview: true })
+      expect.objectContaining({
+        mode: "free-for-all",
+        friendlyFire: false,
+        advancedFunctions: true,
+        functionPreview: true,
+        functionHistory: true
+      })
     );
   });
 
@@ -182,6 +196,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        functionHistory: true,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
@@ -201,6 +216,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        functionHistory: true,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
@@ -224,6 +240,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        functionHistory: true,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
@@ -244,6 +261,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        functionHistory: true,
         turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
@@ -309,6 +327,7 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Unique function hits");
     expect(html).toContain("Advanced functions");
     expect(html).toContain("Function preview");
+    expect(html).toContain("Function history");
     expect(html).toContain("Timer limit");
     expect(html).toContain('min="15"');
     expect(html).toContain('max="300"');
@@ -320,7 +339,7 @@ describe("CreateLobbyView helpers", () => {
 
   it("keeps the compact create-lobby layout dense enough for the extra map-size row", () => {
     const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
-    const compactLandscapeBlock = styles.match(/@media \(max-width: 820px\) and \(orientation: landscape\) \{([\s\S]*)\}\s*$/);
+    const compactLandscapeBlock = styles.match(/@media \(max-width: 900px\) and \(orientation: landscape\) \{([\s\S]*)\}\s*$/);
 
     expect(styles).toContain(".create-lobby-panel");
     expect(styles).toMatch(/\.create-lobby-form\s*\{[^}]*overflow-y:\s*auto;/s);

@@ -63,6 +63,7 @@ type RuntimeLobby = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  functionHistory: boolean;
   turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
@@ -126,6 +127,7 @@ export class LobbyDirectory {
         request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
       advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
       functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+      functionHistory: request.functionHistory ?? defaultLobbyGameplaySettings.functionHistory,
       turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
       turnDurationSeconds: normalizeTurnDurationSeconds(request.turnDurationSeconds),
       inputMode: normalizeInputMode(request.inputMode),
@@ -239,6 +241,7 @@ export class LobbyDirectory {
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions,
           functionPreview: lobby.functionPreview,
+          functionHistory: lobby.functionHistory,
           turnTimerEnabled: lobby.turnTimerEnabled,
           turnDurationSeconds: lobby.turnDurationSeconds,
           inputMode: lobby.inputMode,
@@ -553,6 +556,7 @@ export class LobbyDirectory {
       friendlyFire: lobby.friendlyFire,
       advancedFunctions: lobby.advancedFunctions,
       functionPreview: lobby.functionPreview,
+      functionHistory: lobby.functionHistory,
       turnTimerEnabled: lobby.turnTimerEnabled,
       turnDurationSeconds: lobby.turnDurationSeconds,
       inputMode: lobby.inputMode,

@@ -67,6 +67,7 @@ export type LobbyRuntimeSnapshot = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  functionHistory: boolean;
   turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
@@ -93,6 +94,7 @@ export type LobbySummary = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  functionHistory: boolean;
   turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
@@ -117,6 +119,7 @@ export type CreateLobbyRequest = {
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
   functionPreview?: boolean;
+  functionHistory?: boolean;
   turnTimerEnabled?: boolean;
   turnDurationSeconds?: number;
   inputMode?: FunctionInputMode;

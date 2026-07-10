@@ -145,6 +145,7 @@ export function LobbySetupView({
         <span>Unique hits {lobby.uniqueFunctionHits ? "On" : "Off"}</span>
         <span>Advanced functions {lobby.advancedFunctions ? "On" : "Off"}</span>
         <span>Preview {lobby.functionPreview ? "On" : "Off"}</span>
+        <span>History {lobby.functionHistory ? "On" : "Off"}</span>
         <span>Timer {lobby.turnTimerEnabled ? `${lobby.turnDurationSeconds}s` : "Off"}</span>
         <span>Input {inputModeLabel(lobby.inputMode)}</span>
         {lobby.mode === "team-versus" ? <span>Friendly fire {lobby.friendlyFire ? "On" : "Off"}</span> : null}

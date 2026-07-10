@@ -41,6 +41,7 @@ const lobby = {
   friendlyFire: false,
   advancedFunctions: false,
   functionPreview: true,
+  functionHistory: true,
   turnTimerEnabled: true,
   turnDurationSeconds: 60,
   inputMode: "hybrid" as const,
@@ -187,6 +188,7 @@ describe("LobbySetupView", () => {
     expect(html).toContain("Friendly fire On");
     expect(html).toContain("Advanced functions On");
     expect(html).toContain("Preview Off");
+    expect(html).toContain("History On");
     expect(html).toContain("Timer Off");
     expect(html).toContain("Input Keypad");
   });

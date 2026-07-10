@@ -79,6 +79,7 @@ export type GameStoreState = {
     friendlyFire: boolean;
     advancedFunctions: boolean;
     functionPreview: boolean;
+    functionHistory: boolean;
     turnTimerEnabled: boolean;
     turnDurationSeconds: number;
     inputMode: FunctionInputMode;
@@ -448,6 +449,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             friendlyFire: form.friendlyFire,
             advancedFunctions: form.advancedFunctions,
             functionPreview: form.functionPreview,
+            functionHistory: form.functionHistory,
             turnTimerEnabled: form.turnTimerEnabled,
             turnDurationSeconds: form.turnDurationSeconds,
             inputMode: form.inputMode,

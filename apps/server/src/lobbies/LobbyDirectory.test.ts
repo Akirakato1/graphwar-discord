@@ -105,6 +105,7 @@ describe("LobbyDirectory", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      functionHistory: false,
       turnTimerEnabled: false,
       turnDurationSeconds: 300
     });
@@ -117,6 +118,7 @@ describe("LobbyDirectory", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 300
       })
@@ -129,6 +131,7 @@ describe("LobbyDirectory", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 300
       })
@@ -141,6 +144,7 @@ describe("LobbyDirectory", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 300
       })

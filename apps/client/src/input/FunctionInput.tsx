@@ -1,6 +1,5 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { FunctionInputMode } from "@graphwar/shared";
-import { playGameSound } from "../audio/gameAudio";
 import { insertSnippet } from "./insertSnippet";
 
 type FunctionInputProps = {
@@ -565,6 +564,7 @@ function renderButtonGrid(buttons: SnippetButton[], disabled: boolean, onClick: 
     <button
       aria-label={button.ariaLabel}
       className="snippet-button"
+      data-game-sound="function.button"
       disabled={disabled}
       key={button.key}
       onClick={() => onClick(button.snippet)}
@@ -658,7 +658,6 @@ export function FunctionInput({
 
     const currentSelection = readSelection();
     const next = insertSnippet(expression, currentSelection.start, currentSelection.end, snippet);
-    playGameSound("function.button");
     updateExpression(next.value);
 
     if (typeof window === "undefined" || !window.requestAnimationFrame) {
@@ -673,7 +672,6 @@ export function FunctionInput({
     const currentSelection = readSelection();
     const currentCursor = currentSelection.end;
     const slotCursorPosition = nextSlotCursorPosition(expression, currentCursor, delta);
-    playGameSound("function.cursor");
     restoreCursor(slotCursorPosition ?? Math.max(0, Math.min(expression.length, currentCursor + delta)));
   }
 
@@ -687,19 +685,16 @@ export function FunctionInput({
     const end = Math.max(currentSelection.start, currentSelection.end);
 
     if (start !== end) {
-      playGameSound("function.delete");
       updateExpression(`${expression.slice(0, start)}${expression.slice(end)}`);
       restoreCursor(start);
       return;
     }
 
     if (start === 0) {
-      playGameSound("function.delete");
       restoreCursor(0);
       return;
     }
 
-    playGameSound("function.delete");
     updateExpression(`${expression.slice(0, start - 1)}${expression.slice(start)}`);
     restoreCursor(start - 1);
   }
@@ -711,7 +706,6 @@ export function FunctionInput({
       return;
     }
 
-    playGameSound("combat.fire");
     onSubmitShot(expression);
   }
 
@@ -752,7 +746,7 @@ export function FunctionInput({
         />
       </div>
       <div className="shot-row">
-        <button className="primary-action" disabled={fireDisabled} type="submit">
+        <button className="primary-action" data-game-sound="combat.fire" disabled={fireDisabled} type="submit">
           Fire
         </button>
       </div>
@@ -762,6 +756,7 @@ export function FunctionInput({
             <button
               aria-label="Move cursor left"
               className="snippet-button cursor-button"
+              data-game-sound="function.cursor"
               disabled={disabled}
               onClick={() => moveCursor(-1)}
               type="button"
@@ -771,6 +766,7 @@ export function FunctionInput({
             <button
               aria-label="Move cursor right"
               className="snippet-button cursor-button"
+              data-game-sound="function.cursor"
               disabled={disabled}
               onClick={() => moveCursor(1)}
               type="button"
@@ -780,6 +776,7 @@ export function FunctionInput({
             <button
               aria-label="Delete previous character"
               className="snippet-button cursor-button"
+              data-game-sound="function.delete"
               disabled={disabled}
               onClick={deletePreviousCharacter}
               type="button"

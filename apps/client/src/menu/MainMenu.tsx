@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import type { AppView } from "../app/useGameStore";
-import { playGameSound } from "../audio/gameAudio";
 import { equationProjectiles } from "./equationProjectiles";
 
 type MainMenuProps = {
@@ -10,7 +9,6 @@ type MainMenuProps = {
 
 export function MainMenu({ guildId, onNavigate }: MainMenuProps) {
   function navigate(view: AppView): void {
-    playGameSound("ui.button");
     onNavigate(view);
   }
 

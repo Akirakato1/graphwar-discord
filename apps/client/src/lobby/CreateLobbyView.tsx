@@ -65,6 +65,7 @@ type CreateLobbyViewProps = {
     friendlyFire: boolean;
     advancedFunctions: boolean;
     functionPreview: boolean;
+    functionHistory: boolean;
     turnTimerEnabled: boolean;
     turnDurationSeconds: number;
     inputMode: FunctionInputMode;
@@ -87,6 +88,7 @@ type CreateLobbyForm = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  functionHistory: boolean;
   turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
@@ -117,6 +119,7 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       advancedFunctions: form.advancedFunctions,
       functionPreview: form.functionPreview,
+      functionHistory: form.functionHistory,
       turnTimerEnabled: form.turnTimerEnabled,
       turnDurationSeconds: normalizeTurnDurationSeconds(form.turnDurationSeconds),
       inputMode: normalizeInputMode(form.inputMode),
@@ -147,6 +150,7 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
     functionPreview: defaultLobbyGameplaySettings.functionPreview,
+    functionHistory: defaultLobbyGameplaySettings.functionHistory,
     turnTimerEnabled: defaultTurnTimerEnabled,
     turnDurationSeconds: defaultTurnDurationSeconds,
     inputMode: defaultLobbyGameplaySettings.inputMode,
@@ -169,6 +173,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
   const [functionPreview, setFunctionPreview] = useState(initialForm.functionPreview);
+  const [functionHistory, setFunctionHistory] = useState(initialForm.functionHistory);
   const [turnTimerEnabled, setTurnTimerEnabled] = useState(initialForm.turnTimerEnabled);
   const [turnDurationSeconds, setTurnDurationSeconds] = useState(initialForm.turnDurationSeconds);
   const [inputMode, setInputMode] = useState<FunctionInputMode>(initialForm.inputMode);
@@ -201,6 +206,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           friendlyFire,
           advancedFunctions,
           functionPreview,
+          functionHistory,
           turnTimerEnabled,
           turnDurationSeconds,
           inputMode,
@@ -391,6 +397,17 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             type="checkbox"
           />
           Function preview
+        </label>
+        <label className="toggle-row">
+          <input
+            checked={functionHistory}
+            onChange={(event) => {
+              setFunctionHistory(event.currentTarget.checked);
+              setFormError(undefined);
+            }}
+            type="checkbox"
+          />
+          Function history
         </label>
         {mode === "team-versus" ? (
           <label className="toggle-row">

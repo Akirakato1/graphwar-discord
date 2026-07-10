@@ -29,6 +29,7 @@ describe("FunctionInput", () => {
     expect(html).toContain("aria-label=\"Number buttons\"");
     expect(html).toContain("aria-label=\"Operation buttons\"");
     expect(html).toContain("aria-label=\"Function buttons\"");
+    expect(html).toMatch(/class="primary-action"[^>]*data-game-sound="combat\.fire"[^>]*type="submit">Fire<\/button>/);
     expect(html).toContain(">+<");
     expect(html).toContain("aria-label=\"Insert multiplication operator\"");
     expect(html).toContain("aria-label=\"Insert division operator\"");
@@ -123,7 +124,7 @@ describe("FunctionInput", () => {
     expect(html).toContain("id=\"shot-expression\"");
     expect(html).toContain("disabled=\"\"");
     expect(html).toMatch(/aria-label="Insert x variable"[^>]*disabled=""/);
-    expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+    expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
   });
 
   it("renders a live math display and keypad controls in keypad mode", () => {

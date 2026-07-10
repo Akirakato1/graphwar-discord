@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GameCanvas, SHOT_ANIMATION_MS, shotEventKey } from "../game-renderer/GameCanvas";
+import { ButtonSoundBoundary } from "../audio/ButtonSoundBoundary";
 import { soundIdsForServerEvent } from "../audio/eventSounds";
 import { playGameSound } from "../audio/gameAudio";
 import { computeFunctionPreview } from "../game-renderer/functionPreview";
 import { findLatestShotResolvedEvent, findSnapshotBeforeLatestShot } from "../game-renderer/renderWorld";
 import { MatchHud } from "../hud/MatchHud";
+import { ShotHistoryTab } from "../hud/ShotHistoryTab";
 import { LeaderboardView } from "../leaderboard/LeaderboardView";
 import { CreateLobbyView } from "../lobby/CreateLobbyView";
 import { JoinLobbyView } from "../lobby/JoinLobbyView";
@@ -62,6 +64,10 @@ type AppProps = {
   viewOverride?: AppView;
 };
 
+function withButtonSounds(element: JSX.Element): JSX.Element {
+  return <ButtonSoundBoundary>{element}</ButtonSoundBoundary>;
+}
+
 export function App(props?: AppProps): JSX.Element;
 export function App({ viewOverride }: AppProps = {}) {
   const autoAssignTeams = useGameStore((state) => state.autoAssignTeams);
@@ -103,11 +109,11 @@ export function App({ viewOverride }: AppProps = {}) {
   }, [loadCustomMaps, view]);
 
   if (view === "main-menu") {
-    return <MainMenu guildId={session.guildId} onNavigate={setView} />;
+    return withButtonSounds(<MainMenu guildId={session.guildId} onNavigate={setView} />);
   }
 
   if (view === "create-lobby") {
-    return (
+    return withButtonSounds(
       <CreateLobbyView
         defaultAlias={session.defaultAlias}
         customMaps={customMaps}
@@ -119,7 +125,7 @@ export function App({ viewOverride }: AppProps = {}) {
   }
 
   if (view === "custom-maps") {
-    return (
+    return withButtonSounds(
       <MapLibraryView
         currentDiscordUserId={session.discordUserId}
         customMaps={customMaps}
@@ -131,7 +137,7 @@ export function App({ viewOverride }: AppProps = {}) {
   }
 
   if (view === "join-lobby") {
-    return (
+    return withButtonSounds(
       <JoinLobbyView
         lobbies={lobbies}
         onBack={() => setView("main-menu")}
@@ -143,18 +149,18 @@ export function App({ viewOverride }: AppProps = {}) {
   }
 
   if (view === "settings") {
-    return (
+    return withButtonSounds(
       <SettingsView settings={settings} onBack={() => setView("main-menu")} onLoad={loadSettings} onSave={saveSettings} />
     );
   }
 
   if (view === "leaderboard") {
-    return <LeaderboardView entries={leaderboard} onBack={() => setView("main-menu")} onLoad={loadLeaderboard} />;
+    return withButtonSounds(<LeaderboardView entries={leaderboard} onBack={() => setView("main-menu")} onLoad={loadLeaderboard} />);
   }
 
   if (view === "lobby-setup") {
     if (!currentLobby) {
-      return (
+      return withButtonSounds(
         <section className="lobby-setup-screen" aria-labelledby="lobby-setup-title">
           <div className="panel-heading">
             <div>
@@ -169,7 +175,7 @@ export function App({ viewOverride }: AppProps = {}) {
       );
     }
 
-    return (
+    return withButtonSounds(
       <LobbySetupView
         currentDiscordUserId={lobbyIdentity.effectiveSession.discordUserId}
         currentPlayerId={lobbyIdentity.effectiveSession.playerId}
@@ -183,7 +189,7 @@ export function App({ viewOverride }: AppProps = {}) {
     );
   }
 
-  return <GameActivity />;
+  return withButtonSounds(<GameActivity />);
 }
 
 function GameActivity() {
@@ -279,26 +285,29 @@ function GameActivity() {
         <GameSessionPill selectedLobbySession={selectedLobbySession} session={session} />
       </header>
 
-      <div className="app-grid playing-grid">
-        <GameCanvas events={canvasEvents} previewPath={previewPath} snapshot={displaySnapshot} />
-        <MatchHud
-          advancedFunctionsEnabled={currentLobby?.advancedFunctions ?? false}
-          aimDirection={aimDirection}
-          connectionStatus={connectionStatus}
-          displaySnapshot={displaySnapshot}
-          expression={draftExpression}
-          inputMode={currentLobby?.inputMode ?? "hybrid"}
-          lastError={lastError}
-          lastRejection={lastRejection}
-          onAimDirectionChange={setAimDirection}
-          onExpressionChange={setDraftExpression}
-          onForfeit={forfeitMatch}
-          onSubmitShot={submitShot}
-          playbackInProgress={playbackInProgress}
-          session={lobbyIdentity.effectiveSession}
-          snapshot={snapshot}
-          spectator={lobbyIdentity.spectator}
-        />
+      <div className="gameplay-stage">
+        <ShotHistoryTab enabled={currentLobby?.functionHistory !== false} events={recentEvents} />
+        <div className="app-grid playing-grid">
+          <GameCanvas events={canvasEvents} previewPath={previewPath} snapshot={displaySnapshot} />
+          <MatchHud
+            advancedFunctionsEnabled={currentLobby?.advancedFunctions ?? false}
+            aimDirection={aimDirection}
+            connectionStatus={connectionStatus}
+            displaySnapshot={displaySnapshot}
+            expression={draftExpression}
+            inputMode={currentLobby?.inputMode ?? "hybrid"}
+            lastError={lastError}
+            lastRejection={lastRejection}
+            onAimDirectionChange={setAimDirection}
+            onExpressionChange={setDraftExpression}
+            onForfeit={forfeitMatch}
+            onSubmitShot={submitShot}
+            playbackInProgress={playbackInProgress}
+            session={lobbyIdentity.effectiveSession}
+            snapshot={snapshot}
+            spectator={lobbyIdentity.spectator}
+          />
+        </div>
       </div>
       {showMatchEndModal && latestMatchEnded ? (
         <MatchEndModal event={latestMatchEnded} onReturnToMenu={returnToMenu} />

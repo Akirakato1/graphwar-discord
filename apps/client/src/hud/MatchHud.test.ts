@@ -82,7 +82,7 @@ describe("MatchHud", () => {
       })
     );
 
-    expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+    expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
   });
 
   it("keeps function prep editable when it is not the local player's turn", () => {
@@ -103,7 +103,7 @@ describe("MatchHud", () => {
     expect(html).not.toMatch(/id="shot-expression"[^>]*disabled=""/);
     expect(html).not.toMatch(/aria-label="Aim west"[^>]*disabled=""/);
     expect(html).not.toMatch(/aria-label="Insert sine function"[^>]*disabled=""/);
-    expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+    expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
   });
 
   it("shows turn time remaining and disables fire after the deadline", () => {
@@ -129,7 +129,7 @@ describe("MatchHud", () => {
     expect(html).toContain("class=\"turn-timer critical-turn-timer\"");
     expect(html).toContain("id=\"shot-expression\"");
     expect(html).not.toMatch(/id="shot-expression"[^>]*disabled=""/);
-    expect(html).toContain("class=\"primary-action\" disabled=\"\" type=\"submit\">Fire</button>");
+    expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
   });
 
   it("marks the timer critical for the final ten seconds", () => {

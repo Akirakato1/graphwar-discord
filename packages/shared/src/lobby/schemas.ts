@@ -6,6 +6,7 @@ import {
   craterRadiusBounds,
   damagePerHitBounds,
   defaultAdvancedFunctions,
+  defaultFunctionHistory,
   defaultFunctionPreview,
   defaultFriendlyFire,
   defaultInputMode,
@@ -71,6 +72,7 @@ type ParsedCreateLobbyRequest = Omit<
   | "friendlyFire"
   | "advancedFunctions"
   | "functionPreview"
+  | "functionHistory"
   | "turnTimerEnabled"
   | "turnDurationSeconds"
   | "inputMode"
@@ -157,6 +159,7 @@ export const createLobbyRequestSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  functionHistory: z.boolean().default(defaultFunctionHistory),
   turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,
@@ -211,6 +214,7 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  functionHistory: z.boolean().default(defaultFunctionHistory),
   turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,
@@ -237,6 +241,7 @@ export const lobbySummarySchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  functionHistory: z.boolean().default(defaultFunctionHistory),
   turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,

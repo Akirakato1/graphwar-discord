@@ -115,6 +115,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
         advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
         functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+        functionHistory: request.functionHistory ?? defaultLobbyGameplaySettings.functionHistory,
         turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
         turnDurationSeconds: request.turnDurationSeconds ?? defaultLobbyGameplaySettings.turnDurationSeconds,
         inputMode: request.inputMode ?? defaultLobbyGameplaySettings.inputMode,
@@ -445,6 +446,7 @@ describe("createGameStore", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      functionHistory: false,
       turnTimerEnabled: false,
       turnDurationSeconds: 45,
       inputMode: "keypad"
@@ -459,6 +461,7 @@ describe("createGameStore", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        functionHistory: false,
         turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
@@ -584,6 +587,7 @@ describe("createGameStore", () => {
               friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
               advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
               functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+              functionHistory: request.functionHistory ?? defaultLobbyGameplaySettings.functionHistory,
               turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
               turnDurationSeconds: request.turnDurationSeconds ?? defaultLobbyGameplaySettings.turnDurationSeconds,
               inputMode: request.inputMode ?? defaultLobbyGameplaySettings.inputMode,

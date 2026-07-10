@@ -7,7 +7,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. It runs as a mul
 - Guild-scoped lobbies with aliases, colors, spectators, team-versus, and free-for-all.
 - Server-authoritative turns, timers, shots, damage, terrain destruction, safe default spawns, forfeits, and match end.
 - Function input with rotated local aim axes, implicit multiplication, LaTeX-style display, advanced helpers, keypad/keyboard/hybrid modes, and trajectory preview.
-- Canvas battlefield with zoom/pan, grid lines, compact HUD, player markers, shot playback, range fizzles, sounds, and winner popup.
+- Canvas battlefield with zoom/pan, grid lines, compact HUD, player markers, shot playback, shot history, range fizzles, sounds, tactile buttons, and winner popup.
 - Animated equation background on the main menu.
 - Custom map loading plus an Electron map maker for `.graphwar-map.json` files.
 
