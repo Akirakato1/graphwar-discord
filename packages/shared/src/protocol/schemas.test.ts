@@ -54,6 +54,33 @@ describe("protocol schemas", () => {
     expect(clientCommandSchema.parse(command)).toEqual(command);
   });
 
+  it("accepts an update-function-draft command", () => {
+    const command = {
+      type: "update-function-draft",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      expression: "sin(x)+1",
+      aimDirection: "north-west",
+      sessionToken: "session-token"
+    };
+
+    expect(clientCommandSchema.parse(command)).toEqual(command);
+  });
+
+  it("accepts an empty update-function-draft expression because drafts mirror editor state", () => {
+    expect(() =>
+      clientCommandSchema.parse({
+        type: "update-function-draft",
+        roomId: "local-test",
+        playerId: "alice",
+        expression: "",
+        aimDirection: "east",
+        sessionToken: "session-token"
+      })
+    ).not.toThrow();
+  });
+
   it("rejects a submit-shot command without expression", () => {
     expect(() =>
       clientCommandSchema.parse({
@@ -179,6 +206,19 @@ describe("protocol schemas", () => {
         turn: { activePlayerId: "", order: ["alice"], turnNumber: 2 }
       }
     } satisfies ServerEvent;
+
+    expect(serverEventSchema.parse(event)).toEqual(event);
+  });
+
+  it("accepts a private function-draft-restored event", () => {
+    const event = {
+      type: "function-draft-restored",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      expression: "cos(x)",
+      aimDirection: "south"
+    };
 
     expect(serverEventSchema.parse(event)).toEqual(event);
   });

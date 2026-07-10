@@ -76,6 +76,15 @@ export type SubmitShotCommand = {
   expression: string;
   sessionToken?: string;
 };
+export type UpdateFunctionDraftCommand = {
+  type: "update-function-draft";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  expression: string;
+  aimDirection: AimDirectionId;
+  sessionToken?: string;
+};
 export type SendChatCommand = {
   type: "send-chat";
   guildId?: GuildId;
@@ -101,5 +110,6 @@ export type ClientCommand =
   | ForfeitMatchCommand
   | StartMatchCommand
   | SubmitShotCommand
+  | UpdateFunctionDraftCommand
   | SendChatCommand
   | RequestRematchCommand;

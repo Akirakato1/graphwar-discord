@@ -50,6 +50,10 @@ async function openLocalMenu(page: Page, player: Player, guildId: string): Promi
   await expect(page.getByRole("button", { name: "Custom Maps" })).toBeVisible();
 }
 
+function lobbyRow(page: Page, lobbyName: string) {
+  return page.locator(".lobby-row").filter({ hasText: lobbyName });
+}
+
 test("imports a guild custom map and starts a two-client match with it", async ({ browser }, testInfo) => {
   const guildId = idFor(testInfo.title, "guild");
   const lobbyName = idFor(testInfo.title, "lobby");
@@ -82,9 +86,10 @@ test("imports a guild custom map and starts a two-client match with it", async (
 
     await openLocalMenu(bobPage, bob, guildId);
     await bobPage.getByRole("button", { name: "Join Lobby" }).click();
-    await bobPage.getByRole("button", { name: lobbyName }).click();
+    const bobLobbyRow = lobbyRow(bobPage, lobbyName);
+    await expect(bobLobbyRow).toBeVisible();
     await bobPage.getByLabel("Alias").fill("Bob");
-    await bobPage.getByRole("button", { name: "Join As Player" }).click();
+    await bobLobbyRow.getByRole("button", { name: "Join As Player" }).click();
     await expect(bobPage.getByRole("heading", { name: lobbyName })).toBeVisible();
 
     await alicePage.getByRole("button", { name: "Start Match" }).click();

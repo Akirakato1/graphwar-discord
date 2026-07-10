@@ -190,6 +190,7 @@ export function LobbySetupView({
                     ) : null}
                     {occupant.alias}
                   </span>
+                  {!occupant.connected ? <span className="connection-tag disconnected">Disconnected</span> : null}
                 </li>
               ))}
             </ul>

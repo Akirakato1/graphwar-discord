@@ -5,12 +5,17 @@ import { LocalStateStore } from "../persistence/LocalStateStore";
 import { parseCommand } from "../protocol/parseCommand";
 import { GameRoom } from "./GameRoom";
 
+export type RoomManagerOptions = {
+  disconnectGraceMs?: number;
+};
+
 export class RoomManager {
   private readonly rooms = new Map<string, GameRoom>();
 
   constructor(
     private readonly lobbies: LobbyDirectory = new LobbyDirectory(),
-    private readonly stateStore: LocalStateStore = new LocalStateStore()
+    private readonly stateStore: LocalStateStore = new LocalStateStore(),
+    private readonly options: RoomManagerOptions = {}
   ) {}
 
   connect(guildId: string, roomId: RoomId, socket: WebSocket): void {
@@ -70,7 +75,8 @@ export class RoomManager {
           this.rooms.delete(key);
         }
       },
-      this.hasLobby(guildId, roomId) ? { guildId, lobbies: this.lobbies, stateStore: this.stateStore } : undefined
+      this.hasLobby(guildId, roomId) ? { guildId, lobbies: this.lobbies, stateStore: this.stateStore } : undefined,
+      { disconnectGraceMs: this.options.disconnectGraceMs }
     );
     this.rooms.set(key, room);
     return room;

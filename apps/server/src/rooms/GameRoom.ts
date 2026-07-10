@@ -2,9 +2,11 @@ import type {
   ClientCommand,
   LobbyPlacementId,
   MatchSnapshot,
+  PlayerId,
   RoomId,
   ServerEvent,
-  SubmitShotCommand
+  SubmitShotCommand,
+  UpdateFunctionDraftCommand
 } from "@graphwar/shared";
 import WebSocket from "ws";
 import { LobbyDirectory, type LobbySessionIdentity } from "../lobbies/LobbyDirectory";
@@ -18,20 +20,30 @@ type LobbyContext = {
   stateStore: LocalStateStore;
 };
 
+export type GameRoomOptions = {
+  disconnectGraceMs?: number;
+};
+
+const defaultDisconnectGraceMs = 180_000;
+
 export class GameRoom {
   readonly clients = new Set<WebSocket>();
   private readonly lobbySessions = new WeakMap<WebSocket, LobbySessionIdentity>();
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly match: MatchController;
   private readonly customMapSpawner = new CustomMapSpawner();
+  private readonly disconnectGraceMs: number;
+  private readonly disconnectTimers = new Map<PlayerId, ReturnType<typeof setTimeout>>();
   private turnTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly roomId: RoomId,
     private readonly onEmpty: () => void = () => {},
-    private readonly lobbyContext?: LobbyContext
+    private readonly lobbyContext?: LobbyContext,
+    options: GameRoomOptions = {}
   ) {
     this.match = new MatchController(roomId);
+    this.disconnectGraceMs = options.disconnectGraceMs ?? defaultDisconnectGraceMs;
   }
 
   addClient(socket: WebSocket): void {
@@ -129,6 +141,7 @@ export class GameRoom {
       case "auto-assign-teams":
       case "cancel-lobby":
       case "forfeit-match":
+      case "update-function-draft":
       case "send-chat":
       case "request-rematch":
         this.sendRejection(socket, command.playerId, `Unsupported command: ${command.type}`);
@@ -150,7 +163,9 @@ export class GameRoom {
           return;
         }
         context.lobbies.markConnected(context.guildId, this.roomId, session.sessionToken);
+        this.clearDisconnectTimer(session.playerId);
         this.lobbySessions.set(socket, session);
+        this.sendRestoredFunctionDraft(socket, session);
         this.syncLobbySnapshot();
         this.broadcast({ type: "player-joined", roomId: this.roomId, playerId: session.playerId });
         this.broadcastRoomSnapshot();
@@ -251,7 +266,11 @@ export class GameRoom {
           this.sendRejection(socket, command.playerId, "Spectators cannot forfeit.");
           return;
         }
-        await this.handleForfeitMatch(socket, session.playerId);
+        await this.handleForfeitMatch(session.playerId, socket);
+        return;
+      }
+      case "update-function-draft": {
+        this.handleUpdateFunctionDraft(socket, command);
         return;
       }
       case "select-mode":
@@ -344,6 +363,7 @@ export class GameRoom {
     const matchEnded = events[1];
     if (matchEnded) {
       this.broadcast(this.withResolvedLobbyContext(matchEnded));
+      this.clearDisconnectTimers();
       if (this.lobbyContext) {
         await this.recordMatchResult(matchEnded.winnerIds, matchEnded.snapshot.players.map((player) => player.id));
       }
@@ -354,19 +374,23 @@ export class GameRoom {
     this.scheduleTurnTimer(firstEvent.snapshot);
   }
 
-  private async handleForfeitMatch(socket: WebSocket, playerId: string): Promise<void> {
+  private async handleForfeitMatch(playerId: string, socket?: WebSocket): Promise<void> {
     const events = this.match.forfeitPlayer(playerId);
     const firstEvent = events[0];
     if (firstEvent.type === "shot-rejected") {
-      this.sendTo(socket, firstEvent);
+      if (socket) {
+        this.sendTo(socket, firstEvent);
+      }
       return;
     }
 
+    this.clearDisconnectTimer(playerId);
     this.broadcast(this.withResolvedLobbyContext(firstEvent));
 
     const matchEnded = events[1];
     if (matchEnded) {
       this.clearTurnTimer();
+      this.clearDisconnectTimers();
       this.broadcast(this.withResolvedLobbyContext(matchEnded));
       if (this.lobbyContext) {
         await this.recordMatchResult(matchEnded.winnerIds, matchEnded.snapshot.players.map((player) => player.id));
@@ -375,6 +399,47 @@ export class GameRoom {
     }
 
     this.scheduleTurnTimer(firstEvent.snapshot);
+  }
+
+  private handleUpdateFunctionDraft(socket: WebSocket, command: UpdateFunctionDraftCommand): void {
+    const context = this.requireLobbyContext();
+    const session = context.lobbies.validateSession(context.guildId, this.roomId, command.sessionToken);
+    if (
+      command.playerId !== session.playerId ||
+      (command.guildId !== undefined && command.guildId !== context.guildId)
+    ) {
+      this.sendRejection(socket, command.playerId, "Command actor does not match socket session.");
+      return;
+    }
+
+    context.lobbies.saveFunctionDraft(context.guildId, this.roomId, session.sessionToken, {
+      expression: command.expression,
+      aimDirection: command.aimDirection
+    });
+  }
+
+  private sendRestoredFunctionDraft(socket: WebSocket, session: LobbySessionIdentity): void {
+    if (!this.lobbyContext) {
+      return;
+    }
+
+    const draft = this.lobbyContext.lobbies.readFunctionDraft(
+      this.lobbyContext.guildId,
+      this.roomId,
+      session.sessionToken
+    );
+    if (!draft) {
+      return;
+    }
+
+    this.sendTo(socket, {
+      type: "function-draft-restored",
+      guildId: this.lobbyContext.guildId,
+      roomId: this.roomId,
+      playerId: session.playerId,
+      expression: draft.expression,
+      aimDirection: draft.aimDirection
+    });
   }
 
   private scheduleTurnTimer(snapshot: MatchSnapshot): void {
@@ -393,6 +458,49 @@ export class GameRoom {
     }, delayMs);
   }
 
+  private scheduleDisconnectForfeit(session: LobbySessionIdentity): void {
+    if (!this.lobbyContext || session.slot === "spectator") {
+      return;
+    }
+
+    const snapshot = this.match.getSnapshot();
+    const player = snapshot.players.find((candidate) => candidate.id === session.playerId);
+    if (snapshot.phase !== "playing" || !player?.alive) {
+      return;
+    }
+
+    this.clearDisconnectTimer(session.playerId);
+    const timer = setTimeout(() => {
+      const next = this.commandQueue.then(
+        () => this.handleDisconnectGraceExpired(session.playerId),
+        () => this.handleDisconnectGraceExpired(session.playerId)
+      );
+      this.commandQueue = next.catch(() => undefined);
+    }, this.disconnectGraceMs);
+    this.disconnectTimers.set(session.playerId, timer);
+  }
+
+  private async handleDisconnectGraceExpired(playerId: PlayerId): Promise<void> {
+    this.clearDisconnectTimer(playerId);
+    if (!this.lobbyContext) {
+      return;
+    }
+
+    let lobby;
+    try {
+      lobby = this.lobbyContext.lobbies.getLobby(this.lobbyContext.guildId, this.roomId);
+    } catch {
+      return;
+    }
+
+    const occupant = lobby.occupants.find((candidate) => candidate.playerId === playerId);
+    if (lobby.status !== "playing" || !occupant || occupant.connected || occupant.slot === "spectator") {
+      return;
+    }
+
+    await this.handleForfeitMatch(playerId);
+  }
+
   private advanceExpiredTurn(): void {
     const event = this.match.advanceExpiredTurn();
     if (!event) {
@@ -409,6 +517,23 @@ export class GameRoom {
       clearTimeout(this.turnTimer);
       this.turnTimer = undefined;
     }
+  }
+
+  private clearDisconnectTimer(playerId: PlayerId): void {
+    const timer = this.disconnectTimers.get(playerId);
+    if (!timer) {
+      return;
+    }
+
+    clearTimeout(timer);
+    this.disconnectTimers.delete(playerId);
+  }
+
+  private clearDisconnectTimers(): void {
+    for (const timer of this.disconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.disconnectTimers.clear();
   }
 
   private turnEvent(type: "turn-started" | "turn-advanced", turn: MatchSnapshot["turn"]): ServerEvent {
@@ -514,12 +639,28 @@ export class GameRoom {
   private removeClient(socket: WebSocket): void {
     const session = this.lobbySessions.get(socket);
     if (session && this.lobbyContext) {
+      const context = this.lobbyContext;
       this.lobbySessions.delete(socket);
-      this.lobbyContext.lobbies.markDisconnected(this.lobbyContext.guildId, this.roomId, session.sessionToken);
-      try {
-        this.broadcastRoomSnapshot();
-      } catch {
-        // Disconnect snapshots are best-effort; room cleanup below still owns lifecycle.
+
+      if (context.lobbies.isOpenLeaderSession(context.guildId, this.roomId, session.sessionToken)) {
+        try {
+          const lobby = context.lobbies.cancelLobby(context.guildId, this.roomId, session.discordUserId);
+          this.clearTurnTimer();
+          this.clearDisconnectTimers();
+          this.broadcast({ type: "lobby-cancelled", guildId: context.guildId, roomId: this.roomId, lobby });
+        } catch {
+          // Disconnect cleanup is best-effort; room cleanup below still owns lifecycle.
+        }
+      } else {
+        const lobby = context.lobbies.markDisconnected(context.guildId, this.roomId, session.sessionToken);
+        if (lobby?.status === "playing") {
+          this.scheduleDisconnectForfeit(session);
+        }
+        try {
+          this.broadcastRoomSnapshot();
+        } catch {
+          // Disconnect snapshots are best-effort; room cleanup below still owns lifecycle.
+        }
       }
     }
 
@@ -527,6 +668,7 @@ export class GameRoom {
     if (removed && this.isEmpty()) {
       if (!this.shouldRetainWhenEmpty()) {
         this.clearTurnTimer();
+        this.clearDisconnectTimers();
       }
       this.onEmpty();
     }

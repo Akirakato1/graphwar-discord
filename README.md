@@ -5,7 +5,7 @@ Local-first prototype for a Graphwar-inspired Discord Activity. It runs as a mul
 ## Features
 
 - Guild-scoped lobbies with aliases, colors, spectators, team-versus, and free-for-all.
-- Server-authoritative turns, timers, shots, damage, terrain destruction, safe default spawns, forfeits, and match end.
+- Server-authoritative turns, timers, shots, damage, terrain destruction, safe default spawns, forfeits, reconnect grace, and match end.
 - Function input with rotated local aim axes, implicit multiplication, LaTeX-style display, advanced helpers, keypad/keyboard/hybrid modes, and trajectory preview.
 - Canvas battlefield with zoom/pan, grid lines, compact HUD, player markers, shot playback, shot history, range fizzles, sounds, tactile buttons, and winner popup.
 - Animated equation background on the main menu.
@@ -27,6 +27,8 @@ http://localhost:5173/?guild=local-guild&user=charlie
 ```
 
 Alice can create a lobby, Bob can join it, and Charlie can join as a player or spectator. The `guild` query parameter scopes lobbies/maps/stats; `user` mocks the Discord user id.
+
+Refresh returns a player to the selected lobby/game for the same `guild` + `user`. During a match, disconnected players have a 3-minute grace window before the server treats it as a forfeit.
 
 ## Map Maker
 

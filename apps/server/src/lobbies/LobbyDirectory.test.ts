@@ -598,6 +598,51 @@ describe("LobbyDirectory", () => {
     ]);
   });
 
+  it("stores function drafts privately outside lobby snapshots", async () => {
+    const directory = createDirectory();
+    const created = await directory.createLobby("guild-1", {
+      name: "Draft Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+
+    directory.saveFunctionDraft("guild-1", "room-1", created.session.sessionToken, {
+      expression: "sin(x)+1",
+      aimDirection: "west"
+    });
+
+    expect(directory.readFunctionDraft("guild-1", "room-1", created.session.sessionToken)).toEqual({
+      expression: "sin(x)+1",
+      aimDirection: "west"
+    });
+    expect(JSON.stringify(directory.getLobby("guild-1", "room-1"))).not.toContain("sin(x)+1");
+    expect(JSON.stringify(directory.listLobbies("guild-1"))).not.toContain("sin(x)+1");
+  });
+
+  it("identifies open lobby leader sessions for disconnect cleanup", async () => {
+    const directory = createDirectory();
+    const created = await directory.createLobby("guild-1", {
+      name: "Leader Room",
+      leaderDiscordUserId: "alice-id",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player"
+    });
+    const joined = await directory.joinLobby("guild-1", "room-1", {
+      discordUserId: "bob-id",
+      alias: "Bob",
+      slot: "player"
+    });
+
+    expect(directory.isOpenLeaderSession("guild-1", "room-1", created.session.sessionToken)).toBe(true);
+    expect(directory.isOpenLeaderSession("guild-1", "room-1", joined.session.sessionToken)).toBe(false);
+
+    directory.markPlaying("guild-1", "room-1");
+    expect(directory.isOpenLeaderSession("guild-1", "room-1", created.session.sessionToken)).toBe(false);
+  });
+
   it("blocks free-for-all starts with fewer than two players", async () => {
     const directory = createDirectory();
     await directory.createLobby("guild-1", {

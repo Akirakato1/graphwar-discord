@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildServer, type BuildServerOptions } from "../index";
 import { LobbyDirectory } from "../lobbies/LobbyDirectory";
 import { LocalStateStore } from "../persistence/LocalStateStore";
+import { RoomManager } from "./RoomManager";
 
 type TestServer = Awaited<ReturnType<typeof buildServer>>;
 
@@ -132,6 +133,19 @@ async function startTestServer(options: BuildServerOptions = {}): Promise<TestSe
   await app.listen({ port: 0, host: "127.0.0.1" });
   servers.push(app);
   return app;
+}
+
+async function startGraceTestServer(disconnectGraceMs = 25): Promise<TestServer> {
+  const stateStore = await createTempStateStore();
+  const lobbies = new LobbyDirectory({
+    upsertStatsEntry: (guildId, discordUserId, alias) => stateStore.upsertStatsEntry(guildId, discordUserId, alias),
+    resolveCustomMapName: async (guildId, mapId) => (await stateStore.getCustomMap(guildId, mapId))?.name
+  });
+  return startTestServer({
+    stateStore,
+    lobbies,
+    rooms: new RoomManager(lobbies, stateStore, { disconnectGraceMs })
+  });
 }
 
 function send(socket: WebSocket, command: unknown): void {
@@ -925,6 +939,253 @@ describe("RoomManager WebSocket integration", () => {
     }
 
     await closeSocket(reconnected);
+  });
+
+  it("forfeits a disconnected playing player after the reconnect grace window expires", async () => {
+    const app = await startGraceTestServer(25);
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Disconnect FF Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(alice, {
+      type: "start-match",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      sessionToken: created.session.sessionToken
+    });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(bob);
+
+    const forfeited = await waitForEvent(
+      () => aliceEvents,
+      (candidate) => candidate.type === "player-forfeited" && candidate.playerId === "bob-id"
+    );
+    expect(forfeited.type).toBe("player-forfeited");
+    if (forfeited.type === "player-forfeited") {
+      expect(forfeited.snapshot.players.find((player) => player.id === "bob-id")).toMatchObject({
+        alive: false,
+        hp: 0
+      });
+    }
+
+    await closeSocket(alice);
+  });
+
+  it("cancels an open lobby when its leader websocket disconnects", async () => {
+    const app = await startGraceTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Leader Leaves Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    await closeSocket(alice);
+
+    const cancelled = await waitForEvent(
+      () => bobEvents,
+      (candidate) => candidate.type === "lobby-cancelled" && candidate.roomId === created.session.roomId
+    );
+    expect(cancelled.type).toBe("lobby-cancelled");
+    if (cancelled.type === "lobby-cancelled") {
+      expect(cancelled.lobby.status).toBe("ended");
+    }
+
+    const listResponse = await app.inject({ method: "GET", url: "/guilds/local-guild/lobbies" });
+    expect(JSON.parse(listResponse.body)).toEqual([]);
+
+    await closeSocket(bob);
+  });
+
+  it("clears a disconnected player's grace timer when they reconnect", async () => {
+    const app = await startGraceTestServer(120);
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Reconnect Grace Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "free-for-all",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+    send(alice, {
+      type: "start-match",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "alice-id",
+      sessionToken: created.session.sessionToken
+    });
+    await waitForEvent(() => aliceEvents, (candidate) => candidate.type === "match-started");
+
+    await closeSocket(bob);
+    await waitForEvent(
+      () => aliceEvents,
+      (candidate) =>
+        candidate.type === "room-snapshot" &&
+        candidate.lobby?.occupants.some((occupant) => occupant.discordUserId === "bob-id" && !occupant.connected) === true
+    );
+
+    const reconnectedBob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const reconnectedEvents = collectEvents(reconnectedBob);
+    send(reconnectedBob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...reconnectedEvents],
+      (candidate) =>
+        candidate.type === "room-snapshot" &&
+        candidate.lobby?.occupants.some((occupant) => occupant.discordUserId === "bob-id" && occupant.connected) === true
+    );
+
+    await waitForNoEvent(
+      () => [...aliceEvents, ...reconnectedEvents],
+      (candidate) => candidate.type === "player-forfeited" && candidate.playerId === "bob-id"
+    );
+
+    await closeSocket(alice);
+    await closeSocket(reconnectedBob);
+  });
+
+  it("restores a player's private function draft when their socket rejoins", async () => {
+    const app = await startGraceTestServer();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/guilds/local-guild/lobbies",
+      payload: {
+        name: "Draft Restore Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player"
+      }
+    });
+    const created = JSON.parse(createResponse.body);
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/guilds/local-guild/lobbies/${created.session.roomId}/join`,
+      payload: { discordUserId: "bob-id", alias: "Bob", slot: "player" }
+    });
+    const joined = JSON.parse(joinResponse.body);
+
+    const alice = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const bob = await connect(guildSocketUrl(app, "local-guild", created.session.roomId));
+    const aliceEvents = collectEvents(alice);
+    const bobEvents = collectEvents(bob);
+    send(alice, lobbyJoinCommand(created.session));
+    send(bob, lobbyJoinCommand(joined.session));
+    await waitForEvent(
+      () => [...aliceEvents, ...bobEvents],
+      (candidate) => candidate.type === "room-snapshot" && candidate.lobby?.occupants.length === 2
+    );
+
+    send(bob, {
+      type: "update-function-draft",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      expression: "sin(x)+cos(x)",
+      aimDirection: "north-east",
+      sessionToken: joined.session.sessionToken
+    });
+
+    await closeSocket(bob);
+
+    const { socket: reconnectedBob, events: reconnectEvents } = await connectWithEvents(
+      guildSocketUrl(app, "local-guild", created.session.roomId)
+    );
+    send(reconnectedBob, lobbyJoinCommand(joined.session));
+
+    const restored = await waitForEvent(
+      () => reconnectEvents,
+      (candidate) => candidate.type === "function-draft-restored" && candidate.playerId === "bob-id"
+    );
+
+    expect(restored).toEqual({
+      type: "function-draft-restored",
+      guildId: "local-guild",
+      roomId: created.session.roomId,
+      playerId: "bob-id",
+      expression: "sin(x)+cos(x)",
+      aimDirection: "north-east"
+    });
+
+    await closeSocket(alice);
+    await closeSocket(reconnectedBob);
   });
 
   it("rejects lobby commands before a websocket joins with its selected session", async () => {

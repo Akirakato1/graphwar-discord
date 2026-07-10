@@ -72,6 +72,15 @@ export type ShotResolvedEvent = {
   lobby?: LobbyRuntimeSnapshot;
 };
 
+export type FunctionDraftRestoredEvent = {
+  type: "function-draft-restored";
+  guildId?: GuildId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  expression: string;
+  aimDirection: AimDirectionId;
+};
+
 export type MatchEndedEvent = {
   type: "match-ended";
   guildId?: GuildId;
@@ -92,6 +101,7 @@ export type ServerEvent =
   | { type: "shot-accepted"; roomId: RoomId; playerId: PlayerId }
   | { type: "shot-rejected"; roomId: RoomId; playerId: PlayerId; reason: string }
   | ShotResolvedEvent
+  | FunctionDraftRestoredEvent
   | { type: "terrain-changed"; roomId: RoomId; terrain: TerrainState }
   | { type: "player-damaged"; roomId: RoomId; damage: DamageEvent }
   | { type: "player-eliminated"; roomId: RoomId; playerId: PlayerId }

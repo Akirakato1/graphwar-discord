@@ -25,7 +25,7 @@ import {
   type RoomId
 } from "@graphwar/shared";
 import type { PlayerColor } from "@graphwar/shared";
-import type { FunctionInputMode, MatchModeId } from "@graphwar/shared";
+import type { AimDirectionId, FunctionInputMode, MatchModeId } from "@graphwar/shared";
 
 export type LobbyDirectoryOptions = {
   now?: () => Date;
@@ -47,6 +47,11 @@ export type LobbySessionIdentity = {
   sessionToken: string;
 };
 
+export type FunctionDraftState = {
+  expression: string;
+  aimDirection: AimDirectionId;
+};
+
 type RuntimeLobby = {
   guildId: GuildId;
   roomId: RoomId;
@@ -56,6 +61,7 @@ type RuntimeLobby = {
   leaderDiscordUserId: DiscordUserId;
   occupants: Map<DiscordUserId, LobbyOccupant>;
   sessionTokens: Map<DiscordUserId, string>;
+  functionDrafts: Map<DiscordUserId, FunctionDraftState>;
   maxFunctionLength: number;
   damagePerHit: number;
   craterRadius: number;
@@ -119,6 +125,7 @@ export class LobbyDirectory {
       leaderDiscordUserId: request.leaderDiscordUserId,
       occupants: new Map(),
       sessionTokens: new Map(),
+      functionDrafts: new Map(),
       maxFunctionLength: normalizeMaxFunctionLength(request.maxFunctionLength),
       damagePerHit: normalizeDamagePerHit(request.damagePerHit),
       craterRadius: normalizeCraterRadius(request.craterRadius),
@@ -381,6 +388,46 @@ export class LobbyDirectory {
       const { identity, lobby, occupant } = this.requireSession(guildId, roomId, sessionToken);
       lobby.occupants.set(identity.discordUserId, { ...occupant, connected: false });
       return this.snapshot(lobby);
+    } catch {
+      return undefined;
+    }
+  }
+
+  isOpenLeaderSession(guildId: string, roomId: string, sessionToken: string | undefined): boolean {
+    try {
+      const { identity, lobby } = this.requireSession(guildId, roomId, sessionToken);
+      return lobby.status === "open" && identity.discordUserId === lobby.leaderDiscordUserId;
+    } catch {
+      return false;
+    }
+  }
+
+  saveFunctionDraft(
+    guildId: string,
+    roomId: string,
+    sessionToken: string | undefined,
+    draft: FunctionDraftState
+  ): FunctionDraftState {
+    const { identity, lobby } = this.requireSession(guildId, roomId, sessionToken);
+    const expression = draft.expression.trim();
+    if (!expression) {
+      throw new Error("Function draft expression is required.");
+    }
+
+    const stored = { expression, aimDirection: draft.aimDirection };
+    lobby.functionDrafts.set(identity.discordUserId, stored);
+    return { ...stored };
+  }
+
+  readFunctionDraft(
+    guildId: string,
+    roomId: string,
+    sessionToken: string | undefined
+  ): FunctionDraftState | undefined {
+    try {
+      const { identity, lobby } = this.requireSession(guildId, roomId, sessionToken);
+      const draft = lobby.functionDrafts.get(identity.discordUserId);
+      return draft ? { ...draft } : undefined;
     } catch {
       return undefined;
     }

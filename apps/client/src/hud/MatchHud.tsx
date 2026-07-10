@@ -109,6 +109,12 @@ export function MatchHud({
   const turnExpired = turnSecondsRemaining !== undefined && turnSecondsRemaining <= 0;
   const canSubmitShot = connectionStatus === "open" && isMyTurn && !playbackInProgress && !turnExpired;
   const canForfeit = connectionStatus === "open" && isPlaying && !spectator && Boolean(localPlayer?.alive) && !playbackInProgress;
+  const connectionNotice =
+    connectionStatus === "connecting" || connectionStatus === "reconnecting" || connectionStatus === "closed"
+      ? "Disconnected. Trying to reestablish connection..."
+      : connectionStatus === "error"
+        ? "Connection error. Trying to recover..."
+        : undefined;
   const notice = lastError ?? lastRejection?.reason;
   const previousTurnSeconds = useRef<number | undefined>();
 
@@ -157,6 +163,11 @@ export function MatchHud({
             {activePlayer ? `${activePlayer.displayName}'s Turn` : "No Active Turn"}
           </span>
         </div>
+        {connectionNotice && (
+          <div className="notice reconnect-notice" role="status">
+            {connectionNotice}
+          </div>
+        )}
       </section>
     );
   }
@@ -213,6 +224,12 @@ export function MatchHud({
           onSubmitShot={(expression) => onSubmitShot(expression, aimDirection)}
         />
 
+        {connectionNotice && (
+          <div className="notice reconnect-notice" role="status">
+            {connectionNotice}
+          </div>
+        )}
+
         {notice && (
           <div className="notice" role="status">
             {notice}
@@ -254,6 +271,12 @@ export function MatchHud({
       {notice && (
         <div className="notice" role="status">
           {notice}
+        </div>
+      )}
+
+      {connectionNotice && (
+        <div className="notice reconnect-notice" role="status">
+          {connectionNotice}
         </div>
       )}
     </section>

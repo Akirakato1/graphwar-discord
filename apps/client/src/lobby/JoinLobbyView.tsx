@@ -60,8 +60,6 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
   const [formError, setFormError] = useState<string | undefined>();
   const [joiningRoomId, setJoiningRoomId] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | undefined>();
-  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>();
-  const selectedLobby = lobbies.find((lobby) => lobby.roomId === selectedRoomId);
 
   async function loadLobbies(): Promise<void> {
     setLoadError(undefined);
@@ -160,44 +158,30 @@ export function JoinLobbyView({ lobbies, onBack, onJoin, onLoad, settings }: Joi
             lobbies.map((lobby) => {
               return (
                 <div className="lobby-row" key={lobby.roomId}>
-                  <div>
-                    <button
-                      aria-pressed={selectedRoomId === lobby.roomId}
-                      className="lobby-select-button"
-                      onClick={() => {
-                        setSelectedRoomId(lobby.roomId);
-                        setAliasTaken(false);
-                        setFormError(undefined);
-                      }}
-                      type="button"
-                    >
-                      {lobby.name}
-                    </button>
+                  <div className="lobby-row-summary">
+                    <strong className="lobby-row-name">{lobby.name}</strong>
                     <span>
                       {lobby.status} - {lobby.playerCount} players - {lobby.spectatorCount} spectators
                     </span>
+                  </div>
+                  <div className="lobby-row-actions" aria-label={`Join ${lobby.name}`}>
+                    {availableJoinSlots(settings).map((actionSlot) => (
+                      <button
+                        className={actionSlot === "player" ? "primary-action" : "secondary-action"}
+                        disabled={isJoinActionDisabled(lobby, actionSlot, joiningRoomId)}
+                        key={actionSlot}
+                        onClick={(event) => void handleJoin(lobby.roomId, actionSlot, event)}
+                        type="button"
+                      >
+                        {joinActionLabel(actionSlot)}
+                      </button>
+                    ))}
                   </div>
                 </div>
               );
             })
           )}
         </div>
-
-        {selectedLobby && (
-          <div className="form-actions" aria-label={`Join ${selectedLobby.name}`}>
-            {availableJoinSlots(settings).map((actionSlot) => (
-              <button
-                className={actionSlot === "player" ? "primary-action" : "secondary-action"}
-                disabled={isJoinActionDisabled(selectedLobby, actionSlot, joiningRoomId)}
-                key={actionSlot}
-                onClick={(event) => void handleJoin(selectedLobby.roomId, actionSlot, event)}
-                type="button"
-              >
-                {joinActionLabel(actionSlot)}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="form-actions">
           <button className="secondary-action" onClick={onBack} type="button">

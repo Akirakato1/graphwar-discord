@@ -18,7 +18,7 @@ import { MainMenu } from "../menu/MainMenu";
 import { SettingsView } from "../settings/SettingsView";
 import { useGameStore, type AppView, type SelectedLobbySession } from "./useGameStore";
 import type { ClientSession } from "../sessions/localSession";
-import type { AimDirectionId, LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
+import type { LobbyOccupant, LobbyRuntimeSnapshot, ServerEvent } from "@graphwar/shared";
 
 type LocalLobbyIdentityInput = {
   currentLobby?: LobbyRuntimeSnapshot;
@@ -71,6 +71,8 @@ function withButtonSounds(element: JSX.Element): JSX.Element {
 export function App(props?: AppProps): JSX.Element;
 export function App({ viewOverride }: AppProps = {}) {
   const autoAssignTeams = useGameStore((state) => state.autoAssignTeams);
+  const connect = useGameStore((state) => state.connect);
+  const connectionStatus = useGameStore((state) => state.connectionStatus);
   const createLobby = useGameStore((state) => state.createLobby);
   const currentLobby = useGameStore((state) => state.currentLobby);
   const customMaps = useGameStore((state) => state.customMaps);
@@ -101,6 +103,12 @@ export function App({ viewOverride }: AppProps = {}) {
       void loadSettings();
     }
   }, [loadSettings, settings, view]);
+
+  useEffect(() => {
+    if (!viewOverride && selectedLobbySession && (connectionStatus === "idle" || connectionStatus === "closed")) {
+      connect();
+    }
+  }, [connect, connectionStatus, selectedLobbySession, viewOverride]);
 
   useEffect(() => {
     if (view === "create-lobby" || view === "custom-maps") {
@@ -204,8 +212,10 @@ function GameActivity() {
   const session = useGameStore((state) => state.session);
   const snapshot = useGameStore((state) => state.snapshot);
   const submitShot = useGameStore((state) => state.submitShot);
-  const [aimDirection, setAimDirection] = useState<AimDirectionId>("east");
-  const [draftExpression, setDraftExpression] = useState("sin(x)");
+  const aimDirection = useGameStore((state) => state.draftAimDirection);
+  const draftExpression = useGameStore((state) => state.draftExpression);
+  const setAimDirection = useGameStore((state) => state.setDraftAimDirection);
+  const setDraftExpression = useGameStore((state) => state.setDraftExpression);
   const audibleEventCountRef = useRef(0);
 
   const latestShot = useMemo(() => findLatestShotResolvedEvent(recentEvents), [recentEvents]);

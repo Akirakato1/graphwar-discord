@@ -113,6 +113,27 @@ describe("LobbySetupView", () => {
     expect(html).not.toContain('aria-label="Move Bob to Team A"');
   });
 
+  it("marks disconnected lobby occupants while keeping them in their group", () => {
+    const html = renderToStaticMarkup(
+      <LobbySetupView
+        currentPlayerId="alice-id"
+        lobby={{
+          ...lobby,
+          occupants: lobby.occupants.map((occupant) =>
+            occupant.playerId === "bob-id" ? { ...occupant, connected: false } : occupant
+          )
+        }}
+        onAutoAssign={() => undefined}
+        onBack={() => undefined}
+        onMove={() => undefined}
+        onStart={() => undefined}
+      />
+    );
+
+    expect(html).toContain("Bob");
+    expect(html).toContain("Disconnected");
+  });
+
   it("only enables group move actions for a movable local occupant outside the target group", () => {
     expect(
       groupMoveAction({

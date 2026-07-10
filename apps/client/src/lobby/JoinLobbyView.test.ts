@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { defaultLobbyGameplaySettings, playerColorPalette } from "@graphwar/shared";
 import {
   availableJoinSlots,
   isAliasConflictError,
   isJoinActionDisabled,
   prepareJoinLobbyForm,
+  JoinLobbyView,
   joinActionLabel,
   validateJoinAlias
 } from "./JoinLobbyView";
@@ -55,5 +58,24 @@ describe("JoinLobbyView helpers", () => {
 
   it("removes spectator join actions when guild settings disable spectators", () => {
     expect(availableJoinSlots({ allowSpectators: false })).toEqual(["player"]);
+  });
+
+  it("renders join actions inline on each lobby row without making the lobby name clickable", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(JoinLobbyView, {
+        lobbies: [openLobby],
+        onBack: () => undefined,
+        onJoin: async () => undefined,
+        onLoad: async () => undefined,
+        settings: { guildId: "local-guild", defaultMode: "team-versus", allowSpectators: true }
+      })
+    );
+
+    expect(html).toContain("Friday Graphwar");
+    expect(html).toContain("Join As Player");
+    expect(html).toContain("Spectate");
+    expect(html).toContain("class=\"lobby-row-actions\"");
+    expect(html).not.toContain("lobby-select-button");
+    expect(html).not.toContain("aria-pressed");
   });
 });

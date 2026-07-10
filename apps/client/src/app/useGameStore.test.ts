@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { connectGameClient, type ConnectGameClientOptions, type WebSocketConstructor } from "../networking/gameClient";
 import type { LobbyApi } from "../networking/lobbyApi";
 import type { ClientSession } from "../sessions/localSession";
+import type { LobbySessionStorage } from "./lobbySessionStorage";
 import { createGameStore } from "./useGameStore";
 
 const session: ClientSession = {
@@ -174,6 +175,16 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
   };
 }
 
+function memoryLobbySessionStorage(): LobbySessionStorage & { values: Map<string, string> } {
+  const values = new Map<string, string>();
+  return {
+    values,
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key)
+  };
+}
+
 async function selectLobby(store: ReturnType<typeof createGameStore>): Promise<void> {
   await store.getState().createLobby({
     name: "Local Test",
@@ -204,6 +215,38 @@ describe("createGameStore", () => {
     expect(store.getState().view).toBe("main-menu");
     expect(store.getState().connectionStatus).toBe("idle");
     expect(commands).toEqual([]);
+  });
+
+  it("restores a selected lobby session from local storage for browser refresh resume", () => {
+    const storage = memoryLobbySessionStorage();
+    storage.setItem(
+      "graphwar.selectedLobbySession:local-guild:alice",
+      JSON.stringify({
+        guildId: "local-guild",
+        roomId: "room-restored",
+        discordUserId: "alice",
+        playerId: "alice-player",
+        alias: "Alice",
+        color: defaultPlayerColor,
+        slot: "player",
+        sessionToken: "restored-token"
+      })
+    );
+
+    const store = createGameStore({
+      session,
+      selectedLobbyStorage: storage,
+      clientFactory: () => {
+        throw new Error("restore should not connect until the app asks it to");
+      }
+    });
+
+    expect(store.getState().view).toBe("lobby-setup");
+    expect(store.getState().selectedLobbySession).toMatchObject({
+      roomId: "room-restored",
+      playerId: "alice-player",
+      sessionToken: "restored-token"
+    });
   });
 
   it("creates a lobby through HTTP then connects to the selected websocket room", async () => {
@@ -331,6 +374,32 @@ describe("createGameStore", () => {
         sessionToken: "alice-session"
       }
     ]);
+  });
+
+  it("persists selected lobby sessions after creating and clears them on return to menu", async () => {
+    const storage = memoryLobbySessionStorage();
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor("room-persist"),
+      selectedLobbyStorage: storage,
+      clientFactory: () => ({ send: () => {}, close: () => {} })
+    });
+
+    await store.getState().createLobby({
+      name: "Local Test",
+      alias: "Alice",
+      mode: "team-versus",
+      initialSlot: "player",
+      color: defaultPlayerColor,
+      maxFunctionLength: 50,
+      ...defaultLobbyGameplaySettings
+    });
+
+    expect(storage.values.get("graphwar.selectedLobbySession:local-guild:alice")).toContain("room-persist");
+
+    store.getState().returnToMenu();
+
+    expect(storage.values.has("graphwar.selectedLobbySession:local-guild:alice")).toBe(false);
   });
 
   it("passes the selected color and avatar when joining a lobby", async () => {
@@ -678,6 +747,57 @@ describe("createGameStore", () => {
         sessionToken: "session-token"
       }
     ]);
+  });
+
+  it("syncs function draft changes and restores authoritative drafts from the server", async () => {
+    const commands: ClientCommand[] = [];
+    let onEvent: ((event: ServerEvent) => void) | undefined;
+    const store = createGameStore({
+      session,
+      lobbyApi: lobbyApiFor(),
+      clientFactory: (options) => {
+        onEvent = options.onEvent;
+        return {
+          send: (command) => commands.push(command),
+          close: () => {}
+        };
+      }
+    });
+
+    await selectLobby(store);
+    store.getState().setDraftExpression("");
+    store.getState().setDraftAimDirection("west");
+    onEvent?.({
+      type: "function-draft-restored",
+      guildId: "local-guild",
+      roomId: "local-test",
+      playerId: "alice",
+      expression: "cos(x)",
+      aimDirection: "north-west"
+    });
+
+    expect(commands).toEqual([
+      {
+        type: "update-function-draft",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        expression: "",
+        aimDirection: "east",
+        sessionToken: "session-token"
+      },
+      {
+        type: "update-function-draft",
+        guildId: "local-guild",
+        roomId: "local-test",
+        playerId: "alice",
+        expression: "",
+        aimDirection: "west",
+        sessionToken: "session-token"
+      }
+    ]);
+    expect(store.getState().draftExpression).toBe("cos(x)");
+    expect(store.getState().draftAimDirection).toBe("north-west");
   });
 
   it("sends team placement and auto-assign commands for the selected lobby", async () => {

@@ -85,6 +85,21 @@ describe("MatchHud", () => {
     expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
   });
 
+  it("shows a reconnecting notice while preserving function prep controls", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MatchHud, {
+        connectionStatus: "reconnecting",
+        onSubmitShot: () => {},
+        session,
+        snapshot: playingSnapshot
+      })
+    );
+
+    expect(html).toContain("Disconnected. Trying to reestablish connection...");
+    expect(html).toContain("Function Shot");
+    expect(html).toMatch(/class="primary-action"[^>]*disabled=""[^>]*type="submit">Fire<\/button>/);
+  });
+
   it("keeps function prep editable when it is not the local player's turn", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchHud, {

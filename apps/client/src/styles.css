@@ -1146,6 +1146,17 @@ dd {
   line-height: 1;
 }
 
+.connection-tag {
+  justify-self: end;
+  border: 1px solid rgba(255, 107, 95, 0.42);
+  border-radius: 999px;
+  color: #ffb1a9;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+
 .lobby-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1162,11 +1173,24 @@ dd {
 
 .lobby-row {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel-soft);
   padding: 8px;
+}
+
+.lobby-row-summary {
+  min-width: 0;
+}
+
+.lobby-row-name {
+  display: block;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .lobby-row span {
@@ -1175,20 +1199,16 @@ dd {
   font-size: 12px;
 }
 
-.lobby-select-button {
-  min-height: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-strong);
-  font-weight: 800;
-  padding: 0;
-  text-align: left;
+.lobby-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
-.lobby-select-button[aria-pressed="true"],
-.lobby-select-button:hover,
-.lobby-select-button:focus-visible {
-  color: #9fd3c5;
+.lobby-row-actions button {
+  min-height: 30px;
+  padding: 0 10px;
 }
 
 .surface-list {
@@ -1331,6 +1351,11 @@ dd {
 .critical-turn-timer strong,
 .critical-turn-timer span {
   color: #ff6b5f;
+}
+
+.reconnect-notice {
+  border-color: rgba(243, 213, 143, 0.32);
+  color: #f3d58f;
 }
 
 .forfeit-action {

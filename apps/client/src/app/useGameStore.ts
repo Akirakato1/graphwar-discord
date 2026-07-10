@@ -22,6 +22,14 @@ import { createStore, type StateCreator, type StoreApi } from "zustand/vanilla";
 import { connectGameClient, type ConnectGameClientOptions, type GameClient } from "../networking/gameClient";
 import { createLobbyApi, type LobbyApi } from "../networking/lobbyApi";
 import { readLocalSession, type ClientSession } from "../sessions/localSession";
+import {
+  clearSelectedLobbySession,
+  readBrowserLobbySessionStorage,
+  readSelectedLobbySession,
+  saveSelectedLobbySession,
+  type LobbySessionStorage,
+  type PersistedSelectedLobbySession
+} from "./lobbySessionStorage";
 
 export type ConnectionStatus = "idle" | "connecting" | "open" | "closed" | "reconnecting" | "error";
 
@@ -35,17 +43,7 @@ export type AppView =
   | "lobby-setup"
   | "game";
 
-export type SelectedLobbySession = {
-  guildId: string;
-  roomId: string;
-  discordUserId: string;
-  playerId: string;
-  alias: string;
-  avatarUrl?: string;
-  color: PlayerColor;
-  slot: "player" | "spectator";
-  sessionToken: string;
-};
+export type SelectedLobbySession = PersistedSelectedLobbySession;
 
 export type GameLogEntry = {
   id: number;
@@ -90,6 +88,8 @@ export type GameStoreState = {
   currentLobby?: LobbyRuntimeSnapshot;
   deleteCustomMap(mapId: string): Promise<void>;
   disconnect(): void;
+  draftAimDirection: AimDirectionId;
+  draftExpression: string;
   forfeitMatch(): void;
   joinRoom(): void;
   joinLobby(roomId: string, form: { alias: string; slot: LobbySlot; color: PlayerColor }): Promise<void>;
@@ -110,6 +110,8 @@ export type GameStoreState = {
   settings?: GuildSettings;
   saveCustomMap(map: CustomMapImport): Promise<void>;
   saveSettings(settings: GuildSettings): Promise<void>;
+  setDraftAimDirection(aimDirection: AimDirectionId): void;
+  setDraftExpression(expression: string): void;
   setTeam(targetPlayerId: string, placement: LobbyPlacementId): void;
   setView(view: AppView): void;
   snapshot?: MatchSnapshot;
@@ -122,6 +124,7 @@ export type CreateGameStoreOptions = {
   clientFactory?: GameClientFactory;
   lobbyApi?: LobbyApi;
   logLimit?: number;
+  selectedLobbyStorage?: LobbySessionStorage;
   session?: ClientSession;
 };
 
@@ -217,6 +220,8 @@ function describeEvent(event: ServerEvent): string {
       return `${event.playerId}'s command was rejected: ${event.reason}`;
     case "shot-resolved":
       return `${event.shooterId} fired ${event.expression}; impact: ${event.impact.reason}.`;
+    case "function-draft-restored":
+      return "Function draft restored.";
     case "terrain-changed":
       return "Terrain changed.";
     case "player-damaged":
@@ -235,6 +240,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
   const clientFactory = options.clientFactory ?? connectGameClient;
   const lobbyApi = options.lobbyApi ?? createLobbyApi(session.serverUrl);
   const logLimit = options.logLimit ?? 30;
+  const selectedLobbyStorage = options.selectedLobbyStorage ?? readBrowserLobbySessionStorage();
+  const persistedSelectedLobbySession = readSelectedLobbySession(selectedLobbyStorage, session);
   let client: GameClient | undefined;
   let connectionId = 0;
   let logId = 0;
@@ -257,6 +264,23 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       }
 
       client.send(command);
+    }
+
+    function sendFunctionDraft(expression: string, aimDirection: AimDirectionId): void {
+      const selected = get().selectedLobbySession;
+      if (!selected || !client) {
+        return;
+      }
+
+      client.send({
+        type: "update-function-draft",
+        guildId: selected.guildId,
+        roomId: selected.roomId,
+        playerId: selected.playerId,
+        expression,
+        aimDirection,
+        sessionToken: selected.sessionToken
+      });
     }
 
     function selectedRoom(): SelectedLobbySession | undefined {
@@ -286,6 +310,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
     function handleEvent(event: ServerEvent): void {
       if (event.type === "lobby-cancelled") {
         closeClientForLobbySwitch();
+        clearSelectedLobbySession(selectedLobbyStorage, session);
         set({
           currentLobby: undefined,
           lastError: undefined,
@@ -301,6 +326,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
 
       if (event.type === "player-forfeited" && event.playerId === localSelectedPlayerId()) {
         closeClientForLobbySwitch();
+        clearSelectedLobbySession(selectedLobbyStorage, session);
         set({
           currentLobby: undefined,
           lastError: undefined,
@@ -310,6 +336,16 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           snapshot: undefined,
           view: "main-menu"
         });
+        appendLog(describeEvent(event), event.type);
+        return;
+      }
+
+      if (event.type === "function-draft-restored") {
+        set((state) => ({
+          draftAimDirection: event.aimDirection,
+          draftExpression: event.expression,
+          recentEvents: [...state.recentEvents, event].slice(-logLimit)
+        }));
         appendLog(describeEvent(event), event.type);
         return;
       }
@@ -456,9 +492,11 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             ...(form.mapId ? { mapId: form.mapId } : { mapSizePreset: form.mapSizePreset })
           });
           closeClientForLobbySwitch();
+          const selectedLobbySession = selectedLobbySessionFromResult(session, result.session);
+          saveSelectedLobbySession(selectedLobbyStorage, session, selectedLobbySession);
           set({
             currentLobby: result.lobby,
-            selectedLobbySession: selectedLobbySessionFromResult(session, result.session),
+            selectedLobbySession,
             view: "lobby-setup",
             lastError: undefined,
             lastRejection: undefined
@@ -494,6 +532,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         set({ connectionStatus: "closed", lastRejection: undefined });
         appendLog("Disconnected.");
       },
+      draftAimDirection: "east",
+      draftExpression: "sin(x)",
       forfeitMatch() {
         const selected = selectedRoom();
         if (!selected) {
@@ -518,9 +558,11 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
             color: form.color
           });
           closeClientForLobbySwitch();
+          const selectedLobbySession = selectedLobbySessionFromResult(session, result.session);
+          saveSelectedLobbySession(selectedLobbyStorage, session, selectedLobbySession);
           set({
             currentLobby: result.lobby,
-            selectedLobbySession: selectedLobbySessionFromResult(session, result.session),
+            selectedLobbySession,
             view: "lobby-setup",
             lastError: undefined,
             lastRejection: undefined
@@ -596,6 +638,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
       lobbies: [],
       recentEvents: [],
       returnToMenu() {
+        clearSelectedLobbySession(selectedLobbyStorage, session);
         connectionId += 1;
         const currentClient = client;
         client = undefined;
@@ -603,6 +646,8 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
         set({
           connectionStatus: "closed",
           currentLobby: undefined,
+          draftAimDirection: "east",
+          draftExpression: "sin(x)",
           lastError: undefined,
           lastRejection: undefined,
           recentEvents: [],
@@ -626,7 +671,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           sessionToken: selected.sessionToken
         });
       },
-      selectedLobbySession: undefined,
+      selectedLobbySession: persistedSelectedLobbySession,
       session,
       settings: undefined,
       async saveCustomMap(map) {
@@ -655,6 +700,14 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           set({ lastError: message, lastRejection: undefined });
           throw error;
         }
+      },
+      setDraftAimDirection(aimDirection) {
+        set({ draftAimDirection: aimDirection });
+        sendFunctionDraft(get().draftExpression, aimDirection);
+      },
+      setDraftExpression(expression) {
+        set({ draftExpression: expression });
+        sendFunctionDraft(expression, get().draftAimDirection);
       },
       setTeam(targetPlayerId, placement) {
         const selected = selectedRoom();
@@ -714,7 +767,7 @@ export function createGameState(options: CreateGameStoreOptions = {}): StateCrea
           sessionToken: selected.sessionToken
         });
       },
-      view: "main-menu"
+      view: persistedSelectedLobbySession ? "lobby-setup" : "main-menu"
     };
   };
 }

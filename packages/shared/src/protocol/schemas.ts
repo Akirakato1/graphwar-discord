@@ -134,6 +134,15 @@ const clientCommandUnionSchema = z.discriminatedUnion("type", [
     sessionToken: optionalSessionTokenSchema
   }),
   z.object({
+    type: z.literal("update-function-draft"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    expression: z.string(),
+    aimDirection: aimDirectionSchema,
+    sessionToken: optionalSessionTokenSchema
+  }),
+  z.object({
     type: z.literal("send-chat"),
     guildId: optionalGuildIdSchema,
     roomId: z.string(),
@@ -233,6 +242,14 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     eliminations: z.array(z.string()),
     snapshot: matchSnapshotSchema,
     lobby: lobbyRuntimeSnapshotSchema.optional()
+  }),
+  z.object({
+    type: z.literal("function-draft-restored"),
+    guildId: optionalGuildIdSchema,
+    roomId: z.string(),
+    playerId: z.string(),
+    expression: z.string().min(1),
+    aimDirection: aimDirectionSchema
   }),
   z.object({ type: z.literal("terrain-changed"), roomId: z.string(), terrain: terrainStateSchema }),
   z.object({
