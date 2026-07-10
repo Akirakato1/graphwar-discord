@@ -47,6 +47,7 @@
   "45": "Community 45",
   "46": "Community 46",
   "47": "Community 47",
+  "48": "useGameStore.test.ts",
   "49": "Community 49",
   "50": "Community 50",
   "51": "Community 51",
@@ -86,5 +87,14 @@
   "85": "File Structure",
   "86": "Global Constraints",
   "87": "Aim Direction HUD Implementation Plan",
-  "88": "AGENTS.md"
+  "88": "AGENTS.md",
+  "89": "MatchHud.tsx",
+  "90": "types.ts",
+  "91": "DirectionDial.tsx",
+  "92": "LobbyPanel.tsx",
+  "93": "MapLibraryView.tsx",
+  "94": "lobbyApi.test.ts",
+  "95": "LeaderboardView.tsx",
+  "96": "SettingsView.tsx",
+  "97": "LocalStateStore.maps.test.ts"
 }

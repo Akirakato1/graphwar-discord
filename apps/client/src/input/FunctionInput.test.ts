@@ -22,6 +22,16 @@ describe("FunctionInput", () => {
     );
 
     expect(html).toContain("Function Shot");
+    expect(html).toContain("aria-label=\"Function expression editor\"");
+    expect(html).toContain("class=\"math-editor-display\"");
+    expect(html).toContain("class=\"math-cursor\"");
+    expect(html).toContain("aria-label=\"Edit controls\"");
+    expect(html).toContain("aria-label=\"Number buttons\"");
+    expect(html).toContain("aria-label=\"Operation buttons\"");
+    expect(html).toContain("aria-label=\"Function buttons\"");
+    expect(html).toContain(">+<");
+    expect(html).toContain("aria-label=\"Insert multiplication operator\"");
+    expect(html).toContain("aria-label=\"Insert division operator\"");
     expect(html).toContain("aria-label=\"Insert sine function\"");
     expect(html).toContain(">sin<");
     expect(html).toContain(">sqrt<");
@@ -58,6 +68,8 @@ describe("FunctionInput", () => {
     expect(html).toContain("aria-label=\"Insert zeta function\"");
     expect(html).toContain("aria-label=\"Insert floor function\"");
     expect(html).toContain("aria-label=\"Insert ceiling function\"");
+    expect(html).toContain("aria-label=\"Function buttons\"");
+    expect(html).not.toContain("aria-label=\"Advanced function buttons\"");
   });
 
   it("disables the input, snippet buttons, and fire button together", () => {
@@ -87,7 +99,8 @@ describe("FunctionInput", () => {
       })
     );
 
-    expect(html).toContain("class=\"math-preview\"");
+    expect(html).toContain("class=\"math-editor-display\"");
+    expect(html).toContain("class=\"math-cursor\"");
     expect(html).toContain("aria-label=\"Move cursor left\"");
     expect(html).toContain("aria-label=\"Delete previous character\"");
     expect(html).toContain("aria-label=\"Insert integral template\"");
@@ -108,5 +121,6 @@ describe("FunctionInput", () => {
     expect(html).not.toContain("readonly=\"\"");
     expect(html).not.toContain("aria-label=\"Insert sine function\"");
     expect(html).not.toContain("aria-label=\"Move cursor left\"");
+    expect(html).toContain("aria-label=\"Function expression editor\"");
   });
 });

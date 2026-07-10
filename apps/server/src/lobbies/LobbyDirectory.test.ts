@@ -104,7 +104,9 @@ describe("LobbyDirectory", () => {
       uniqueFunctionHits: false,
       friendlyFire: true,
       advancedFunctions: true,
-      functionPreview: false
+      functionPreview: false,
+      turnTimerEnabled: false,
+      turnDurationSeconds: 300
     });
 
     expect(created.lobby).toEqual(
@@ -114,7 +116,9 @@ describe("LobbyDirectory", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnTimerEnabled: false,
+        turnDurationSeconds: 300
       })
     );
     expect(directory.getLobby("guild-1", "room-1")).toEqual(
@@ -124,7 +128,9 @@ describe("LobbyDirectory", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnTimerEnabled: false,
+        turnDurationSeconds: 300
       })
     );
     expect(directory.listLobbies("guild-1")).toEqual([
@@ -134,7 +140,9 @@ describe("LobbyDirectory", () => {
         uniqueFunctionHits: false,
         friendlyFire: true,
         advancedFunctions: true,
-        functionPreview: false
+        functionPreview: false,
+        turnTimerEnabled: false,
+        turnDurationSeconds: 300
       })
     ]);
   });

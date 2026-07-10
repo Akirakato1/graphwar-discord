@@ -222,6 +222,7 @@ export class GameRoom {
           uniqueFunctionHits: lobby.uniqueFunctionHits,
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions,
+          turnTimerEnabled: lobby.turnTimerEnabled,
           turnDurationSeconds: lobby.turnDurationSeconds
         });
         this.broadcast({ type: "match-started", guildId: context.guildId, roomId: this.roomId, lobby, snapshot });

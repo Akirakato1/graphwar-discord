@@ -143,7 +143,7 @@ export function MatchHud({
           </span>
         </div>
 
-        <div className="play-control-strip">
+        <div className={turnSecondsRemaining !== undefined ? "play-control-strip has-turn-timer" : "play-control-strip"}>
           <div className="own-hp" data-testid="own-hp">
             <span>HP</span>
             <strong>{displayLocalPlayer ? `${displayLocalPlayer.hp} HP` : "-- HP"}</strong>

@@ -10,6 +10,7 @@ import {
   defaultFriendlyFire,
   defaultInputMode,
   defaultTurnDurationSeconds,
+  defaultTurnTimerEnabled,
   defaultUniqueFunctionHits,
   inputModes,
   turnDurationSecondsBounds
@@ -70,6 +71,7 @@ type ParsedCreateLobbyRequest = Omit<
   | "friendlyFire"
   | "advancedFunctions"
   | "functionPreview"
+  | "turnTimerEnabled"
   | "turnDurationSeconds"
   | "inputMode"
 > &
@@ -155,6 +157,7 @@ export const createLobbyRequestSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.default(defaultMapSizePreset),
@@ -208,6 +211,7 @@ export const lobbyRuntimeSnapshotSchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.optional(),
@@ -233,6 +237,7 @@ export const lobbySummarySchema = z.object({
   friendlyFire: z.boolean().default(defaultFriendlyFire),
   advancedFunctions: z.boolean().default(defaultAdvancedFunctions),
   functionPreview: z.boolean().default(defaultFunctionPreview),
+  turnTimerEnabled: z.boolean().default(defaultTurnTimerEnabled),
   turnDurationSeconds: turnDurationSecondsSchema,
   inputMode: inputModeSchema,
   mapSizePreset: mapSizePresetSchema.optional(),

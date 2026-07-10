@@ -61,6 +61,7 @@ export type MatchStartOptions = {
   uniqueFunctionHits?: boolean;
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
+  turnTimerEnabled?: boolean;
   turnDurationSeconds?: number;
 };
 
@@ -75,6 +76,7 @@ type MatchRules = {
   uniqueFunctionHits: boolean;
   friendlyFire: boolean;
   advancedFunctions: boolean;
+  turnTimerEnabled: boolean;
   turnDurationSeconds: number;
 };
 
@@ -162,6 +164,7 @@ export class MatchController {
       uniqueFunctionHits: options.uniqueFunctionHits ?? defaultLobbyGameplaySettings.uniqueFunctionHits,
       friendlyFire: options.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
       advancedFunctions: options.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
+      turnTimerEnabled: options.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
       turnDurationSeconds: normalizeTurnDurationSeconds(options.turnDurationSeconds)
     };
     this.successfulHitKeys.clear();
@@ -449,6 +452,14 @@ export class MatchController {
 
   private createPlayingTurn(activePlayerId: PlayerId, order: PlayerId[], turnNumber: number): TurnState {
     if (!activePlayerId) {
+      return {
+        activePlayerId,
+        order: [...order],
+        turnNumber
+      };
+    }
+
+    if (!this.matchRules.turnTimerEnabled) {
       return {
         activePlayerId,
         order: [...order],

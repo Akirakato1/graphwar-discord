@@ -6,6 +6,7 @@ import {
   defaultLobbyGameplaySettings,
   defaultPlayerColor,
   defaultTurnDurationSeconds,
+  defaultTurnTimerEnabled,
   inputModes,
   normalizeCraterRadius,
   normalizeDamagePerHit,
@@ -64,6 +65,7 @@ type CreateLobbyViewProps = {
     friendlyFire: boolean;
     advancedFunctions: boolean;
     functionPreview: boolean;
+    turnTimerEnabled: boolean;
     turnDurationSeconds: number;
     inputMode: FunctionInputMode;
     mapId?: string;
@@ -85,6 +87,7 @@ type CreateLobbyForm = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
   mapId?: string;
@@ -114,6 +117,7 @@ export function prepareCreateLobbyForm(form: CreateLobbyForm): { form: CreateLob
       friendlyFire: form.mode === "team-versus" ? form.friendlyFire : false,
       advancedFunctions: form.advancedFunctions,
       functionPreview: form.functionPreview,
+      turnTimerEnabled: form.turnTimerEnabled,
       turnDurationSeconds: normalizeTurnDurationSeconds(form.turnDurationSeconds),
       inputMode: normalizeInputMode(form.inputMode),
       ...(form.mapId ? {} : { mapSizePreset: mapSizePreset ?? defaultMapSizePreset })
@@ -143,6 +147,7 @@ export function createLobbyInitialForm(defaultAlias: string, settings?: Pick<Gui
     friendlyFire: defaultLobbyGameplaySettings.friendlyFire,
     advancedFunctions: defaultLobbyGameplaySettings.advancedFunctions,
     functionPreview: defaultLobbyGameplaySettings.functionPreview,
+    turnTimerEnabled: defaultTurnTimerEnabled,
     turnDurationSeconds: defaultTurnDurationSeconds,
     inputMode: defaultLobbyGameplaySettings.inputMode,
     mapSizePreset: defaultMapSizePreset
@@ -164,6 +169,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
   const [friendlyFire, setFriendlyFire] = useState(initialForm.friendlyFire);
   const [advancedFunctions, setAdvancedFunctions] = useState(initialForm.advancedFunctions);
   const [functionPreview, setFunctionPreview] = useState(initialForm.functionPreview);
+  const [turnTimerEnabled, setTurnTimerEnabled] = useState(initialForm.turnTimerEnabled);
   const [turnDurationSeconds, setTurnDurationSeconds] = useState(initialForm.turnDurationSeconds);
   const [inputMode, setInputMode] = useState<FunctionInputMode>(initialForm.inputMode);
   const [mode, setMode] = useState<MatchModeId>(initialForm.mode);
@@ -195,6 +201,7 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
           friendlyFire,
           advancedFunctions,
           functionPreview,
+          turnTimerEnabled,
           turnDurationSeconds,
           inputMode,
           ...(mapId ? { mapId } : { mapSizePreset })
@@ -313,22 +320,35 @@ export function CreateLobbyView({ customMaps = [], defaultAlias, onBack, onCreat
             }}
           />
         </label>
-        <label className="slider-setting">
-          <span>
-            Turn timer <strong>{turnDurationSeconds}s</strong>
-          </span>
+        <label className="toggle-row">
           <input
-            max={turnDurationSecondsBounds.max}
-            min={turnDurationSecondsBounds.min}
-            step={turnDurationSecondsBounds.step}
-            type="range"
-            value={turnDurationSeconds}
+            checked={turnTimerEnabled}
             onChange={(event) => {
-              setTurnDurationSeconds(Number(event.currentTarget.value));
+              setTurnTimerEnabled(event.currentTarget.checked);
               setFormError(undefined);
             }}
+            type="checkbox"
           />
+          Turn timer
         </label>
+        {turnTimerEnabled ? (
+          <label className="slider-setting timer-limit-setting">
+            <span>
+              Timer limit <strong>{turnDurationSeconds}s</strong>
+            </span>
+            <input
+              max={turnDurationSecondsBounds.max}
+              min={turnDurationSecondsBounds.min}
+              step={turnDurationSecondsBounds.step}
+              type="range"
+              value={turnDurationSeconds}
+              onChange={(event) => {
+                setTurnDurationSeconds(Number(event.currentTarget.value));
+                setFormError(undefined);
+              }}
+            />
+          </label>
+        ) : null}
         <label>
           Input mode
           <select value={inputMode} onChange={(event) => setInputMode(event.currentTarget.value as FunctionInputMode)}>

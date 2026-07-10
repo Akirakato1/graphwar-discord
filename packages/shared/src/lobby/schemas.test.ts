@@ -15,8 +15,10 @@ import {
   defaultFunctionPreview,
   defaultInputMode,
   defaultTurnDurationSeconds,
+  defaultTurnTimerEnabled,
   defaultUniqueFunctionHits,
-  normalizeFunctionHitExpression
+  normalizeFunctionHitExpression,
+  turnDurationSecondsBounds
 } from "./gameplaySettings";
 import { defaultMaxFunctionLength, defaultPlayerColor, playerColorPalette } from "./identity";
 
@@ -43,6 +45,7 @@ describe("lobby schemas", () => {
         color: defaultPlayerColor,
         mapSizePreset: "standard",
         maxFunctionLength: defaultMaxFunctionLength,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: defaultInputMode
       })
@@ -161,6 +164,7 @@ describe("lobby schemas", () => {
         friendlyFire: defaultFriendlyFire,
         advancedFunctions: defaultAdvancedFunctions,
         functionPreview: defaultFunctionPreview,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: defaultInputMode
       })
@@ -181,7 +185,8 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
-        turnDurationSeconds: 45,
+        turnTimerEnabled: false,
+        turnDurationSeconds: 300,
         inputMode: "keypad"
       })
     ).toEqual(
@@ -192,10 +197,13 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
-        turnDurationSeconds: 45,
+        turnTimerEnabled: false,
+        turnDurationSeconds: 300,
         inputMode: "keypad"
       })
     );
+
+    expect(turnDurationSecondsBounds).toMatchObject({ min: 15, max: 300 });
 
     expect(() =>
       createLobbyRequestSchema.parse({
@@ -248,7 +256,18 @@ describe("lobby schemas", () => {
         alias: "Alice",
         mode: "team-versus",
         initialSlot: "player",
-        turnDurationSeconds: 9
+        turnDurationSeconds: 14
+      })
+    ).toThrow();
+
+    expect(() =>
+      createLobbyRequestSchema.parse({
+        name: "Team Room",
+        leaderDiscordUserId: "alice-id",
+        alias: "Alice",
+        mode: "team-versus",
+        initialSlot: "player",
+        turnDurationSeconds: 301
       })
     ).toThrow();
 
@@ -281,6 +300,7 @@ describe("lobby schemas", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      turnTimerEnabled: false,
       turnDurationSeconds: 45,
       inputMode: "keypad",
       createdAt: "2026-07-05T00:00:00.000Z"
@@ -304,6 +324,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
         createdAt: "2026-07-05T00:00:00.000Z"
@@ -316,6 +337,7 @@ describe("lobby schemas", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
       })
@@ -366,6 +388,7 @@ describe("lobby schemas", () => {
       friendlyFire: defaultFriendlyFire,
       advancedFunctions: defaultAdvancedFunctions,
       functionPreview: defaultFunctionPreview,
+      turnTimerEnabled: defaultTurnTimerEnabled,
       turnDurationSeconds: defaultTurnDurationSeconds,
       inputMode: defaultInputMode,
       createdAt: "2026-07-05T00:00:00.000Z"

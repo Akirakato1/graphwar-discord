@@ -115,6 +115,7 @@ function lobbyApiFor(roomId = "local-test"): LobbyApi {
         friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
         advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
         functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+        turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
         turnDurationSeconds: request.turnDurationSeconds ?? defaultLobbyGameplaySettings.turnDurationSeconds,
         inputMode: request.inputMode ?? defaultLobbyGameplaySettings.inputMode,
         createdAt: "2026-07-05T00:00:00.000Z"
@@ -444,6 +445,7 @@ describe("createGameStore", () => {
       friendlyFire: true,
       advancedFunctions: true,
       functionPreview: false,
+      turnTimerEnabled: false,
       turnDurationSeconds: 45,
       inputMode: "keypad"
     });
@@ -457,6 +459,7 @@ describe("createGameStore", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
       })
@@ -581,6 +584,7 @@ describe("createGameStore", () => {
               friendlyFire: request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire,
               advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
               functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+              turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
               turnDurationSeconds: request.turnDurationSeconds ?? defaultLobbyGameplaySettings.turnDurationSeconds,
               inputMode: request.inputMode ?? defaultLobbyGameplaySettings.inputMode,
               createdAt: "2026-07-05T00:00:00.000Z"

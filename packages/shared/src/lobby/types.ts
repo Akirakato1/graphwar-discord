@@ -67,6 +67,7 @@ export type LobbyRuntimeSnapshot = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
@@ -92,6 +93,7 @@ export type LobbySummary = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
@@ -115,6 +117,7 @@ export type CreateLobbyRequest = {
   friendlyFire?: boolean;
   advancedFunctions?: boolean;
   functionPreview?: boolean;
+  turnTimerEnabled?: boolean;
   turnDurationSeconds?: number;
   inputMode?: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;

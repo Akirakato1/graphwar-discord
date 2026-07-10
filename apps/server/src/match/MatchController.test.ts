@@ -76,6 +76,25 @@ describe("MatchController", () => {
     expect(controller.getSnapshot().turn).toEqual(expect.objectContaining({ activePlayerId: "bob", turnNumber: 2 }));
   });
 
+  it("starts untimed turns when the turn timer is disabled", () => {
+    let nowMs = Date.parse("2026-07-05T00:00:00.000Z");
+    const controller = new MatchController("room-1", { now: () => new Date(nowMs) });
+    controller.join("alice", "Alice");
+    controller.join("bob", "Bob");
+
+    const started = controller.startMatch("team-versus", undefined, { turnTimerEnabled: false, turnDurationSeconds: 30 });
+
+    expect(started.turn).toEqual({
+      activePlayerId: "alice",
+      order: ["alice", "bob"],
+      turnNumber: 1
+    });
+
+    nowMs = Date.parse("2026-07-05T00:10:00.000Z");
+    expect(controller.advanceExpiredTurn()).toBeUndefined();
+    expect(controller.submitShot("alice", "normal", "0")[0].type).toBe("shot-resolved");
+  });
+
   it("starts a default match with the requested map size preset bounds", () => {
     const controller = new MatchController("room-1");
     controller.join("alice", "Alice");

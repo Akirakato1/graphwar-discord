@@ -63,6 +63,7 @@ type RuntimeLobby = {
   friendlyFire: boolean;
   advancedFunctions: boolean;
   functionPreview: boolean;
+  turnTimerEnabled: boolean;
   turnDurationSeconds: number;
   inputMode: FunctionInputMode;
   mapSizePreset?: MapSizePresetId;
@@ -125,6 +126,7 @@ export class LobbyDirectory {
         request.mode === "team-versus" ? request.friendlyFire ?? defaultLobbyGameplaySettings.friendlyFire : false,
       advancedFunctions: request.advancedFunctions ?? defaultLobbyGameplaySettings.advancedFunctions,
       functionPreview: request.functionPreview ?? defaultLobbyGameplaySettings.functionPreview,
+      turnTimerEnabled: request.turnTimerEnabled ?? defaultLobbyGameplaySettings.turnTimerEnabled,
       turnDurationSeconds: normalizeTurnDurationSeconds(request.turnDurationSeconds),
       inputMode: normalizeInputMode(request.inputMode),
       mapSizePreset: mapId ? undefined : request.mapSizePreset ?? defaultMapSizePreset,
@@ -237,6 +239,7 @@ export class LobbyDirectory {
           friendlyFire: lobby.friendlyFire,
           advancedFunctions: lobby.advancedFunctions,
           functionPreview: lobby.functionPreview,
+          turnTimerEnabled: lobby.turnTimerEnabled,
           turnDurationSeconds: lobby.turnDurationSeconds,
           inputMode: lobby.inputMode,
           ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),
@@ -550,6 +553,7 @@ export class LobbyDirectory {
       friendlyFire: lobby.friendlyFire,
       advancedFunctions: lobby.advancedFunctions,
       functionPreview: lobby.functionPreview,
+      turnTimerEnabled: lobby.turnTimerEnabled,
       turnDurationSeconds: lobby.turnDurationSeconds,
       inputMode: lobby.inputMode,
       ...(lobby.mapSizePreset ? { mapSizePreset: lobby.mapSizePreset } : {}),

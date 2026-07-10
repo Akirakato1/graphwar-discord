@@ -15,6 +15,7 @@ import {
   defaultMapSizePreset,
   defaultPlayerColor,
   defaultTurnDurationSeconds,
+  defaultTurnTimerEnabled,
   playerColorPalette
 } from "@graphwar/shared";
 
@@ -34,6 +35,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
         mapId: "map-1"
@@ -52,6 +54,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad",
         mapId: "map-1"
@@ -80,6 +83,7 @@ describe("CreateLobbyView helpers", () => {
       friendlyFire: false,
       advancedFunctions: false,
       functionPreview: true,
+      turnTimerEnabled: defaultTurnTimerEnabled,
       turnDurationSeconds: defaultTurnDurationSeconds,
       inputMode: "hybrid",
       mapSizePreset: defaultMapSizePreset
@@ -100,6 +104,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid"
       })
@@ -119,6 +124,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
       }).form
@@ -130,6 +136,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: false,
+        turnTimerEnabled: false,
         turnDurationSeconds: 45,
         inputMode: "keypad"
       })
@@ -151,6 +158,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: true,
         advancedFunctions: true,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid"
       }).form
@@ -174,6 +182,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
         mapSizePreset: "huge"
@@ -192,6 +201,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
         mapSizePreset: "huge"
@@ -214,6 +224,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
         mapId: "map-1",
@@ -233,6 +244,7 @@ describe("CreateLobbyView helpers", () => {
         friendlyFire: false,
         advancedFunctions: false,
         functionPreview: true,
+        turnTimerEnabled: defaultTurnTimerEnabled,
         turnDurationSeconds: defaultTurnDurationSeconds,
         inputMode: "hybrid",
         mapId: "map-1"
@@ -271,6 +283,7 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Color");
     expect(html).toContain("Max function length");
     expect(html).toContain("Turn timer");
+    expect(html).toContain("Timer limit");
     expect(html).toContain("Input mode");
     expect(html).toContain('min="20"');
     expect(html).toContain('max="100"');
@@ -296,6 +309,9 @@ describe("CreateLobbyView helpers", () => {
     expect(html).toContain("Unique function hits");
     expect(html).toContain("Advanced functions");
     expect(html).toContain("Function preview");
+    expect(html).toContain("Timer limit");
+    expect(html).toContain('min="15"');
+    expect(html).toContain('max="300"');
     expect(html).toContain("Hybrid");
     expect(html).toContain("Keypad");
     expect(html).toContain("Keyboard");
